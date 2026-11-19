@@ -306,9 +306,11 @@ async function startSpotifyFallback(env: Env): Promise<void> {
   await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
 }
 
-async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, progressMs: number): Promise<boolean> {
+async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, progressMs: number, currentDurationMs: number): Promise<boolean> {
   const state = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_active'").first<{value:string}>();
   if (state?.value === "true") return true;
+  const retry = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_retry_after'").first<{value:string}>();
+  if (Number(retry?.value || 0) > Date.now()) return false;
   const queued = await env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(env.EVENT_ID).first<{count:number}>();
   if ((queued?.count || 0) > 0) return false;
   const last = await env.DB.prepare("SELECT track_uri,duration_ms,CAST(strftime('%s',played_at) AS INTEGER)*1000 AS played_at_ms FROM requests WHERE event_id=? AND status='played' AND played_at IS NOT NULL ORDER BY played_at DESC LIMIT 1")
@@ -318,8 +320,16 @@ async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | nul
   if (elapsed < Math.max(0, last.duration_ms - 4000)) return false;
   // Do not interrupt a still-playing track or a different track selected manually in Spotify.
   if (playing || (currentTrackUri && currentTrackUri !== last.track_uri)) return false;
-  await startSpotifyFallback(env);
-  return true;
+  if (currentTrackUri === last.track_uri && currentDurationMs > 0 && progressMs < currentDurationMs - 4000) return false;
+  try {
+    await startSpotifyFallback(env);
+    await env.DB.prepare("DELETE FROM settings WHERE key='spotify_fallback_retry_after'").run();
+    return true;
+  } catch {
+    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_retry_after',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
+      .bind(String(Date.now() + 60000)).run();
+    return false;
+  }
 }
 
 app.get("/api/dj/spotify/status",async(c)=>{
@@ -327,14 +337,14 @@ app.get("/api/dj/spotify/status",async(c)=>{
   try{
     const response=await spotifyFetch(c.env,"/me/player");
     if(response.status===204){
-      const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0);
+      const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0,0);
       return c.json({connected:true,playing:false,device:null,track:null,fallbackActive});
     }
     if(!response.ok) return c.json({error:"Spotify playbackstatus niet beschikbaar (HTTP "+response.status+")."},502);
     const data=await response.json() as any;
     const item=data.item;
     const playing=!!data.is_playing;
-    const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0);
+    const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0,item?.duration_ms||0);
     return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
   }catch(e){return c.json({connected:false,error:e instanceof Error?e.message:"Spotify niet verbonden."},503);}
 });
