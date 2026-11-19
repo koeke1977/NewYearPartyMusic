@@ -109,12 +109,20 @@ async function refreshSpotify(){
   try{
     const data=await api("/api/dj/spotify/status");
     state.textContent=data.connected?"CONNECTED":"NOT CONNECTED";
+    const booth=document.querySelector("#partyqueue-booth");
+    if(booth){
+      booth.classList.toggle("is-playing",!!data.playing);
+      document.querySelector("#booth-play-state").textContent=data.playing?"ON AIR":"STANDBY";
+      document.querySelector("#booth-track-label").textContent=data.track?data.track.name+" · "+data.track.artists.join(", "):"WAITING FOR SPOTIFY PLAYBACK";
+    }
     state.classList.toggle("accent",!!data.connected);
     if(data.device)device.textContent="ACTIVE DEVICE · "+data.device.name+" ("+data.device.type+")";
     else device.textContent="Spotify is connected. Open Spotify on a device to make it active.";
     now.textContent=data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
   }catch(e){
     state.textContent="NOT CONNECTED";
+    const booth=document.querySelector("#partyqueue-booth");
+    if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";}
     device.textContent=e.message;
     now.textContent="Connect your Spotify account to enable live playback.";
   }
