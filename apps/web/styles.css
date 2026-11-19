@@ -408,3 +408,26 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
   box-shadow:0 0 0 1px #080b09,0 1px 3px #000d,0 0 4px #e4eee655;
   pointer-events:none;
 }
+
+
+/* Simplified lower console: one clean, full-width UP NEXT list */
+.queue-panel-wide{
+  width:100%;
+  margin:22px 0 34px;
+  min-height:0;
+}
+.queue-panel-wide .up-next{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:9px;
+}
+.queue-panel-wide .queue-track{
+  min-width:0;
+  padding:10px 12px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:11px;
+  background:rgba(5,12,8,.48);
+}
+@media(max-width:640px){
+  .queue-panel-wide .up-next{grid-template-columns:1fr}
+}
