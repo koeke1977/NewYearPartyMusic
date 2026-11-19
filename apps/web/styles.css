@@ -350,3 +350,19 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
   font-weight:1000;
   color:#071109;
 }
+
+/* Single hardware-style Spotify master volume fader */
+.booth-master-control{width:100%;min-height:155px;padding:14px 16px 12px;border:1px solid #303b33;border-radius:12px;background:linear-gradient(145deg,#1c241f,#0b100d 75%);box-shadow:inset 0 1px 0 #ffffff12,0 8px 16px #0005;display:flex;flex-direction:column;justify-content:center;gap:10px}
+.master-control-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#9eaaa1;font-size:9px;font-weight:900;letter-spacing:.14em}
+.master-control-heading strong{color:#1ed760;font-size:20px;font-variant-numeric:tabular-nums;letter-spacing:0;text-shadow:0 0 10px #1ed76055}
+.master-volume-slider{appearance:none;-webkit-appearance:none;width:100%;height:13px;margin:5px 0;border:1px solid #080c09;border-radius:20px;background:linear-gradient(180deg,#080b09,#29332c);box-shadow:inset 0 2px 5px #000c;cursor:pointer}
+.master-volume-slider::-webkit-slider-thumb{-webkit-appearance:none;width:23px;height:34px;border:1px solid #d7e0d9;border-radius:5px;background:linear-gradient(90deg,#69756d,#f1f5f2 45%,#87948b 70%,#dce4de);box-shadow:0 2px 5px #000c,0 0 7px #d9e5dc55}
+.master-volume-slider::-moz-range-thumb{width:23px;height:34px;border:1px solid #d7e0d9;border-radius:5px;background:linear-gradient(90deg,#69756d,#f1f5f2 45%,#87948b 70%,#dce4de);box-shadow:0 2px 5px #000c}
+.master-volume-scale{display:flex;justify-content:space-between;color:#78857b;font-size:8px;font-weight:800}
+.master-volume-leds{display:grid;grid-template-columns:repeat(20,minmax(0,1fr));gap:3px;height:12px;padding:2px;border-radius:4px;background:#070a08;box-shadow:inset 0 1px 4px #000}
+.master-volume-leds i{display:block;border-radius:2px;background:#1b241e;box-shadow:inset 0 1px 2px #0008}
+.master-volume-leds i.active{background:#1ed760;box-shadow:0 0 5px #1ed76099}
+.master-volume-leds i.high{background:#a8df38;box-shadow:0 0 5px #a8df3899}
+.master-volume-leds i.hot{background:#ffb13b;box-shadow:0 0 5px #ff9d3399}
+.booth-master-control>small{min-height:9px;color:#75847a;font-size:7px;font-weight:800;letter-spacing:.12em;text-align:center}
+@media(max-width:700px){.booth-master-control{min-height:130px;padding:10px}.master-control-heading strong{font-size:17px}.master-volume-slider::-webkit-slider-thumb{height:29px}}
