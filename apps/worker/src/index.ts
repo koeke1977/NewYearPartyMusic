@@ -230,7 +230,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
     let answer = "";
     if (provider === "openai") {
       if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI is nog niet geconfigureerd. Voeg OPENAI_API_KEY toe als Worker secret." }, 503);
-      const response = await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+c.env.OPENAI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({model:c.env.OPENAI_MODEL||"gpt-4.1-mini",messages:[{role:"system",content:system},{role:"user",content:user}],max_tokens:220,temperature:0.4})});
+      const response = await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+c.env.OPENAI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({model:c.env.OPENAI_MODEL||"gpt-6-luna",messages:[{role:"developer",content:system},{role:"user",content:user}],max_completion_tokens:220})});
       const data:any=await response.json(); if(!response.ok)throw new Error("OpenAI HTTP "+response.status+": "+JSON.stringify(data.error||{}).slice(0,220));
       answer=data.choices?.[0]?.message?.content||"Geen antwoord ontvangen.";
     } else if (provider === "anthropic") {
