@@ -145,16 +145,13 @@ app.post("/api/requests", async (c) => {
   const guest = await c.env.DB.prepare("SELECT id FROM guests WHERE id = ? AND event_id = ?").bind(session.sub, session.eventId).first();
   if (!guest) return c.json({ error: "Gast niet gevonden. Meld je opnieuw aan." }, 401);
 
-  const settings = await c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','max_open_requests_per_guest','max_requests_per_30_minutes','auto_approve','auto_queue')").all<{ key: string; value: string }>();
+  const settings = await c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','max_requests_per_hour','auto_approve','auto_queue')").all<{ key: string; value: string }>();
   const config = Object.fromEntries((settings.results || []).map((row) => [row.key, row.value]));
   if (config.requests_paused === "true") return c.json({ error: "De DJ heeft aanvragen tijdelijk gepauzeerd." }, 403);
 
-  const openLimit = Number(config.max_open_requests_per_guest || 2);
-  const rateLimit = Number(config.max_requests_per_30_minutes || 5);
-  const openCount = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND status IN ('pending','approved','queued')").bind(session.sub).first<{ count: number }>();
-  if ((openCount?.count || 0) >= openLimit) return c.json({ error: "Je hebt al " + openLimit + " openstaande aanvragen." }, 429);
-  const recentCount = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-30 minutes')").bind(session.sub).first<{ count: number }>();
-  if ((recentCount?.count || 0) >= rateLimit) return c.json({ error: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." }, 429);
+  const rateLimit = Number(config.max_requests_per_hour || 20);
+  const recentCount = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-1 hour')").bind(session.sub).first<{ count: number }>();
+  if ((recentCount?.count || 0) >= rateLimit) return c.json({ error: "Je maximum van " + rateLimit + " aanvragen per uur is bereikt." }, 429);
   const duplicate = await c.env.DB.prepare("SELECT id FROM requests WHERE event_id = ? AND spotify_track_id = ? AND status IN ('pending','approved','queued') LIMIT 1").bind(session.eventId, trackId).first();
   if (duplicate) return c.json({ error: "Dit nummer staat al in de wachtrij." }, 409);
 
