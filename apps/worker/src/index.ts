@@ -432,8 +432,12 @@ app.get("/api/dj/spotify/status",async(c)=>{
     const data=await response.json() as any;
     const item=data.item;
     const playing=!!data.is_playing;
-    const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0,item?.duration_ms||0);
+    // If playback was resumed directly in Spotify, clear a stale pause flag left by the DJ console.
+    if(playing){
+      await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
+    }
     const autoAdvance=await maybeAdvancePartyQueue(c.env,playing);
+    const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0,item?.duration_ms||0);
     const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
     let nextTrack=null;
     if(fallbackActive){
