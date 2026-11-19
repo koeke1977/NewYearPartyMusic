@@ -23,7 +23,7 @@ function setLoggedIn(on){
   if(on){refresh();refreshSpotify();if(pollHandle)clearInterval(pollHandle);pollHandle=setInterval(()=>{refresh();refreshSpotify();},5000);}
   else if(pollHandle){clearInterval(pollHandle);pollHandle=null;}
 }
-function stat(label,value){const box=el("div","dj-stat");box.append(el("span","dj-muted",label),el("strong","",String(value)));return box;}
+function stat(label,value,icon){const box=el("div","dj-stat");box.append(el("span","dj-stat-icon",icon));const copy=el("div","dj-stat-copy");copy.append(el("span","dj-muted",label),el("strong","",String(value)));box.append(copy);return box;}
 function formatMusicTime(ms){
   const minutes=Math.max(0,Math.round((Number(ms)||0)/60000));
   const hours=Math.floor(minutes/60);
@@ -157,8 +157,11 @@ function render(data){
   const musicRequested=requests.filter(r=>[...activeStatuses,"played"].includes(r.status)).reduce((sum,r)=>sum+(Number(r.duration_ms)||0),0);
   const musicRemaining=requests.filter(r=>activeStatuses.includes(r.status)).reduce((sum,r)=>sum+(Number(r.duration_ms)||0),0);
   const stats=document.querySelector("#dj-stats");stats.replaceChildren(
-    stat("WAITING",count("pending")),stat("APPROVED",count("approved")),stat("IN QUEUE",count("queued")),stat("PLAYED",count("played")),
-    stat("MUSIC REQUESTED",formatMusicTime(musicRequested)),stat("LEFT TO PLAY",formatMusicTime(musicRemaining))
+    stat("AANVRAGEN",requests.length,"♫"),
+    stat("IN WACHTRIJ",count("queued"),"☷"),
+    stat("GESPEELD",count("played"),"✓"),
+    stat("MUZIEK GEKOZEN",formatMusicTime(musicRequested),"♧"),
+    stat("NOG TE SPELEN",formatMusicTime(musicRemaining),"⌛")
   );
   const queueOrder=data.queueOrder||[];
   renderDeck(requests,queueOrder);
