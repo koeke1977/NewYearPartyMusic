@@ -240,8 +240,23 @@ app.post("/api/dj/ai/assistant", async (c) => {
       answer=(data.content||[]).filter((part:any)=>part.type==="text").map((part:any)=>part.text).join("\n")||"Geen antwoord ontvangen.";
     } else {
       if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
-      const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/google/gemma-4-26b-a4b-it",{messages:[{role:"system",content:system},{role:"user",content:user}],max_tokens:220,temperature:0.4});
-      answer=result.response||result.result?.response||"Geen antwoord ontvangen.";
+      const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/google/gemma-4-26b-a4b-it",{
+        messages:[{role:"system",content:system},{role:"user",content:user}],
+        max_tokens:320,
+        temperature:0.4,
+        chat_template_kwargs:{enable_thinking:false}
+      });
+      answer=typeof result==="string" ? result :
+        result?.response ||
+        result?.result?.response ||
+        result?.choices?.[0]?.message?.content ||
+        result?.output_text ||
+        "";
+      if (Array.isArray(answer)) answer=answer.map((part:any)=>typeof part==="string"?part:part?.text||"").join("\\n");
+      if (typeof answer!=="string" || !answer.trim()) {
+        console.error("DJ AI returned no text", JSON.stringify({provider,keys:result&&typeof result==="object"?Object.keys(result):[],usage:result?.usage||null}));
+        throw new Error("Cloudflare AI gaf geen antwoordtekst terug. Probeer het opnieuw.");
+      }
     }
     return c.json({ ok:true,provider,answer:String(answer).slice(0,1800) });
   } catch(error) {
