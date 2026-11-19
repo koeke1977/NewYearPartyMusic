@@ -119,7 +119,9 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .dj-shell .dj-toolbar .dj-muted{display:flex;align-items:center;gap:9px}
 .dj-shell .dj-controls{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:10px 0 12px}
 .dj-shell .control-tile{min-height:82px;padding:16px 20px}
-.dj-shell .dj-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 16px}
+.dj-shell .dj-stats{grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin:0 0 16px}
+.dj-shell .dj-stat strong{font-size:clamp(18px,1.7vw,27px);white-space:nowrap}
+.dj-shell .dj-stat span{font-size:7px;letter-spacing:.07em}
 .dj-shell .dj-stat{min-height:82px;padding:15px 18px}
 .dj-shell .dj-mixer{grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);gap:16px;margin:0 0 22px}
 .dj-shell .deck-panel{min-height:260px;padding:22px}
@@ -139,8 +141,8 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .dj-shell .dj-actions .dj-action{width:100%;min-height:34px;white-space:nowrap}
 .dj-shell footer{padding-top:20px}
 @media(min-width:1500px){.dj-shell .dj-mixer{grid-template-columns:minmax(0,1.15fr) minmax(440px,.85fr)}.dj-shell .dj-requests{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:900px){.dj-shell{width:calc(100% - 32px)}.dj-shell .dj-mixer{grid-template-columns:1fr}.dj-shell .dj-requests{grid-template-columns:1fr}.dj-shell .deck-panel{min-height:unset}}
-@media(max-width:560px){.dj-shell{width:calc(100% - 24px)}.dj-shell .topbar{min-height:60px}.dj-shell .dj-controls{grid-template-columns:1fr 1fr;gap:8px}.dj-shell .control-tile{min-height:84px;padding:12px}.dj-shell .dj-stats{gap:8px}.dj-shell .dj-stat{min-height:70px;padding:11px}.dj-shell .now-playing{min-height:130px;gap:14px}.dj-shell .deck-art,.dj-shell .vinyl-disc{width:100px;height:100px;flex-basis:100px}.dj-shell .deck-panel{padding:15px}.dj-shell .dj-request{align-items:center}.dj-shell .dj-actions{padding-left:0;max-width:92px;flex-basis:92px}}
+@media(max-width:900px){.dj-shell{width:calc(100% - 32px)}.dj-shell .dj-mixer{grid-template-columns:1fr}.dj-shell .dj-requests{grid-template-columns:1fr}.dj-shell .deck-panel{min-height:unset}.dj-shell .dj-stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:560px){.dj-shell{width:calc(100% - 24px)}.dj-shell .dj-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.dj-shell .topbar{min-height:60px}.dj-shell .dj-controls{grid-template-columns:1fr 1fr;gap:8px}.dj-shell .control-tile{min-height:84px;padding:12px}.dj-shell .dj-stats{gap:8px}.dj-shell .dj-stat{min-height:70px;padding:11px}.dj-shell .now-playing{min-height:130px;gap:14px}.dj-shell .deck-art,.dj-shell .vinyl-disc{width:100px;height:100px;flex-basis:100px}.dj-shell .deck-panel{padding:15px}.dj-shell .dj-request{align-items:center}.dj-shell .dj-actions{padding-left:0;max-width:92px;flex-basis:92px}}
 
 
 /* Spotify transport controls */
