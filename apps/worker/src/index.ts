@@ -405,7 +405,10 @@ async function maybeAdvancePartyQueue(env: Env, playing: boolean): Promise<{adva
   const queued = await env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(env.EVENT_ID).first<{count:number}>();
   if (!(queued?.count||0)) return {advanced:false};
   const result=await startNextPartyQueueRequest(env);
-  return result.ok ? {advanced:true} : {advanced:false,error:result.error};
+  if(result.ok)return {advanced:true};
+  // A simultaneous manual/automatic NEXT is expected contention, not an autoplay failure.
+  if(result.busy)return {advanced:false};
+  return {advanced:false,error:result.error};
 }
 
 async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, progressMs: number, currentDurationMs: number): Promise<boolean> {
