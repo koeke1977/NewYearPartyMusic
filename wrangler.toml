@@ -1,0 +1,29 @@
+name = "partyqueue"
+main = "apps/worker/src/index.ts"
+compatibility_date = "2026-11-19"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./apps/web"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/auth/*"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "partyqueue-db"
+database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_ID"
+
+[durable_objects]
+bindings = [
+  { name = "QUEUE_ROOM", class_name = "QueueRoom" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["QueueRoom"]
+
+[vars]
+APP_ENV = "development"
+EVENT_ID = "NYE2026"
+EVENT_NAME = "New Year's Eve 2026"
+PUBLIC_ORIGIN = "https://spotify.electrafest.be"
