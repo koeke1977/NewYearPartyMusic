@@ -47,6 +47,24 @@ function renderDeck(requests){
   upcoming.forEach((r,i)=>list.append(trackLine(r,i)));
 }
 
+function setBoothDeck(side,track){
+  const title=document.querySelector("#booth-track-title-"+side);
+  const artist=document.querySelector("#booth-track-artist-"+side);
+  const image=document.querySelector("#booth-track-image-"+side);
+  const placeholder=document.querySelector("#booth-track-placeholder-"+side);
+  if(title)title.textContent=track?.name|| (side==="left"?"Waiting for Spotify":"Queue is empty");
+  if(artist)artist.textContent=track?.artists?.join(", ")||track?.artist|| (side==="left"?"Spotify deck":"No queued track");
+  if(image){
+    if(track?.image||track?.album_image_url){
+      image.src=track.image||track.album_image_url;
+      image.hidden=false;
+      if(placeholder)placeholder.hidden=true;
+    }else{
+      image.removeAttribute("src");image.hidden=true;
+      if(placeholder)placeholder.hidden=false;
+    }
+  }
+}
 function syncPlaybackButtons(connected,playing){
   const play=document.querySelector('[data-spotify-command="play"]');
   const pause=document.querySelector('[data-spotify-command="pause"]');
@@ -86,6 +104,8 @@ function render(data){
     stat("WAITING",count("pending")),stat("APPROVED",count("approved")),stat("IN QUEUE",count("queued")),stat("PLAYED",count("played"))
   );
   renderDeck(requests);
+  const nextQueued=requests.filter(r=>r.status==="queued").sort((a,b)=>(a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||""))[0]||null;
+  setBoothDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:null);
   document.querySelector("#request-count").textContent=requests.length+" REQUESTS";
   document.querySelector("#last-updated").textContent="SYNCED "+new Date().toLocaleTimeString();
   requestList.replaceChildren();
@@ -144,8 +164,7 @@ async function refreshSpotify(){
     if(booth){
       booth.classList.toggle("is-playing",!!data.playing);
       document.querySelector("#booth-play-state").textContent=data.playing?"ON AIR":"STANDBY";
-      const title=data.track?.name||"PARTYQUEUE";const artist=data.track?.artists?.join(", ")||"DECK READY";
-      ["left","right"].forEach(side=>{const t=document.querySelector("#booth-track-title-"+side);const a=document.querySelector("#booth-track-artist-"+side);if(t)t.textContent=title;if(a)a.textContent=artist;});
+      setBoothDeck("left",data.track?{name:data.track.name,artists:data.track.artists,image:data.track.image}:null);
     }
     state.classList.toggle("accent",!!data.connected);
     document.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);
@@ -158,7 +177,7 @@ async function refreshSpotify(){
     document.querySelector("#spotify-connect")?.classList.remove("is-connected");
     syncPlaybackButtons(false,false);
     const booth=document.querySelector("#partyqueue-booth");
-    if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";["left","right"].forEach(side=>{const t=document.querySelector("#booth-track-title-"+side);const a=document.querySelector("#booth-track-artist-"+side);if(t)t.textContent="PARTYQUEUE";if(a)a.textContent="DECK READY";});}
+    if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";setBoothDeck("left",null);}
     device.textContent=e.message;
     now.textContent="Connect your Spotify account to enable live playback.";
   }
