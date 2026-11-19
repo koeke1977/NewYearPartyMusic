@@ -27,3 +27,6 @@ APP_ENV = "development"
 EVENT_ID = "NYE2026"
 EVENT_NAME = "New Year's Eve 2026"
 PUBLIC_ORIGIN = "https://spotify.electrafest.be"
+
+[triggers]
+crons = ["0 3 * * *"]
