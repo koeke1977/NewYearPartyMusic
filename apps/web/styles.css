@@ -382,3 +382,5 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .track-progress-leds{width:100%;height:10px}
 .track-progress-time{display:flex;justify-content:space-between;color:#a4afa7;font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
 .track-progress-control>small{min-height:9px;color:#75847a;font-size:7px;font-weight:800;letter-spacing:.12em;text-align:center}
+
+.booth-transport button.is-empty:disabled{border-color:#343d36;background:linear-gradient(#202722,#111612);color:#758078;opacity:.72;cursor:not-allowed;box-shadow:inset 0 1px 2px #0008}
