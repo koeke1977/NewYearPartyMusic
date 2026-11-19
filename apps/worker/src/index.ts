@@ -276,6 +276,62 @@ app.post("/api/dj/ai/assistant", async (c) => {
     return c.json({ error:error instanceof Error?error.message:"AI-assistent is tijdelijk niet beschikbaar." },502);
   }
 });
+app.post("/api/dj/ai/music/search", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
+  let body: { queries?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
+  if (!Array.isArray(body.queries) || body.queries.length > 12 || !body.queries.every(q => typeof q === "string" && q.trim().length > 2 && q.length <= 140)) {
+    return c.json({ error: "Geef maximaal 12 geldige trackzoekopdrachten door." }, 400);
+  }
+  try {
+    const token = await getSpotifyToken(c.env);
+    const results = await Promise.all((body.queries as string[]).map(async query => {
+      const url = new URL("https://api.spotify.com/v1/search");
+      url.searchParams.set("q", query);
+      url.searchParams.set("type", "track");
+      url.searchParams.set("limit", "3");
+      const response = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+      if (!response.ok) return { query, tracks: [] };
+      const data = await response.json() as { tracks?: { items?: SpotifyTrack[] } };
+      return { query, tracks: (data.tracks?.items || []).map(track => ({
+        id: track.id, uri: track.uri, name: track.name, artists: track.artists.map(a => a.name),
+        durationMs: track.duration_ms, albumImageUrl: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null
+      })) };
+    }));
+    return c.json({ ok: true, results });
+  } catch (error) {
+    return c.json({ error: error instanceof Error ? error.message : "Spotify zoeken is tijdelijk niet beschikbaar." }, 502);
+  }
+});
+app.post("/api/dj/ai/music/add", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
+  let body: { trackId?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
+  const trackId = typeof body.trackId === "string" ? body.trackId.trim() : "";
+  if (!/^[A-Za-z0-9]{22}$/.test(trackId)) return c.json({ error: "Ongeldig Spotify-track-ID." }, 400);
+  try {
+    const duplicate = await c.env.DB.prepare("SELECT id FROM requests WHERE event_id=? AND spotify_track_id=? AND status IN ('pending','approved','queued') LIMIT 1").bind(c.env.EVENT_ID,trackId).first();
+    if (duplicate) return c.json({ error: "Dit nummer staat al in de actieve wachtrij." }, 409);
+    const token = await getSpotifyToken(c.env);
+    const response = await fetch("https://api.spotify.com/v1/tracks/"+trackId,{headers:{Authorization:"Bearer "+token}});
+    if (!response.ok) return c.json({error:"Spotify kon dit nummer niet meer ophalen."},502);
+    const track = await response.json() as SpotifyTrack;
+    const djGuestId = "dj-music-director-"+c.env.EVENT_ID;
+    await c.env.DB.prepare("INSERT OR IGNORE INTO guests (id,event_id,nickname) VALUES (?,?,?)").bind(djGuestId,c.env.EVENT_ID,"DJ#DATUUR AI").run();
+    const requestId = crypto.randomUUID();
+    await c.env.DB.prepare("INSERT INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) VALUES (?,?,?,?,?,?,?,?,?,'queued',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)")
+      .bind(requestId,c.env.EVENT_ID,djGuestId,track.id,track.uri,track.name,track.artists.map(a=>a.name).join(", "),track.album.images?.[1]?.url||track.album.images?.[0]?.url||null,track.duration_ms).run();
+    const saved = await c.env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>();
+    let order: string[] = [];
+    try { order = JSON.parse(saved?.value||"[]"); } catch { order=[]; }
+    order = order.filter(id=>id!==requestId);
+    order.push(requestId);
+    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('partyqueue_order',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(order)).run();
+    return c.json({ok:true,request:{id:requestId,name:track.name,artist:track.artists.map(a=>a.name).join(", "),status:"queued"}},201);
+  } catch(error) {
+    return c.json({error:error instanceof Error?error.message:"Track toevoegen aan de wachtrij is mislukt."},502);
+  }
+});
 app.get("/api/dj/overview", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   const [requests, settings] = await Promise.all([
