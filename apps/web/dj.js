@@ -29,8 +29,15 @@ function trackLine(r,index){
   const row=el("div","queue-track");row.append(el("span","queue-position",String(index+1).padStart(2,"0")));addCover(row,r.album_image_url,"");
   const info=el("div","queue-track-info");info.append(el("strong","",r.track_name),el("span","",r.artist_name));row.append(info,row.appendChild(el("span","queue-state","QUEUED")));return row;
 }
-function renderDeck(requests){
-  const queued=requests.filter(r=>r.status==="queued").sort((a,b)=>(a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||""));
+function orderedQueued(requests,queueOrder=[]){
+  const positions=new Map((Array.isArray(queueOrder)?queueOrder:[]).map((id,index)=>[id,index]));
+  return requests.filter(r=>r.status==="queued").sort((a,b)=>
+    (positions.get(a.id)??Number.MAX_SAFE_INTEGER)-(positions.get(b.id)??Number.MAX_SAFE_INTEGER)||
+    (a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||"")
+  );
+}
+function renderDeck(requests,queueOrder){
+  const queued=orderedQueued(requests,queueOrder);
   const list=document.querySelector("#up-next");
   if(!list)return;
   list.replaceChildren();
@@ -143,8 +150,9 @@ function render(data){
   const stats=document.querySelector("#dj-stats");stats.replaceChildren(
     stat("WAITING",count("pending")),stat("APPROVED",count("approved")),stat("IN QUEUE",count("queued")),stat("PLAYED",count("played"))
   );
-  renderDeck(requests);
-  const queuedRequests=requests.filter(r=>r.status==="queued").sort((a,b)=>(a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||""));
+  const queueOrder=data.queueOrder||[];
+  renderDeck(requests,queueOrder);
+  const queuedRequests=orderedQueued(requests,queueOrder);
   const nextQueued=queuedRequests[0]||null;
   setBoothDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:spotifyQueuePreview);
   const nextButton=document.querySelector("#partyqueue-next");
@@ -163,7 +171,7 @@ function render(data){
   if(queueDragId)return;
   const live=requests.filter(r=>["pending","approved","queued"].includes(r.status));
   if(!live.length){requestList.append(el("p","dj-empty","No incoming requests. The dancefloor is waiting…"));return;}
-  const queuedOrder=live.filter(r=>r.status==="queued");
+  const queuedOrder=orderedQueued(live,queueOrder);
   const queuePositions=new Map(queuedOrder.map((r,i)=>[r.id,i]));
   for(const r of live){
     const isQueued=r.status==="queued";
@@ -179,7 +187,7 @@ function render(data){
     }
     addCover(card,r.album_image_url,"dj-cover");
     const info=el("div","dj-track");
-    if(isQueued)info.append(el("span","queue-position",String(queuePositions.get(r.id)+1).padStart(2,"0")));
+    if(isQueued)card.append(el("span","queue-position",String(queuePositions.get(r.id)+1).padStart(2,"0")));
     info.append(el("strong","dj-track-name",r.track_name),el("span","dj-muted",r.artist_name),el("span","dj-requester","REQUESTED BY "+(r.nickname||"GUEST").toUpperCase()));
     info.append(el("span","dj-status status-"+r.status,r.status.replace("_"," ").toUpperCase()));card.append(info);
     const actions=el("div","dj-actions");
