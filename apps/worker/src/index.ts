@@ -9,12 +9,13 @@ interface Env {
   PUBLIC_ORIGIN: string;
   QUEUE_ROOM: DurableObjectNamespace;
   EVENT_ACCESS_CODE_HASH: string;
+  DJ_ACCESS_CODE_HASH: string;
   SESSION_SECRET: string;
   SPOTIFY_CLIENT_ID: string;
   SPOTIFY_CLIENT_SECRET: string;
 }
 
-type Session = { sub: string; eventId: string; nickname: string; exp: number };
+type Session = { sub: string; eventId: string; nickname: string; exp: number; role?: string };
 type SpotifyTrack = {
   id: string; uri: string; name: string; duration_ms: number;
   artists: { name: string }[];
@@ -173,6 +174,59 @@ app.post("/api/requests", async (c) => {
   }
 });
 
+
+async function requireDJ(request: Request, env: Env): Promise<Session | null> {
+  const session = await readSession(request, env.SESSION_SECRET);
+  if (!session || session.role !== "dj" || session.eventId !== env.EVENT_ID) return null;
+  return session;
+}
+app.post("/api/dj/login", async (c) => {
+  if (!c.env.DJ_ACCESS_CODE_HASH) return c.json({ error: "DJ-toegang is nog niet geconfigureerd." }, 503);
+  let body: { code?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
+  const code = typeof body.code === "string" ? body.code.trim() : "";
+  if (!code || code.length > 64 || (await sha256(code)) !== c.env.DJ_ACCESS_CODE_HASH.trim().toLowerCase()) return c.json({ error: "Onjuiste DJ-code." }, 401);
+  const expiresAt = Math.floor(Date.now() / 1000) + 28800;
+  const payload = toBase64Url(encoder.encode(JSON.stringify({ sub: "dj", eventId: c.env.EVENT_ID, nickname: "DJ", role: "dj", exp: expiresAt })));
+  const token = payload + "." + await signSession(payload, c.env.SESSION_SECRET);
+  return c.json({ ok: true, token, expiresAt });
+});
+app.get("/api/dj/overview", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
+  const [requests, settings] = await Promise.all([
+    c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'queued' THEN 2 WHEN 'played' THEN 3 ELSE 4 END, r.requested_at ASC LIMIT 100").bind(c.env.EVENT_ID).all(),
+    c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve')").all<{key:string;value:string}>()
+  ]);
+  const config = Object.fromEntries((settings.results || []).map(x => [x.key, x.value]));
+  return c.json({ requests: requests.results || [], settings: { requestsPaused: config.requests_paused === "true", autoApprove: config.auto_approve === "true" } });
+});
+app.post("/api/dj/requests/:id/:action", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
+  const id = c.req.param("id");
+  const action = c.req.param("action");
+  const current = await c.env.DB.prepare("SELECT id, status FROM requests WHERE id = ? AND event_id = ?").bind(id, c.env.EVENT_ID).first<{id:string;status:string}>();
+  if (!current) return c.json({ error: "Aanvraag niet gevonden." }, 404);
+  const transitions: Record<string, {from:string[];to:string}> = {
+    approve: {from:["pending"],to:"approved"}, reject: {from:["pending","approved","queued"],to:"rejected"},
+    played: {from:["approved","queued"],to:"played"}, queue: {from:["approved"],to:"queued"}
+  };
+  const transition = transitions[action];
+  if (!transition || !transition.from.includes(current.status)) return c.json({ error: "Deze actie kan niet op deze aanvraag worden uitgevoerd." }, 409);
+  const timestamp = action === "played" ? "played_at" : action === "queue" ? "queued_at" : action === "approve" ? "approved_at" : null;
+  const sql = timestamp ? "UPDATE requests SET status = ?, " + timestamp + " = CURRENT_TIMESTAMP WHERE id = ? AND event_id = ?" : "UPDATE requests SET status = ? WHERE id = ? AND event_id = ?";
+  await c.env.DB.prepare(sql).bind(transition.to, id, c.env.EVENT_ID).run();
+  return c.json({ ok: true, status: transition.to });
+});
+app.post("/api/dj/settings/:key", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
+  const key = c.req.param("key");
+  if (!["requests_paused","auto_approve"].includes(key)) return c.json({ error: "Onbekende instelling." }, 400);
+  let body: { enabled?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
+  if (typeof body.enabled !== "boolean") return c.json({ error: "Ongeldige waarde." }, 400);
+  await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP").bind(key, String(body.enabled)).run();
+  return c.json({ ok: true, enabled: body.enabled });
+});
 app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
 
 export class QueueRoom {
