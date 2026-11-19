@@ -50,7 +50,19 @@ function render(data){
   currentSettings=data.settings||currentSettings;
   document.querySelector("#pause-state").textContent=currentSettings.requestsPaused?"PAUSED":"ACCEPTING";
   document.querySelector("#approval-state").textContent=currentSettings.autoApprove?"AUTO-APPROVE":"DJ APPROVAL";
-  const autoQueueState=document.querySelector("#auto-queue-state");if(autoQueueState)autoQueueState.textContent=currentSettings.autoQueue?"AUTO CUE ON":"AUTO CUE OFF";
+  const autoQueueState=document.querySelector("#auto-queue-state");if(autoQueueState)autoQueueState.textContent=currentSettings.autoQueue?"ON":"OFF";
+  const requestButton=document.querySelector("#pause-toggle");
+  const approvalButton=document.querySelector("#approval-toggle");
+  const queueButton=document.querySelector("#auto-queue-toggle");
+  [[requestButton,!currentSettings.requestsPaused],[approvalButton,currentSettings.autoApprove],[queueButton,currentSettings.autoQueue]].forEach(([button,on])=>{
+    if(!button)return;
+    button.classList.toggle("is-active",on);
+    button.classList.toggle("is-inactive",!on);
+    button.setAttribute("aria-pressed",String(on));
+  });
+  document.querySelector("#pause-state").textContent=currentSettings.requestsPaused?"PAUSED":"ACCEPTING";
+  document.querySelector("#approval-state").textContent=currentSettings.autoApprove?"AUTO":"DJ";
+
   const requests=data.requests||[];
   const count=(s)=>requests.filter(r=>r.status===s).length;
   const stats=document.querySelector("#dj-stats");stats.replaceChildren(
@@ -118,12 +130,12 @@ async function refreshSpotify(){
       const title=data.track?.name||"PARTYQUEUE";const artist=data.track?.artists?.join(", ")||"DECK READY";
       ["left","right"].forEach(side=>{const t=document.querySelector("#booth-track-title-"+side);const a=document.querySelector("#booth-track-artist-"+side);if(t)t.textContent=title;if(a)a.textContent=artist;});
     }
-    state.classList.toggle("accent",!!data.connected);
+    state.classList.toggle("accent",!!data.connected);\n    document.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);\n    document.querySelectorAll("[data-spotify-command]").forEach(button=>{const active=(button.dataset.spotifyCommand==="play"&&!!data.playing)||(button.dataset.spotifyCommand==="pause"&&!data.playing);button.classList.toggle("is-selected",active);button.setAttribute("aria-pressed",String(active));});
     if(data.device)device.textContent="ACTIVE DEVICE · "+data.device.name+" ("+data.device.type+")";
     else device.textContent="Spotify is connected. Open Spotify on a device to make it active.";
     now.textContent=data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
   }catch(e){
-    state.textContent="NOT CONNECTED";
+    state.textContent="NOT CONNECTED";\n    document.querySelector("#spotify-connect")?.classList.remove("is-connected");\n    document.querySelectorAll("[data-spotify-command]").forEach(button=>{button.classList.remove("is-selected");button.setAttribute("aria-pressed","false");});
     const booth=document.querySelector("#partyqueue-booth");
     if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";["left","right"].forEach(side=>{const t=document.querySelector("#booth-track-title-"+side);const a=document.querySelector("#booth-track-artist-"+side);if(t)t.textContent="PARTYQUEUE";if(a)a.textContent="DECK READY";});}
     device.textContent=e.message;
