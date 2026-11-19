@@ -83,11 +83,16 @@
             <section class="dj-ai-panel" aria-label="DJ DATUUR AI assistant">
         <div class="dj-ai-heading"><div><p class="eyebrow">LIVE PARTY INTELLIGENCE</p><h2>DJ#DATUUR <span>AI ASSISTANT</span></h2></div><span class="dj-ai-status">CLOUDFLARE AI · DJ ADVISOR</span></div>
         <p class="dj-ai-intro">Vraag advies over de wachtrij, muzikale flow of een volgende track. Jij blijft aan de knoppen.</p>
+        <div class="dj-ai-actions">
+          <button type="button" class="dj-ai-action dj-ai-primary" data-ai-action="optimize">↗ OPTIMALISEER WACHTRIJ</button>
+          <button type="button" class="dj-ai-action" data-ai-action="starter">♫ GENEREER BASISLIJST</button>
+          <button type="button" class="dj-ai-action" data-ai-action="เติม">＋ VUL WACHTRIJ AAN</button>
+        </div>
         <form id="dj-ai-form" class="dj-ai-form">
-          <input id="dj-ai-prompt" type="text" maxlength="600" placeholder="Bijv. Hoe bouw ik de energie verder op?" autocomplete="off">
+          <input id="dj-ai-prompt" type="text" maxlength="600" placeholder="Of stel zelf een muzikale vraag…" autocomplete="off">
           <button id="dj-ai-submit" type="submit">VRAAG AI ↗</button>
         </form>
-        <div id="dj-ai-answer" class="dj-ai-answer" role="status" aria-live="polite">AI-advies verschijnt hier. Playback wordt nooit automatisch aangepast.</div>
+        <div id="dj-ai-answer" class="dj-ai-answer" role="status" aria-live="polite">Kies een actie. De AI doet voorstellen; jij bevestigt wijzigingen.</div>
       </section>
       <section class="request-panel">
       <div class="dj-list-heading"><div><p class="eyebrow">INCOMING TRANSMISSION</p><h2>Request booth</h2></div><span id="request-count" class="event-pill">0 REQUESTS</span></div>
