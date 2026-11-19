@@ -40,11 +40,12 @@
           </div>
           <div class="booth-mixer">
             <div class="booth-mixer-brand">PARTY<span>QUEUE</span><small> DIGITAL DJ MIXER</small></div>
-            <div class="booth-eq">
-              <div class="booth-channel"><i></i><i></i><i></i><span></span></div>
-              <div class="booth-channel"><i></i><i></i><i></i><span></span></div>
-              <div class="booth-channel"><i></i><i></i><i></i><span></span></div>
-              <div class="booth-channel"><i></i><i></i><i></i><span></span></div>
+            <div class="booth-master-control">
+              <div class="master-control-heading"><span>MASTER VOLUME</span><strong id="master-volume-value">—%</strong></div>
+              <input id="master-volume" class="master-volume-slider" type="range" min="0" max="100" step="1" value="50" aria-label="Spotify master volume">
+              <div class="master-volume-scale"><span>0</span><span>50</span><span>100</span></div>
+              <div id="master-volume-leds" class="master-volume-leds" role="meter" aria-label="Master volume level" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"></div>
+              <small id="master-volume-status">CONNECT SPOTIFY TO CONTROL VOLUME</small>
             </div>
             <div class="booth-crossfader"><span> A</span><div><i></i></div><span>B</span></div>
             <div class="booth-mixer-foot">MASTER MIX <b>● ● ●</b></div>
