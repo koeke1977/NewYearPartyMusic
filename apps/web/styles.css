@@ -490,3 +490,10 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
   .booth-queue-layout .queue-panel-wide{order:2}
   .booth-queue-layout .queue-panel-wide .up-next{max-height:360px}
 }
+
+
+/* Desktop: turntable booth first, UP NEXT queue to its right */
+@media(min-width:901px){
+  .booth-queue-layout .partyqueue-booth{order:1}
+  .booth-queue-layout .queue-panel-wide{order:2}
+}
