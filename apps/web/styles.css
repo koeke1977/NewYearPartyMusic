@@ -216,3 +216,26 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .party-control-grid .control-tile small{display:block;color:#8d9a90;font-size:9px;line-height:1.35}
 @media(max-width:700px){.party-control-grid{grid-template-columns:1fr 1fr}.party-control-grid .control-tile:last-child{grid-column:1/-1}}
 @media(max-width:420px){.party-control-grid{grid-template-columns:1fr}.party-control-grid .control-tile:last-child{grid-column:auto}}
+
+/* Compact, hardware-mounted controls: all DJ actions live on the deck */
+.spotify-panel,.party-control-panel{display:none!important}
+.booth-topline{min-height:24px}
+.booth-top-actions{display:flex;align-items:center;gap:12px}
+.booth-connect{padding:6px 10px;border:1px solid rgba(30,215,96,.5);border-radius:6px;background:rgba(30,215,96,.08);color:var(--green);font:inherit;font-size:7px;font-weight:900;letter-spacing:.08em;cursor:pointer}
+.booth-connect-state{color:#7eaa89;font-size:7px;font-weight:900;letter-spacing:.1em}
+.booth-device-line{position:relative;display:flex;justify-content:space-between;gap:12px;max-width:1400px;margin:7px auto 0;color:#89958c;font-size:8px}
+#spotify-now-playing{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}
+.booth-hardware{max-width:1400px;grid-template-columns:minmax(0,1fr) minmax(205px,.72fr) minmax(0,1fr)}
+.booth-mixer{gap:10px;padding:14px 10px}
+.booth-hardware-controls{display:grid;gap:10px;margin-top:auto}
+.booth-transport{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+.booth-transport button{min-width:0;min-height:29px;padding:0 2px;border:1px solid #657068;border-radius:5px;background:linear-gradient(#343c36,#151a16);color:#dce5de;font-size:8px;font-weight:1000;cursor:pointer;box-shadow:0 2px 3px #0008}
+.booth-transport button.is-primary{border-color:#168b43;color:#1ed760;background:linear-gradient(#183b25,#0c1b11)}
+.booth-transport button:active,.booth-quick-settings button:active{transform:translateY(1px)}
+.booth-quick-settings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}
+.booth-quick-settings button{display:flex;flex-direction:column;justify-content:center;gap:4px;min-width:0;min-height:40px;padding:5px 3px;border:1px solid #505b53;border-radius:5px;background:linear-gradient(#252d27,#111612);color:#9eaaa1;cursor:pointer}
+.booth-quick-settings button small{font-size:5px;font-weight:900;letter-spacing:.08em}
+.booth-quick-settings button b{overflow:hidden;color:#1ed760;font-size:7px;text-overflow:ellipsis;white-space:nowrap}
+.booth-transport button:disabled,.booth-connect:disabled,.booth-quick-settings button:disabled{opacity:.4;cursor:wait}
+@media(max-width:700px){.booth-hardware{grid-template-columns:minmax(0,1fr) minmax(105px,.72fr) minmax(0,1fr)}.booth-mixer{padding:7px 4px;gap:6px}.booth-transport{gap:2px}.booth-transport button{min-height:25px;font-size:6px}.booth-quick-settings{gap:2px}.booth-quick-settings button{min-height:34px}.booth-quick-settings button b{font-size:5px}.booth-device-line{font-size:6px}}
+@media(max-width:440px){.booth-top-actions{gap:6px}.booth-connect-state{display:none}.booth-device-line{display:block}.booth-device-line #spotify-now-playing{text-align:left;margin-top:3px}.booth-hardware{grid-template-columns:minmax(0,1fr) minmax(88px,.72fr) minmax(0,1fr)}.booth-mixer-brand{font-size:9px}.booth-eq{padding:5px 0}.booth-channel span{height:17px}}
