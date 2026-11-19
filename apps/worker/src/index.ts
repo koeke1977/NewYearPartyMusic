@@ -292,15 +292,50 @@ app.get("/auth/spotify/callback", async (c) => {
   await saveSpotifyTokens(c.env,data.access_token,data.refresh_token,data.expires_in);
   return new Response(null,{status:302,headers:{Location:"/dj.html?spotify=connected","Set-Cookie":clearCookie}});
 });
+const SPOTIFY_FALLBACK_PLAYLIST_URI = "spotify:playlist:37i9dQZF1DXa2PvUpywmrr";
+
+async function startSpotifyFallback(env: Env): Promise<void> {
+  const shuffle = await spotifyFetch(env, "/me/player/shuffle?state=true", { method: "PUT" });
+  if (!shuffle.ok && shuffle.status !== 204) throw new Error("Spotify shuffle inschakelen mislukt (HTTP " + shuffle.status + ").");
+  const play = await spotifyFetch(env, "/me/player/play", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ context_uri: SPOTIFY_FALLBACK_PLAYLIST_URI })
+  });
+  if (!play.ok && play.status !== 204) throw new Error("Spotify Party Hits starten mislukt (HTTP " + play.status + ").");
+  await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
+}
+
+async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, progressMs: number): Promise<boolean> {
+  const state = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_active'").first<{value:string}>();
+  if (state?.value === "true") return true;
+  const queued = await env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(env.EVENT_ID).first<{count:number}>();
+  if ((queued?.count || 0) > 0) return false;
+  const last = await env.DB.prepare("SELECT track_uri,duration_ms,CAST(strftime('%s',played_at) AS INTEGER)*1000 AS played_at_ms FROM requests WHERE event_id=? AND status='played' AND played_at IS NOT NULL ORDER BY played_at DESC LIMIT 1")
+    .bind(env.EVENT_ID).first<{track_uri:string;duration_ms:number;played_at_ms:number}>();
+  if (!last) return false;
+  const elapsed = Date.now() - last.played_at_ms;
+  if (elapsed < Math.max(0, last.duration_ms - 4000)) return false;
+  // Do not interrupt a still-playing track or a different track selected manually in Spotify.
+  if (playing || (currentTrackUri && currentTrackUri !== last.track_uri)) return false;
+  await startSpotifyFallback(env);
+  return true;
+}
+
 app.get("/api/dj/spotify/status",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
   try{
     const response=await spotifyFetch(c.env,"/me/player");
-    if(response.status===204) return c.json({connected:true,playing:false,device:null,track:null});
+    if(response.status===204){
+      const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0);
+      return c.json({connected:true,playing:false,device:null,track:null,fallbackActive});
+    }
     if(!response.ok) return c.json({error:"Spotify playbackstatus niet beschikbaar (HTTP "+response.status+")."},502);
     const data=await response.json() as any;
     const item=data.item;
-    return c.json({connected:true,playing:!!data.is_playing,progressMs:data.progress_ms||0,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
+    const playing=!!data.is_playing;
+    const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0);
+    return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
   }catch(e){return c.json({connected:false,error:e instanceof Error?e.message:"Spotify niet verbonden."},503);}
 });
 app.get("/api/dj/spotify/devices",async(c)=>{
@@ -322,6 +357,7 @@ app.post("/api/dj/spotify/next-request",async(c)=>{
     if(!response.ok)return c.json({error:"Spotify kon de volgende PartyQueue-aanvraag niet starten (HTTP "+response.status+"). Controleer of Spotify actief speelt op je apparaat."},502);
     await c.env.DB.prepare("UPDATE requests SET status='played',played_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND status='queued'")
       .bind(next.id,c.env.EVENT_ID).run();
+    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
     return c.json({ok:true,track:{name:next.track_name,artist:next.artist_name},requestId:next.id});
   }catch(error){
     return c.json({error:error instanceof Error?error.message:"Volgende PartyQueue-aanvraag starten is mislukt."},503);
