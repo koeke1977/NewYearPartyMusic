@@ -40,7 +40,11 @@ function showMusicSearch(session) {
   searchInput.minLength = 2;
   searchInput.maxLength = 100;
   searchInput.required = true;
-  searchForm.append(searchInput);
+  const searchLabel = element("label", "search-label", "WELK NUMMER WIL JE HOREN?");
+  searchLabel.htmlFor = "guest-track-search";
+  searchInput.id = "guest-track-search";
+  searchInput.placeholder = "Bijv. Madonna, Like a Prayer…";
+  searchForm.append(searchLabel, searchInput);
   card.append(searchForm);
 
   const searchHint = element("p", "search-hint", "Begin gewoon te typen — resultaten verschijnen vanzelf. Je hoeft de titel niet exact te kennen.");
@@ -54,6 +58,10 @@ function showMusicSearch(session) {
   card.append(results);
   const attribution = element("p", "fine-print", "Music data provided by Spotify");
   card.append(attribution);
+  const brandCredit = element("p", "guest-brand-credit");
+  brandCredit.append(document.createTextNode("POWERED BY "));
+  brandCredit.append(element("strong", "datuur-mark", "#DATUUR"));
+  card.append(brandCredit);
   const logout = element("button", "text-button", "Niet jij? Verlaat PartyQueue");
   logout.type = "button";
   logout.addEventListener("click", () => {
