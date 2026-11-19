@@ -349,6 +349,21 @@ document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEv
   finally{button.disabled=false;}
 }));
 
+const aiForm=document.querySelector("#dj-ai-form");
+aiForm.addEventListener("submit",async(event)=>{
+  event.preventDefault();
+  const input=document.querySelector("#dj-ai-prompt");
+  const button=document.querySelector("#dj-ai-submit");
+  const output=document.querySelector("#dj-ai-answer");
+  const prompt=input.value.trim();if(!prompt)return;
+  button.disabled=true;output.textContent="DJ#DATUUR AI denkt even mee…";
+  try{
+    const result=await api("/api/dj/ai/assistant",{method:"POST",body:JSON.stringify({prompt})});
+    output.textContent=result.answer||"Geen advies ontvangen.";
+  }catch(error){output.textContent=error.message;}
+  finally{button.disabled=false;}
+});
+
 if(token)setLoggedIn(true);
 
 
