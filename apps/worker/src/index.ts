@@ -307,8 +307,9 @@ async function startSpotifyFallback(env: Env): Promise<void> {
 }
 
 async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, progressMs: number, currentDurationMs: number): Promise<boolean> {
-  const state = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_active'").first<{value:string}>();
+  const state = await env.DB.prepare("SELECT value,updated_at FROM settings WHERE key='spotify_fallback_active'").first<{value:string;updated_at:string}>();
   if (state?.value === "true") return true;
+  if (state?.value === "starting" && Date.now() - Date.parse(state.updated_at + "Z") < 60000) return false;
   const retry = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_retry_after'").first<{value:string}>();
   if (Number(retry?.value || 0) > Date.now()) return false;
   const queued = await env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(env.EVENT_ID).first<{count:number}>();
@@ -323,11 +324,14 @@ async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | nul
   // Do not interrupt a still-playing track or a different track selected manually in Spotify.
   if (playing || (currentTrackUri && currentTrackUri !== last.uri)) return false;
   if (currentTrackUri === last.uri && currentDurationMs > 0 && progressMs < currentDurationMs - 4000) return false;
+  const claim = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','starting',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='starting',updated_at=CURRENT_TIMESTAMP WHERE settings.value NOT IN ('true','starting') OR settings.updated_at < datetime('now','-1 minute')").run();
+  if (!claim.meta.changes) return false;
   try {
     await startSpotifyFallback(env);
     await env.DB.prepare("DELETE FROM settings WHERE key='spotify_fallback_retry_after'").run();
     return true;
   } catch {
+    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
     await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_retry_after',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
       .bind(String(Date.now() + 60000)).run();
     return false;
