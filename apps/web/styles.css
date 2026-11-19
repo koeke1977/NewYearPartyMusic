@@ -572,3 +572,13 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .track-duration{font-size:10px}
 .request-button{min-width:76px;min-height:39px;font-size:9px}
 @media(max-width:440px){.search-form .track-search-input{min-height:55px;font-size:14px}.track-item{gap:9px;padding:8px}.track-cover{width:50px;height:50px;flex-basis:50px}.request-button{min-width:66px;min-height:36px;font-size:8px}}
+
+
+/* Clear guest search prompt and #DATUUR brand signature */
+.search-form{display:grid;gap:9px}
+.search-form .search-label{display:block;margin:2px 0 0;color:#d5ded7;font-size:10px;font-weight:900;letter-spacing:.13em}
+.search-form .track-search-input{padding-left:48px;background-image:radial-gradient(circle at 19px 50%,transparent 6px,transparent 7px);background-repeat:no-repeat}
+.search-form .track-search-input::placeholder{color:#87958b;opacity:1}
+.guest-brand-credit,.site-credit{margin:16px 0 0;text-align:center;color:#87938a;font-size:9px;font-weight:800;letter-spacing:.15em}
+.datuur-mark{color:var(--green);font-weight:900;letter-spacing:.08em}
+footer .site-credit{margin:0}
