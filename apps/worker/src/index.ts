@@ -46,6 +46,12 @@ async function signSession(payload: string, secret: string): Promise<string> {
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
   return toBase64Url(new Uint8Array(signature));
 }
+function constantTimeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let mismatch = 0;
+  for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return mismatch === 0;
+}
 async function readSession(request: Request, secret: string): Promise<Session | null> {
   const auth = request.headers.get("Authorization") || "";
   const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
@@ -53,11 +59,7 @@ async function readSession(request: Request, secret: string): Promise<Session | 
   if (!payload || !signature || extra || !secret) return null;
   try {
     const expected = await signSession(payload, secret);
-    const a = encoder.encode(signature);
-    const b = encoder.encode(expected);
-    if (a.length !== b.length || !crypto.subtle.timingSafeEqual) {
-      if (signature !== expected) return null;
-    } else if (!crypto.subtle.timingSafeEqual(a, b)) return null;
+    if (!constantTimeEqual(signature, expected)) return null;
     const session = JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as Session;
     if (!session.sub || !session.eventId || session.exp <= Math.floor(Date.now() / 1000)) return null;
     return session;
