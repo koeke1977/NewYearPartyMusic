@@ -359,7 +359,7 @@ aiForm.addEventListener("submit",async(event)=>{
   button.disabled=true;output.textContent="DJ#DATUUR AI denkt even mee…";
   try{
     const result=await api("/api/dj/ai/assistant",{method:"POST",body:JSON.stringify({prompt})});
-    output.textContent=result.answer||"Geen advies ontvangen.";
+    output.textContent=(result.cached?"↻ Eerder advies (wachtrij ongewijzigd)\\n\\n":"")+(result.answer||"Geen advies ontvangen.");
   }catch(error){output.textContent=error.message;}
   finally{button.disabled=false;}
 });
