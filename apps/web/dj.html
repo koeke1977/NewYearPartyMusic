@@ -32,10 +32,6 @@
       </div>
       <div class="dj-stats" id="dj-stats"></div>
       <div class="booth-queue-layout">
-<section class="deck-panel queue-panel queue-panel-wide">
-        <div class="deck-heading"><span class="deck-led"></span><span>UP NEXT</span><span id="queue-total" class="deck-channel">0 TRACKS</span></div>
-        <div id="up-next" class="up-next"><p class="dj-empty">The queue is waiting for its first track.</p></div>
-      </section>
 <section id="partyqueue-booth" class="partyqueue-booth" aria-label="Animated DJ turntable console">
         <div class="booth-topline"><span><i class="booth-live-led"></i> DJ#DATUUR · TURNTABLE SYSTEM</span><div class="booth-top-actions"><span id="booth-play-state">STANDBY</span><button id="spotify-connect" class="booth-connect">CONNECT SPOTIFY</button><span id="spotify-connection-state" class="booth-connect-state">NOT CONNECTED</span></div></div>
         <div class="booth-device-line"><span id="spotify-device">Connect your Spotify Premium account and keep a Spotify device active.</span><span id="spotify-now-playing">Waiting for Spotify connection…</span></div>
@@ -82,7 +78,11 @@
           </div>
         </div>
       </section>
-      </div>
+<section class="deck-panel queue-panel queue-panel-wide">
+        <div class="deck-heading"><span class="deck-led"></span><span>UP NEXT</span><span id="queue-total" class="deck-channel">0 TRACKS</span></div>
+        <div id="up-next" class="up-next"><p class="dj-empty">The queue is waiting for its first track.</p></div>
+      </section>
+      
       <div class="dj-list-heading"><div><p class="eyebrow">INCOMING TRANSMISSION</p><h2>Request booth</h2></div><span id="request-count" class="event-pill">0 REQUESTS</span></div>
       <div id="dj-requests" class="dj-requests"><p class="dj-muted">Loading requests…</p></div>
       <p id="dj-message" class="form-message" role="status" aria-live="polite"></p>
