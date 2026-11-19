@@ -229,12 +229,12 @@ app.post("/api/dj/ai/assistant", async (c) => {
       answer=data.choices?.[0]?.message?.content||"Geen antwoord ontvangen.";
     } else if (provider === "anthropic") {
       if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "Claude is nog niet geconfigureerd. Voeg ANTHROPIC_API_KEY toe als Worker secret." }, 503);
-      const response = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"x-api-key":c.env.ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},body:JSON.stringify({model:c.env.ANTHROPIC_MODEL||"claude-3-5-haiku-latest",max_tokens:240,system,messages:[{role:"user",content:user}]})});
+      const response = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"x-api-key":c.env.ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},body:JSON.stringify({model:c.env.ANTHROPIC_MODEL||"claude-haiku-5-5",max_tokens:240,system,messages:[{role:"user",content:user}]})});
       const data:any=await response.json(); if(!response.ok)throw new Error("Claude HTTP "+response.status+": "+JSON.stringify(data.error||{}).slice(0,220));
       answer=(data.content||[]).filter((part:any)=>part.type==="text").map((part:any)=>part.text).join("\n")||"Geen antwoord ontvangen.";
     } else {
       if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
-      const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/meta/llama-3.1-8b-instruct",{messages:[{role:"system",content:system},{role:"user",content:user}],max_tokens:220,temperature:0.4});
+      const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/google/gemma-4-26b-a4b-it",{messages:[{role:"system",content:system},{role:"user",content:user}],max_tokens:220,temperature:0.4});
       answer=result.response||result.result?.response||"Geen antwoord ontvangen.";
     }
     return c.json({ ok:true,provider,answer:String(answer).slice(0,1800) });
