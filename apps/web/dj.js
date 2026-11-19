@@ -9,6 +9,7 @@ let pollHandle=null;
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
 let spotifyStatusRequest=0;
+let spotifyStatusInFlight=false;
 let queueDragId=null;
 let queueReorderBusy=false;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n;};
@@ -283,6 +284,9 @@ document.querySelector("#approval-toggle").addEventListener("click",()=>updateSe
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>updateSetting("auto_queue",!currentSettings.autoQueue));
 
 async function refreshSpotify(){
+  // The five-second poll must not stack another Spotify status call while one is still running.
+  if(spotifyStatusInFlight)return;
+  spotifyStatusInFlight=true;
   const requestId=++spotifyStatusRequest;
   const state=document.querySelector("#spotify-connection-state");
   const device=document.querySelector("#spotify-device");
@@ -317,6 +321,8 @@ async function refreshSpotify(){
     if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";setBoothDeck("left",null);updateTrackProgress(0,0,false);}
     device.textContent=e.message;
     now.textContent="Connect your Spotify account to enable live playback.";
+  }finally{
+    spotifyStatusInFlight=false;
   }
 }
 const masterVolume=document.querySelector("#master-volume");
@@ -352,6 +358,8 @@ document.querySelector("#partyqueue-next").addEventListener("click",async()=>{
   message.textContent="Loading next PartyQueue request…";
   try{
     const result=await api("/api/dj/spotify/next-request",{method:"POST"});
+    if(result.busy){message.textContent=result.error||"NEXT wordt al verwerkt.";return;}
+    if(!result.track){message.textContent="Er is geen volgende PartyQueue-aanvraag gestart.";return;}
     spotifyQueuePreview=null;
     setBoothDeck("right",null);
     message.textContent="Now playing PartyQueue request: "+result.track.name+" — "+result.track.artist;
