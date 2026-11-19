@@ -57,3 +57,13 @@ INSERT OR IGNORE INTO settings (key, value) VALUES
   ('max_open_requests_per_guest', '2'),
   ('max_requests_per_30_minutes', '5'),
   ('requests_paused', 'false');
+
+
+-- Encrypted Spotify OAuth tokens for the single DJ account.
+CREATE TABLE IF NOT EXISTS spotify_auth (
+  id TEXT PRIMARY KEY CHECK (id = 'main'),
+  access_token_enc TEXT NOT NULL,
+  refresh_token_enc TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
