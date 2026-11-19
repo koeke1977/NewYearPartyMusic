@@ -306,6 +306,25 @@ app.get("/api/dj/spotify/devices",async(c)=>{
   try{const r=await spotifyFetch(c.env,"/me/player/devices");if(!r.ok)return c.json({error:"Spotify-apparaten ophalen mislukt (HTTP "+r.status+")."},502);return c.json(await r.json());}
   catch(e){return c.json({error:e instanceof Error?e.message:"Spotify niet beschikbaar."},503);}
 });
+app.post("/api/dj/spotify/next-request",async(c)=>{
+  if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
+  const next=await c.env.DB.prepare("SELECT id,track_uri,track_name,artist_name FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC LIMIT 1")
+    .bind(c.env.EVENT_ID).first<{id:string;track_uri:string;track_name:string;artist_name:string}>();
+  if(!next)return c.json({error:"Er staan geen PartyQueue-aanvragen klaar. Cue eerst een goedgekeurd nummer naar de wachtrij."},404);
+  try{
+    const response=await spotifyFetch(c.env,"/me/player/play",{
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({uris:[next.track_uri]})
+    });
+    if(!response.ok)return c.json({error:"Spotify kon de volgende PartyQueue-aanvraag niet starten (HTTP "+response.status+"). Controleer of Spotify actief speelt op je apparaat."},502);
+    await c.env.DB.prepare("UPDATE requests SET status='played',played_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND status='queued'")
+      .bind(next.id,c.env.EVENT_ID).run();
+    return c.json({ok:true,track:{name:next.track_name,artist:next.artist_name},requestId:next.id});
+  }catch(error){
+    return c.json({error:error instanceof Error?error.message:"Volgende PartyQueue-aanvraag starten is mislukt."},503);
+  }
+});
 app.post("/api/dj/spotify/:action",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
   const action=c.req.param("action");
