@@ -327,6 +327,17 @@ app.post("/api/dj/spotify/next-request",async(c)=>{
     return c.json({error:error instanceof Error?error.message:"Volgende PartyQueue-aanvraag starten is mislukt."},503);
   }
 });
+app.put("/api/dj/spotify/volume",async(c)=>{
+  if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
+  let body:{volume?:unknown};
+  try{body=await c.req.json();}catch{return c.json({error:"Ongeldige aanvraag."},400);}
+  if(typeof body.volume!=="number"||!Number.isInteger(body.volume)||body.volume<0||body.volume>100)return c.json({error:"Volume moet een geheel getal tussen 0 en 100 zijn."},400);
+  try{
+    const response=await spotifyFetch(c.env,"/me/player/volume?volume_percent="+body.volume,{method:"PUT"});
+    if(!response.ok&&response.status!==204)return c.json({error:"Spotify kon het volume niet aanpassen (HTTP "+response.status+"). Controleer of een actief Spotify-apparaat beschikbaar is."},502);
+    return c.json({ok:true,volume:body.volume});
+  }catch(error){return c.json({error:error instanceof Error?error.message:"Spotify-volume aanpassen is mislukt."},503);}
+});
 app.post("/api/dj/spotify/:action",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
   const action=c.req.param("action");
