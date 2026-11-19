@@ -108,3 +108,35 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .dj-negative:hover{border-color:#ff8585;background:rgba(255,80,80,.1)}
 @media(max-width:700px){.dj-shell{max-width:100%}.dj-mixer{grid-template-columns:1fr}.now-playing{min-height:145px}.deck-art,.vinyl-disc{width:104px;height:104px;flex-basis:104px}.dj-actions{max-width:100%}}
 @media(max-width:440px){.dj-controls{grid-template-columns:1fr 1fr}.dj-stats{grid-template-columns:repeat(2,1fr)}.deck-panel{padding:14px}.now-playing{gap:13px}.deck-art,.vinyl-disc{width:86px;height:86px;flex-basis:86px}.now-playing h3{font-size:18px}.dj-request{align-items:flex-start}.dj-actions{padding-left:0}.dj-action{flex:1}}
+
+
+/* Full-screen DJ cockpit */
+.dj-shell{width:calc(100% - 56px);max-width:1800px;min-height:100vh;padding:0 0 18px}
+.dj-shell .topbar{min-height:66px}
+.dj-shell #dj-console{display:grid;grid-template-columns:minmax(0,1fr);align-content:start}
+.dj-shell .dj-toolbar{margin:22px 0 14px}
+.dj-shell .dj-toolbar h2{font-size:clamp(25px,2.4vw,38px)}
+.dj-shell .dj-toolbar .dj-muted{display:flex;align-items:center;gap:9px}
+.dj-shell .dj-controls{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:10px 0 12px}
+.dj-shell .control-tile{min-height:82px;padding:16px 20px}
+.dj-shell .dj-stats{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 16px}
+.dj-shell .dj-stat{min-height:82px;padding:15px 18px}
+.dj-shell .dj-mixer{grid-template-columns:minmax(0,1.1fr) minmax(360px,.9fr);gap:16px;margin:0 0 22px}
+.dj-shell .deck-panel{min-height:260px;padding:22px}
+.dj-shell .now-playing{min-height:190px;gap:24px}
+.dj-shell .deck-art,.dj-shell .vinyl-disc{width:154px;height:154px;flex-basis:154px}
+.dj-shell .now-playing h3{font-size:clamp(24px,2.5vw,38px)}
+.dj-shell .up-next{gap:10px}
+.dj-shell .queue-track{padding:10px 12px}
+.dj-shell .queue-track img{width:52px;height:52px}
+.dj-shell .queue-track-info strong{font-size:13px}
+.dj-shell .dj-list-heading{margin:18px 0 12px}
+.dj-shell .dj-requests{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.dj-shell .dj-request{min-width:0;min-height:104px;padding:14px}
+.dj-shell .dj-cover{width:72px;height:72px;flex-basis:72px}
+.dj-shell .dj-track-name{font-size:15px}
+.dj-shell .dj-actions{max-width:260px}
+.dj-shell footer{padding-top:20px}
+@media(min-width:1500px){.dj-shell .dj-mixer{grid-template-columns:minmax(0,1.15fr) minmax(440px,.85fr)}.dj-shell .dj-requests{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:900px){.dj-shell{width:calc(100% - 32px)}.dj-shell .dj-mixer{grid-template-columns:1fr}.dj-shell .dj-requests{grid-template-columns:1fr}.dj-shell .deck-panel{min-height:unset}}
+@media(max-width:560px){.dj-shell{width:calc(100% - 24px)}.dj-shell .topbar{min-height:60px}.dj-shell .dj-controls{grid-template-columns:1fr 1fr;gap:8px}.dj-shell .control-tile{min-height:84px;padding:12px}.dj-shell .dj-stats{gap:8px}.dj-shell .dj-stat{min-height:70px;padding:11px}.dj-shell .now-playing{min-height:130px;gap:14px}.dj-shell .deck-art,.dj-shell .vinyl-disc{width:100px;height:100px;flex-basis:100px}.dj-shell .deck-panel{padding:15px}.dj-shell .dj-request{align-items:center}.dj-shell .dj-actions{padding-left:0}}
