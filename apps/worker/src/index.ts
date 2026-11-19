@@ -201,8 +201,6 @@ app.post("/api/dj/ai/assistant", async (c) => {
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
-  const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
-  if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
   const [rows, playedRows, countRows, orderSetting] = await Promise.all([
     c.env.DB.prepare("SELECT id,track_name,artist_name,duration_ms,status,queued_at,requested_at FROM requests WHERE event_id=? AND status IN ('pending','approved','queued') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, requested_at DESC LIMIT 45").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string;duration_ms:number|null;status:string;queued_at:string|null;requested_at:string}>(),
     c.env.DB.prepare("SELECT track_name,artist_name FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 8").bind(c.env.EVENT_ID).all<{track_name:string;artist_name:string}>(),
@@ -226,6 +224,18 @@ app.post("/api/dj/ai/assistant", async (c) => {
   const system = "You are DJ#DATUUR AI, a concise Dutch-language assistant for a live party DJ. Analyse only the supplied PartyQueue metadata. Give practical music-flow advice and specific suggestions. Never claim to hear audio, know the crowd, access Spotify audio, or control playback. Do not invent tracks as if they are in the queue; clearly label outside suggestions. The DJ always decides. Keep answers under 120 words.";
   const user = "PARTYQUEUE CONTEXT:\n"+JSON.stringify(context)+"\n\nDJ QUESTION:\n"+prompt;
   const provider = (c.env.AI_PROVIDER || "cloudflare").toLowerCase();
+  // Reuse an identical answer for ten minutes while the queue context remains unchanged.
+  // This avoids spending Workers AI Neurons on repeated DJ questions.
+  const cacheKey = await sha256(provider + "\\n" + user);
+  const cachedRow = await c.env.DB.prepare("SELECT value,updated_at FROM settings WHERE key='dj_ai_answer_cache'").first<{value:string;updated_at:string}>();
+  if (cachedRow?.updated_at && Date.now() - Date.parse(cachedRow.updated_at + "Z") < 10 * 60 * 1000) {
+    try {
+      const cached = JSON.parse(cachedRow.value) as {key:string;answer:string};
+      if (cached.key === cacheKey && cached.answer) return c.json({ok:true,provider,answer:cached.answer,cached:true});
+    } catch { /* Ignore an invalid cache entry and generate a fresh answer. */ }
+  }
+  const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
+  if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
   try {
     let answer = "";
     if (provider === "openai") {
@@ -258,7 +268,9 @@ app.post("/api/dj/ai/assistant", async (c) => {
         throw new Error("Cloudflare AI gaf geen antwoordtekst terug. Probeer het opnieuw.");
       }
     }
-    return c.json({ ok:true,provider,answer:String(answer).slice(0,1800) });
+    const finalAnswer = String(answer).slice(0,1800);
+    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer})).run();
+    return c.json({ ok:true,provider,answer:finalAnswer,cached:false });
   } catch(error) {
     return c.json({ error:error instanceof Error?error.message:"AI-assistent is tijdelijk niet beschikbaar." },502);
   }
