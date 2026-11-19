@@ -46,6 +46,17 @@ function renderDeck(requests){
   if(!upcoming.length){list.append(el("p","dj-empty","The queue is waiting for its first track."));return;}
   upcoming.forEach((r,i)=>list.append(trackLine(r,i)));
 }
+
+function syncPlaybackButtons(connected,playing){
+  const play=document.querySelector('[data-spotify-command="play"]');
+  const pause=document.querySelector('[data-spotify-command="pause"]');
+  [[play,!!connected&&!!playing],[pause,!!connected&&!playing]].forEach(([button,active])=>{
+    if(!button)return;
+    button.classList.toggle("is-selected",active);
+    button.classList.toggle("is-idle",!active);
+    button.setAttribute("aria-pressed",String(active));
+  });
+}
 function render(data){
   currentSettings=data.settings||currentSettings;
   document.querySelector("#pause-state").textContent=currentSettings.requestsPaused?"PAUSED":"ACCEPTING";
@@ -130,12 +141,16 @@ async function refreshSpotify(){
       const title=data.track?.name||"PARTYQUEUE";const artist=data.track?.artists?.join(", ")||"DECK READY";
       ["left","right"].forEach(side=>{const t=document.querySelector("#booth-track-title-"+side);const a=document.querySelector("#booth-track-artist-"+side);if(t)t.textContent=title;if(a)a.textContent=artist;});
     }
-    state.classList.toggle("accent",!!data.connected);\n    document.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);\n    document.querySelectorAll("[data-spotify-command]").forEach(button=>{const active=(button.dataset.spotifyCommand==="play"&&!!data.playing)||(button.dataset.spotifyCommand==="pause"&&!data.playing);button.classList.toggle("is-selected",active);button.setAttribute("aria-pressed",String(active));});
+    state.classList.toggle("accent",!!data.connected);
+    document.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);
+    syncPlaybackButtons(!!data.connected,!!data.playing);
     if(data.device)device.textContent="ACTIVE DEVICE · "+data.device.name+" ("+data.device.type+")";
     else device.textContent="Spotify is connected. Open Spotify on a device to make it active.";
     now.textContent=data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
   }catch(e){
-    state.textContent="NOT CONNECTED";\n    document.querySelector("#spotify-connect")?.classList.remove("is-connected");\n    document.querySelectorAll("[data-spotify-command]").forEach(button=>{button.classList.remove("is-selected");button.setAttribute("aria-pressed","false");});
+    state.textContent="NOT CONNECTED";
+    document.querySelector("#spotify-connect")?.classList.remove("is-connected");
+    syncPlaybackButtons(false,false);
     const booth=document.querySelector("#partyqueue-booth");
     if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";["left","right"].forEach(side=>{const t=document.querySelector("#booth-track-title-"+side);const a=document.querySelector("#booth-track-artist-"+side);if(t)t.textContent="PARTYQUEUE";if(a)a.textContent="DECK READY";});}
     device.textContent=e.message;
@@ -149,7 +164,7 @@ document.querySelector("#spotify-connect").addEventListener("click",async()=>{
 });
 document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEventListener("click",async()=>{
   const action=button.dataset.spotifyCommand;button.disabled=true;
-  try{await api("/api/dj/spotify/"+action,{method:"POST"});message.textContent="Spotify command sent.";await refreshSpotify();}
+  try{await api("/api/dj/spotify/"+action,{method:"POST"});if(action==="play")syncPlaybackButtons(true,true);if(action==="pause")syncPlaybackButtons(true,false);message.textContent="Spotify command sent.";await refreshSpotify();}
   catch(e){message.textContent=e.message;}
   finally{button.disabled=false;}
 }));
