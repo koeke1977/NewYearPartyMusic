@@ -349,7 +349,7 @@ app.get("/api/dj/spotify/status",async(c)=>{
     if(response.status===204){
       const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0,0);
       const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
-      return c.json({connected:true,playing:false,device:null,track:null,fallbackActive,fallbackError:fallbackError?.value||null});
+      return c.json({connected:true,playing:false,device:null,track:null,nextTrack:null,fallbackActive,fallbackError:fallbackError?.value||null});
     }
     if(!response.ok) return c.json({error:"Spotify playbackstatus niet beschikbaar (HTTP "+response.status+")."},502);
     const data=await response.json() as any;
@@ -357,7 +357,16 @@ app.get("/api/dj/spotify/status",async(c)=>{
     const playing=!!data.is_playing;
     const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0,item?.duration_ms||0);
     const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
-    return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,fallbackError:fallbackError?.value||null,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
+    let nextTrack=null;
+    if(fallbackActive){
+      const queueResponse=await spotifyFetch(c.env,"/me/player/queue");
+      if(queueResponse.ok){
+        const queueData=await queueResponse.json() as any;
+        const upcoming=queueData.queue?.[0];
+        if(upcoming) nextTrack={id:upcoming.id,uri:upcoming.uri,name:upcoming.name,artists:(upcoming.artists||[]).map((a:any)=>a.name),image:upcoming.album?.images?.[0]?.url||null,durationMs:upcoming.duration_ms};
+      }
+    }
+    return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,nextTrack,fallbackError:fallbackError?.value||null,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
   }catch(e){return c.json({connected:false,error:e instanceof Error?e.message:"Spotify niet verbonden."},503);}
 });
 app.get("/api/dj/spotify/devices",async(c)=>{
