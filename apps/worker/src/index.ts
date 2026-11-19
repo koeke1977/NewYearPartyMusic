@@ -332,8 +332,11 @@ async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | nul
   try {
     await startSpotifyFallback(env);
     await env.DB.prepare("DELETE FROM settings WHERE key='spotify_fallback_retry_after'").run();
+    await env.DB.prepare("DELETE FROM settings WHERE key='spotify_fallback_error'").run();
     return true;
-  } catch {
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Onbekende Spotify-fout";
+    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_error',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(message).run();
     await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
     await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_retry_after',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
       .bind(String(Date.now() + 60000)).run();
@@ -347,14 +350,16 @@ app.get("/api/dj/spotify/status",async(c)=>{
     const response=await spotifyFetch(c.env,"/me/player");
     if(response.status===204){
       const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0,0);
-      return c.json({connected:true,playing:false,device:null,track:null,fallbackActive});
+      const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
+      return c.json({connected:true,playing:false,device:null,track:null,fallbackActive,fallbackError:fallbackError?.value||null});
     }
     if(!response.ok) return c.json({error:"Spotify playbackstatus niet beschikbaar (HTTP "+response.status+")."},502);
     const data=await response.json() as any;
     const item=data.item;
     const playing=!!data.is_playing;
     const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0,item?.duration_ms||0);
-    return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
+    const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
+    return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,fallbackError:fallbackError?.value||null,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
   }catch(e){return c.json({connected:false,error:e instanceof Error?e.message:"Spotify niet verbonden."},503);}
 });
 app.get("/api/dj/spotify/devices",async(c)=>{
