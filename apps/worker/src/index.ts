@@ -321,9 +321,12 @@ async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | nul
   if (!last.uri || !last.durationMs || !last.startedAt) return false;
   const elapsed = Date.now() - last.startedAt;
   if (elapsed < Math.max(0, last.durationMs - 4000)) return false;
-  // Do not interrupt a still-playing track or a different track selected manually in Spotify.
-  if (playing || (currentTrackUri && currentTrackUri !== last.uri)) return false;
-  if (currentTrackUri === last.uri && currentDurationMs > 0 && progressMs < currentDurationMs - 4000) return false;
+  // The PartyQueue track must have had enough time to finish.
+  // If Spotify has already advanced to another track, take over with the fallback.
+  if (currentTrackUri === last.uri) {
+    if (playing) return false;
+    if (currentDurationMs > 0 && progressMs < currentDurationMs - 4000) return false;
+  }
   const claim = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','starting',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='starting',updated_at=CURRENT_TIMESTAMP WHERE settings.value NOT IN ('true','starting') OR settings.updated_at < datetime('now','-1 minute')").run();
   if (!claim.meta.changes) return false;
   try {
