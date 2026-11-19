@@ -31,20 +31,21 @@ function showMusicSearch(session) {
 
   const searchForm = element("form", "search-form");
   searchForm.id = "track-search-form";
-  const searchInput = element("input");
+  const searchInput = element("input", "track-search-input");
   searchInput.type = "search";
   searchInput.name = "query";
-  searchInput.placeholder = "Search artist, song or album...";
+  searchInput.placeholder = "Zoek op artiest, nummer of een stukje tekst…";
+  searchInput.setAttribute("aria-label", "Zoek een nummer of artiest");
   searchInput.autocomplete = "off";
   searchInput.minLength = 2;
   searchInput.maxLength = 100;
   searchInput.required = true;
-  const searchButton = element("button", "button button-primary", "SEARCH TRACKS ↗");
-  searchButton.type = "submit";
-  searchForm.append(searchInput, searchButton);
+  searchForm.append(searchInput);
   card.append(searchForm);
 
-  const feedback = element("p", "form-message");
+  const searchHint = element("p", "search-hint", "Begin gewoon te typen — resultaten verschijnen vanzelf. Je hoeft de titel niet exact te kennen.");
+  card.append(searchHint);
+  const feedback = element("p", "form-message search-feedback");
   feedback.setAttribute("role", "status");
   feedback.setAttribute("aria-live", "polite");
   card.append(feedback);
@@ -53,7 +54,7 @@ function showMusicSearch(session) {
   card.append(results);
   const attribution = element("p", "fine-print", "Music data provided by Spotify");
   card.append(attribution);
-  const logout = element("button", "text-button", "Not you? Leave PartyQueue");
+  const logout = element("button", "text-button", "Niet jij? Verlaat PartyQueue");
   logout.type = "button";
   logout.addEventListener("click", () => {
     localStorage.removeItem("partyqueue_session");
@@ -61,73 +62,91 @@ function showMusicSearch(session) {
   });
   card.append(logout);
 
-  searchForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+  let searchTimer = null;
+  let activeSearch = null;
+  let latestSearch = 0;
+
+  async function runSearch() {
     const query = searchInput.value.trim();
-    if (query.length < 2) return;
-    searchButton.disabled = true;
-    searchButton.textContent = "SEARCHING...";
-    feedback.textContent = "Searching Spotify...";
+    const searchId = ++latestSearch;
+    if (activeSearch) activeSearch.abort();
+    if (query.length < 2) {
+      results.replaceChildren();
+      feedback.textContent = query.length ? "Typ nog minstens één teken…" : "";
+      return;
+    }
+    activeSearch = new AbortController();
+    feedback.textContent = "Even zoeken…";
     results.replaceChildren();
     try {
       const response = await fetch("/api/spotify/search?q=" + encodeURIComponent(query), {
         headers: { Authorization: "Bearer " + session.token },
+        signal: activeSearch.signal,
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Search failed.");
+      if (searchId !== latestSearch) return;
+      if (!response.ok) throw new Error(data.error || "Zoeken is niet gelukt.");
       if (!data.tracks.length) {
-        feedback.textContent = "No tracks found. Try another search.";
-      } else {
-        feedback.textContent = data.tracks.length + " tracks found. Pick your favourite.";
-        for (const track of data.tracks) {
-          const item = element("article", "track-item");
-          if (track.albumImageUrl) {
-            const image = element("img", "track-cover");
-            image.src = track.albumImageUrl;
-            image.alt = "Album cover";
-            image.loading = "lazy";
-            item.append(image);
-          } else {
-            item.append(element("div", "track-cover track-cover-empty", "♪"));
-          }
-          const details = element("div", "track-details");
-          details.append(element("strong", "track-name", track.name));
-          details.append(element("span", "track-artist", track.artists.join(", ")));
-          const duration = Math.floor(track.durationMs / 60000) + ":" + String(Math.floor(track.durationMs / 1000) % 60).padStart(2, "0");
-          details.append(element("span", "track-duration", duration));
-          const requestButton = element("button", "request-button", "REQUEST");
-          requestButton.type = "button";
-          requestButton.addEventListener("click", async () => {
-            requestButton.disabled = true;
-            requestButton.textContent = "SENDING...";
-            try {
-              const requestResponse = await fetch("/api/requests", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.token },
-                body: JSON.stringify({ trackId: track.id }),
-              });
-              const requestData = await requestResponse.json();
-              if (!requestResponse.ok) throw new Error(requestData.error || "Request failed.");
-              requestButton.textContent = "SENT ✓";
-              requestButton.classList.add("request-sent");
-              feedback.textContent = "Your request for " + requestData.request.name + " is " +
-                (requestData.request.status === "approved" ? "approved and ready for the DJ!" : "waiting for DJ approval.");
-            } catch (error) {
-              requestButton.disabled = false;
-              requestButton.textContent = "REQUEST";
-              feedback.textContent = error instanceof Error ? error.message : "Could not send request.";
-            }
-          });
-          item.append(details, requestButton);
-          results.append(item);
+        feedback.textContent = "Geen match gevonden. Probeer eens alleen de artiest of een korter stukje van de titel.";
+        return;
+      }
+      feedback.textContent = data.tracks.length + " suggesties — tik op het nummer dat je wil horen.";
+      for (const track of data.tracks) {
+        const item = element("article", "track-item");
+        if (track.albumImageUrl) {
+          const image = element("img", "track-cover");
+          image.src = track.albumImageUrl;
+          image.alt = "Albumcover";
+          image.loading = "lazy";
+          item.append(image);
+        } else {
+          item.append(element("div", "track-cover track-cover-empty", "♪"));
         }
+        const details = element("div", "track-details");
+        details.append(element("strong", "track-name", track.name));
+        details.append(element("span", "track-artist", track.artists.join(", ")));
+        const duration = Math.floor(track.durationMs / 60000) + ":" + String(Math.floor(track.durationMs / 1000) % 60).padStart(2, "0");
+        details.append(element("span", "track-duration", duration));
+        const requestButton = element("button", "request-button", "KIES");
+        requestButton.type = "button";
+        requestButton.addEventListener("click", async () => {
+          requestButton.disabled = true;
+          requestButton.textContent = "BEZIG…";
+          try {
+            const requestResponse = await fetch("/api/requests", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.token },
+              body: JSON.stringify({ trackId: track.id }),
+            });
+            const requestData = await requestResponse.json();
+            if (!requestResponse.ok) throw new Error(requestData.error || "Aanvragen is niet gelukt.");
+            requestButton.textContent = "AANGEVRAAGD ✓";
+            requestButton.classList.add("request-sent");
+            feedback.textContent = "Top! " + requestData.request.name + " is " +
+              (requestData.request.status === "approved" ? "goedgekeurd en klaar voor de DJ." : "doorgestuurd naar de DJ.");
+          } catch (error) {
+            requestButton.disabled = false;
+            requestButton.textContent = "KIES";
+            feedback.textContent = error instanceof Error ? error.message : "Aanvragen is niet gelukt.";
+          }
+        });
+        item.append(details, requestButton);
+        results.append(item);
       }
     } catch (error) {
-      feedback.textContent = error instanceof Error ? error.message : "Spotify search is unavailable.";
-    } finally {
-      searchButton.disabled = false;
-      searchButton.textContent = "SEARCH TRACKS ↗";
+      if (error?.name === "AbortError" || searchId !== latestSearch) return;
+      feedback.textContent = error instanceof Error ? error.message : "Spotify zoeken is tijdelijk niet beschikbaar.";
     }
+  }
+
+  searchInput.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(runSearch, 350);
+  });
+  searchForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    clearTimeout(searchTimer);
+    runSearch();
   });
 }
 
