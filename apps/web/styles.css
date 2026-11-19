@@ -431,3 +431,62 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 @media(max-width:640px){
   .queue-panel-wide .up-next{grid-template-columns:1fr}
 }
+
+
+/* Side-by-side DJ layout: ready queue on the left, turntable booth on the right */
+.booth-queue-layout{
+  display:grid;
+  grid-template-columns:minmax(230px,.72fr) minmax(0,2.28fr);
+  align-items:stretch;
+  gap:16px;
+  margin:4px 0 22px;
+}
+.booth-queue-layout .queue-panel-wide{
+  min-width:0;
+  min-height:0;
+  height:100%;
+  margin:0;
+  padding:17px 15px;
+  display:flex;
+  flex-direction:column;
+}
+.booth-queue-layout .queue-panel-wide .up-next{
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  overflow-y:auto;
+  max-height:650px;
+  padding-right:4px;
+}
+.booth-queue-layout .queue-panel-wide .queue-track{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px;
+}
+.booth-queue-layout .queue-panel-wide .queue-track img{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  object-fit:cover;
+  border-radius:6px;
+}
+.booth-queue-layout .queue-panel-wide .queue-track-info{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:3px;
+}
+.booth-queue-layout .queue-panel-wide .queue-track-info strong,
+.booth-queue-layout .queue-panel-wide .queue-track-info span{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.booth-queue-layout .partyqueue-booth{min-width:0;margin:0}
+@media(max-width:900px){
+  .booth-queue-layout{grid-template-columns:1fr}
+  .booth-queue-layout .queue-panel-wide{order:2}
+  .booth-queue-layout .partyqueue-booth{order:1}
+  .booth-queue-layout .queue-panel-wide .up-next{max-height:360px}
+}
