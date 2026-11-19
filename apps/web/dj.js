@@ -132,3 +132,20 @@ document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEv
 }));
 
 if(token)setLoggedIn(true);
+
+
+document.querySelector("#partyqueue-next").addEventListener("click",async()=>{
+  const button=document.querySelector("#partyqueue-next");
+  button.disabled=true;
+  message.textContent="Loading next PartyQueue request…";
+  try{
+    const result=await api("/api/dj/spotify/next-request",{method:"POST"});
+    message.textContent="Now playing PartyQueue request: "+result.track.name+" — "+result.track.artist;
+    await refresh();
+    await refreshSpotify();
+  }catch(e){
+    message.textContent=e.message;
+  }finally{
+    button.disabled=false;
+  }
+});
