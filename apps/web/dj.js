@@ -164,7 +164,7 @@ document.querySelector("#spotify-connect").addEventListener("click",async()=>{
 });
 document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEventListener("click",async()=>{
   const action=button.dataset.spotifyCommand;button.disabled=true;
-  try{await api("/api/dj/spotify/"+action,{method:"POST"});if(action==="play")syncPlaybackButtons(true,true);if(action==="pause")syncPlaybackButtons(true,false);message.textContent="Spotify command sent.";await refreshSpotify();}
+  try{await api("/api/dj/spotify/"+action,{method:"POST"});if(action==="play")syncPlaybackButtons(true,true);if(action==="pause")syncPlaybackButtons(true,false);message.textContent="Spotify command sent.";/* Keep the immediate hardware feedback; the regular status poll will reconcile with Spotify. */}
   catch(e){message.textContent=e.message;}
   finally{button.disabled=false;}
 }));
