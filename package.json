@@ -1,0 +1,21 @@
+{
+  "name": "partyqueue",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Private single-event Spotify music request queue for New Year's Eve 2026",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:local": "wrangler d1 execute partyqueue-db --local --file=./db/schema.sql",
+    "db:remote": "wrangler d1 execute partyqueue-db --remote --file=./db/schema.sql",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.10.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20261119.0",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.47.0"
+  }
+}
