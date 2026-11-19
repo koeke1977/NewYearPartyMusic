@@ -65,6 +65,24 @@ function setBoothDeck(side,track){
     }
   }
 }
+function updateMasterVolumeDisplay(value){
+  const volume=Math.max(0,Math.min(100,Number(value)||0));
+  const slider=document.querySelector("#master-volume");
+  const label=document.querySelector("#master-volume-value");
+  const leds=document.querySelector("#master-volume-leds");
+  if(slider)slider.value=String(volume);
+  if(label)label.textContent=volume+"%";
+  if(leds){
+    const active=Math.round(volume/5);
+    leds.replaceChildren();
+    for(let i=0;i<20;i++){
+      const led=document.createElement("i");
+      if(i<active)led.className=i>=16?"hot":i>=12?"high":"active";
+      leds.append(led);
+    }
+    leds.setAttribute("aria-valuenow",String(volume));
+  }
+}
 function syncPlaybackButtons(connected,playing){
   const play=document.querySelector('[data-spotify-command="play"]');
   const pause=document.querySelector('[data-spotify-command="pause"]');
@@ -169,7 +187,8 @@ async function refreshSpotify(){
     state.classList.toggle("accent",!!data.connected);
     document.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);
     syncPlaybackButtons(!!data.connected,!!data.playing);
-    if(data.device)device.textContent="ACTIVE DEVICE · "+data.device.name+" ("+data.device.type+")";
+    if(data.device){device.textContent="ACTIVE DEVICE · "+data.device.name+" ("+data.device.type+")";if(typeof data.device.volume==="number"){updateMasterVolumeDisplay(data.device.volume);document.querySelector("#master-volume-status").textContent="SPOTIFY MASTER OUTPUT";}}
+    else{document.querySelector("#master-volume-status").textContent="NO ACTIVE SPOTIFY DEVICE";}
     else device.textContent="Spotify is connected. Open Spotify on a device to make it active.";
     now.textContent=data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
   }catch(e){
@@ -182,6 +201,18 @@ async function refreshSpotify(){
     now.textContent="Connect your Spotify account to enable live playback.";
   }
 }
+const masterVolume=document.querySelector("#master-volume");
+masterVolume.addEventListener("input",()=>updateMasterVolumeDisplay(masterVolume.value));
+masterVolume.addEventListener("change",async()=>{
+  const value=Number(masterVolume.value);
+  const status=document.querySelector("#master-volume-status");
+  status.textContent="SETTING SPOTIFY VOLUME…";
+  try{
+    await api("/api/dj/spotify/volume",{method:"PUT",body:JSON.stringify({volume:value})});
+    status.textContent="SPOTIFY MASTER OUTPUT";
+    updateMasterVolumeDisplay(value);
+  }catch(e){status.textContent=e.message;await refreshSpotify();}
+});
 document.querySelector("#spotify-connect").addEventListener("click",async()=>{
   const button=document.querySelector("#spotify-connect");button.disabled=true;message.textContent="Opening Spotify authorization…";
   try{const data=await api("/api/dj/spotify/connect",{method:"POST"});window.location.href=data.url;}
