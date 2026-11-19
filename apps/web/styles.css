@@ -529,3 +529,28 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
     grid-template-columns:minmax(0,1fr) minmax(205px,.72fr) minmax(0,1fr)!important;
   }
 }
+
+
+/* Keep Request booth directly below the left-hand turntable deck */
+@media(min-width:701px){
+  .booth-queue-layout{
+    grid-template-rows:auto auto!important;
+    align-items:start!important;
+  }
+  .booth-queue-layout>#partyqueue-booth{
+    grid-column:1!important;
+    grid-row:1!important;
+  }
+  .booth-queue-layout>.queue-panel-wide{
+    grid-column:2!important;
+    grid-row:1 / span 2!important;
+    align-self:stretch!important;
+  }
+  .booth-queue-layout>.request-panel{
+    grid-column:1!important;
+    grid-row:2!important;
+    min-width:0;
+    width:100%;
+    margin-top:2px;
+  }
+}
