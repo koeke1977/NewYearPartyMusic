@@ -390,3 +390,21 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .booth-transport button.is-fallback:disabled,
 .booth-transport button.is-fallback{border-color:#ff4545!important;background:linear-gradient(180deg,#6f1717,#300b0b)!important;color:#fff!important;opacity:1!important;text-shadow:0 0 8px #ff4b4b;box-shadow:inset 0 1px 0 #ffffff30,0 0 7px #ff3030aa,0 0 18px #ff202055!important;cursor:default!important;animation:spotify-fallback-pulse 1.8s ease-in-out infinite}
 @keyframes spotify-fallback-pulse{0%,100%{box-shadow:inset 0 1px 0 #ffffff30,0 0 6px #ff303088,0 0 12px #ff202033}50%{box-shadow:inset 0 1px 0 #ffffff40,0 0 11px #ff3030dd,0 0 24px #ff202077}}
+
+
+/* Small metallic centre spindle — the record's centre hole sits over it */
+.booth-vinyl::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:50%;
+  z-index:8;
+  width:9px;
+  height:9px;
+  border:1px solid #65716a;
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  background:radial-gradient(circle at 32% 27%,#fff 0,#dce3df 22%,#87928b 55%,#3d4741 82%,#c5cec8 100%);
+  box-shadow:0 0 0 1px #080b09,0 1px 3px #000d,0 0 4px #e4eee655;
+  pointer-events:none;
+}
