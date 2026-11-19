@@ -220,7 +220,7 @@ async function refreshSpotify(){
     const booth=document.querySelector("#partyqueue-booth");
     if(booth){
       booth.classList.toggle("is-playing",!!data.playing);
-      document.querySelector("#booth-play-state").textContent=data.playing?"ON AIR":"STANDBY";
+      document.querySelector("#booth-play-state").textContent=data.fallbackActive?"SPOTIFY MIX":data.playing?"ON AIR":"STANDBY";
       setBoothDeck("left",data.track?{name:data.track.name,artists:data.track.artists,image:data.track.image}:null);
       updateTrackProgress(data.progressMs,data.track?.durationMs,data.playing);
     }
