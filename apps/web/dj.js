@@ -24,6 +24,12 @@ function setLoggedIn(on){
   else if(pollHandle){clearInterval(pollHandle);pollHandle=null;}
 }
 function stat(label,value){const box=el("div","dj-stat");box.append(el("span","dj-muted",label),el("strong","",String(value)));return box;}
+function formatMusicTime(ms){
+  const minutes=Math.max(0,Math.round((Number(ms)||0)/60000));
+  const hours=Math.floor(minutes/60);
+  const rest=minutes%60;
+  return hours?hours+"u "+String(rest).padStart(2,"0")+"m":minutes+"m";
+}
 function addCover(parent,url,cls){if(!url)return;const img=el("img",cls);img.src=url;img.alt="Album artwork";img.loading="lazy";parent.append(img);}
 function trackLine(r,index){
   const row=el("div","queue-track");row.append(el("span","queue-position",String(index+1).padStart(2,"0")));addCover(row,r.album_image_url,"");
@@ -147,8 +153,12 @@ function render(data){
 
   const requests=data.requests||[];
   const count=(s)=>requests.filter(r=>r.status===s).length;
+  const activeStatuses=["pending","approved","queued"];
+  const musicRequested=requests.filter(r=>[...activeStatuses,"played"].includes(r.status)).reduce((sum,r)=>sum+(Number(r.duration_ms)||0),0);
+  const musicRemaining=requests.filter(r=>activeStatuses.includes(r.status)).reduce((sum,r)=>sum+(Number(r.duration_ms)||0),0);
   const stats=document.querySelector("#dj-stats");stats.replaceChildren(
-    stat("WAITING",count("pending")),stat("APPROVED",count("approved")),stat("IN QUEUE",count("queued")),stat("PLAYED",count("played"))
+    stat("WAITING",count("pending")),stat("APPROVED",count("approved")),stat("IN QUEUE",count("queued")),stat("PLAYED",count("played")),
+    stat("MUSIC REQUESTED",formatMusicTime(musicRequested)),stat("LEFT TO PLAY",formatMusicTime(musicRemaining))
   );
   const queueOrder=data.queueOrder||[];
   renderDeck(requests,queueOrder);
