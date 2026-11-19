@@ -52,8 +52,8 @@ function setBoothDeck(side,track){
   const artist=document.querySelector("#booth-track-artist-"+side);
   const image=document.querySelector("#booth-track-image-"+side);
   const placeholder=document.querySelector("#booth-track-placeholder-"+side);
-  if(title)title.textContent=track?.name|| (side==="left"?"Waiting for Spotify":"Queue is empty");
-  if(artist)artist.textContent=track?.artists?.join(", ")||track?.artist|| (side==="left"?"Spotify deck":"No queued track");
+  if(title)title.textContent=track?.name|| (side==="left"?"Waiting for Spotify":"SPOTIFY MIX");
+  if(artist)artist.textContent=track?.artists?.join(", ")||track?.artist|| (side==="left"?"Spotify deck":"Party Hits · SHUFFLE");
   if(image){
     if(track?.image||track?.album_image_url){
       image.src=track.image||track.album_image_url;
@@ -157,10 +157,11 @@ function render(data){
   if(nextButton){
     const empty=queuedRequests.length===0;
     nextButton.disabled=empty;
-    nextButton.classList.toggle("is-empty",empty);
-    nextButton.textContent=empty?"QUEUE EMPTY":"NEXT ↗";
-    nextButton.title=empty?"No PartyQueue requests are queued":"Play next PartyQueue request";
-    nextButton.setAttribute("aria-label",empty?"PartyQueue queue is empty":"Play next PartyQueue request");
+    nextButton.classList.toggle("is-fallback",empty);
+    nextButton.classList.toggle("is-empty",false);
+    nextButton.textContent=empty?"SPOTIFY":"NEXT ↗";
+    nextButton.title=empty?"Spotify fallback mode · PartyQueue queue is empty":"Play next PartyQueue request";
+    nextButton.setAttribute("aria-label",empty?"Spotify fallback mode; PartyQueue queue is empty":"Play next PartyQueue request");
   }
   document.querySelector("#request-count").textContent=requests.length+" REQUESTS";
   document.querySelector("#last-updated").textContent="SYNCED "+new Date().toLocaleTimeString();
