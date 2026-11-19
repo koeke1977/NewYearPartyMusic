@@ -227,6 +227,102 @@ app.post("/api/dj/settings/:key", async (c) => {
   await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP").bind(key, String(body.enabled)).run();
   return c.json({ ok: true, enabled: body.enabled });
 });
+
+async function tokenKey(secret: string): Promise<CryptoKey> {
+  const raw = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
+  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+async function seal(value: string, secret: string): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encrypted = await crypto.subtle.encrypt({name:"AES-GCM",iv}, await tokenKey(secret), encoder.encode(value));
+  return toBase64Url(new Uint8Array([...iv, ...new Uint8Array(encrypted)]));
+}
+async function unseal(value: string, secret: string): Promise<string> {
+  const bytes = fromBase64Url(value); const iv = bytes.slice(0,12); const data = bytes.slice(12);
+  const decrypted = await crypto.subtle.decrypt({name:"AES-GCM",iv}, await tokenKey(secret), data);
+  return new TextDecoder().decode(decrypted);
+}
+async function saveSpotifyTokens(env: Env, accessToken: string, refreshToken: string, expiresIn: number) {
+  const [accessEnc, refreshEnc] = await Promise.all([seal(accessToken,env.SESSION_SECRET),seal(refreshToken,env.SESSION_SECRET)]);
+  await env.DB.prepare("INSERT INTO spotify_auth (id,access_token_enc,refresh_token_enc,expires_at,updated_at) VALUES ('main',?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET access_token_enc=excluded.access_token_enc,refresh_token_enc=excluded.refresh_token_enc,expires_at=excluded.expires_at,updated_at=CURRENT_TIMESTAMP")
+    .bind(accessEnc,refreshEnc,Date.now()+expiresIn*1000).run();
+}
+async function spotifyUserToken(env: Env): Promise<string> {
+  const row = await env.DB.prepare("SELECT access_token_enc,refresh_token_enc,expires_at FROM spotify_auth WHERE id='main'").first<{access_token_enc:string;refresh_token_enc:string;expires_at:number}>();
+  if (!row) throw new Error("Koppel eerst je Spotify-account via de DJ-console.");
+  if (row.expires_at > Date.now()+60000) return unseal(row.access_token_enc,env.SESSION_SECRET);
+  const refreshToken = await unseal(row.refresh_token_enc,env.SESSION_SECRET);
+  const basic = btoa(env.SPOTIFY_CLIENT_ID+":"+env.SPOTIFY_CLIENT_SECRET);
+  const response = await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"refresh_token",refresh_token:refreshToken})});
+  if (!response.ok) throw new Error("Spotify-sessie verlopen. Koppel Spotify opnieuw (HTTP "+response.status+").");
+  const data = await response.json() as {access_token:string;expires_in:number;refresh_token?:string};
+  const nextRefresh = data.refresh_token || refreshToken;
+  await saveSpotifyTokens(env,data.access_token,nextRefresh,data.expires_in);
+  return data.access_token;
+}
+async function spotifyFetch(env: Env, path: string, init: RequestInit = {}): Promise<Response> {
+  const token = await spotifyUserToken(env);
+  return fetch("https://api.spotify.com/v1"+path,{...init,headers:{...(init.headers||{}),Authorization:"Bearer "+token}});
+}
+app.get("/auth/spotify/login", async (c) => {
+  if (!await requireDJ(c.req.raw,c.env)) return c.redirect("/dj.html?spotify=login-required");
+  const state = toBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+  const redirectUri = c.env.PUBLIC_ORIGIN.replace(/\/$/,"")+"/auth/spotify/callback";
+  const url = new URL("https://accounts.spotify.com/authorize");
+  url.searchParams.set("client_id",c.env.SPOTIFY_CLIENT_ID);
+  url.searchParams.set("response_type","code");
+  url.searchParams.set("redirect_uri",redirectUri);
+  url.searchParams.set("scope","user-read-playback-state user-read-currently-playing user-modify-playback-state");
+  url.searchParams.set("state",state);
+  return new Response(null,{status:302,headers:{Location:url.toString(),"Set-Cookie":"pq_spotify_state="+state+"; HttpOnly; Secure; SameSite=Lax; Path=/auth/spotify/callback; Max-Age=600"}});
+});
+app.get("/auth/spotify/callback", async (c) => {
+  const state=c.req.query("state")||"", code=c.req.query("code")||"", error=c.req.query("error");
+  const cookie=c.req.header("Cookie")||"";
+  const expected=cookie.match(/(?:^|; )pq_spotify_state=([^;]+)/)?.[1]||"";
+  if (!state || !expected || !constantTimeEqual(state,expected)) return c.text("Spotify-koppeling geweigerd: ongeldige OAuth-state.",400);
+  const clearCookie="pq_spotify_state=; HttpOnly; Secure; SameSite=Lax; Path=/auth/spotify/callback; Max-Age=0";
+  if (error || !code) return new Response(null,{status:302,headers:{Location:"/dj.html?spotify=denied","Set-Cookie":clearCookie}});
+  const redirectUri=c.env.PUBLIC_ORIGIN.replace(/\/$/,"")+"/auth/spotify/callback";
+  const response=await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{Authorization:"Basic "+btoa(c.env.SPOTIFY_CLIENT_ID+":"+c.env.SPOTIFY_CLIENT_SECRET),"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"authorization_code",code,redirect_uri:redirectUri})});
+  if(!response.ok) return new Response("Spotify-tokenuitwisseling mislukt (HTTP "+response.status+").",{status:502});
+  const data=await response.json() as {access_token:string;refresh_token:string;expires_in:number};
+  await saveSpotifyTokens(c.env,data.access_token,data.refresh_token,data.expires_in);
+  return new Response(null,{status:302,headers:{Location:"/dj.html?spotify=connected","Set-Cookie":clearCookie}});
+});
+app.get("/api/dj/spotify/status",async(c)=>{
+  if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
+  try{
+    const response=await spotifyFetch(c.env,"/me/player");
+    if(response.status===204) return c.json({connected:true,playing:false,device:null,track:null});
+    if(!response.ok) return c.json({error:"Spotify playbackstatus niet beschikbaar (HTTP "+response.status+")."},502);
+    const data=await response.json() as any;
+    const item=data.item;
+    return c.json({connected:true,playing:!!data.is_playing,progressMs:data.progress_ms||0,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
+  }catch(e){return c.json({connected:false,error:e instanceof Error?e.message:"Spotify niet verbonden."},503);}
+});
+app.get("/api/dj/spotify/devices",async(c)=>{
+  if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
+  try{const r=await spotifyFetch(c.env,"/me/player/devices");if(!r.ok)return c.json({error:"Spotify-apparaten ophalen mislukt (HTTP "+r.status+")."},502);return c.json(await r.json());}
+  catch(e){return c.json({error:e instanceof Error?e.message:"Spotify niet beschikbaar."},503);}
+});
+app.post("/api/dj/spotify/:action",async(c)=>{
+  if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
+  const action=c.req.param("action");
+  const paths:Record<string,{method:string;path:string}>={play:{method:"PUT",path:"/me/player/play"},pause:{method:"PUT",path:"/me/player/pause"},next:{method:"POST",path:"/me/player/next"},previous:{method:"POST",path:"/me/player/previous"}};
+  const command=paths[action];if(!command)return c.json({error:"Onbekend Spotify-commando."},400);
+  try{const r=await spotifyFetch(c.env,command.path,{method:command.method});if(!r.ok&&r.status!==204)return c.json({error:"Spotify-commando geweigerd (HTTP "+r.status+"). Controleer of een Spotify Connect-apparaat actief is."},502);return c.json({ok:true});}
+  catch(e){return c.json({error:e instanceof Error?e.message:"Spotify-commando mislukt."},503);}
+});
+app.post("/api/dj/spotify/queue/:id",async(c)=>{
+  if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
+  const row=await c.env.DB.prepare("SELECT track_uri,status FROM requests WHERE id=? AND event_id=?").bind(c.req.param("id"),c.env.EVENT_ID).first<{track_uri:string;status:string}>();
+  if(!row||row.status!=="approved")return c.json({error:"Alleen goedgekeurde nummers kunnen naar Spotify."},409);
+  try{const r=await spotifyFetch(c.env,"/me/player/queue?uri="+encodeURIComponent(row.track_uri),{method:"POST"});if(!r.ok)return c.json({error:"Spotify kon het nummer niet toevoegen (HTTP "+r.status+"). Zorg dat Spotify Premium speelt op een actief apparaat."},502);
+    await c.env.DB.prepare("UPDATE requests SET status='queued',queued_at=CURRENT_TIMESTAMP WHERE id=?").bind(c.req.param("id")).run();return c.json({ok:true,status:"queued"});
+  }catch(e){return c.json({error:e instanceof Error?e.message:"Toevoegen aan Spotify-wachtrij mislukt."},503);}
+});
+
 app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
 
 export class QueueRoom {
