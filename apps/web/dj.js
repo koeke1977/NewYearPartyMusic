@@ -361,27 +361,27 @@ async function askDJAI(prompt,mode="advice"){
     const result=await api("/api/dj/ai/assistant",{method:"POST",body:JSON.stringify({prompt})});
     const answer=result.answer||"Geen advies ontvangen.";
     if(mode==="optimize"){
-      output.textContent=answer+"\\n\\nWachtrij wordt gecontroleerd…";
+      output.textContent=answer+"\n\nWachtrij wordt gecontroleerd…";
       const overview=await api("/api/dj/overview");
       const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
-      const lines=[...answer.matchAll(/^\\s*\\d+[.)]\\s*(.+?)\\s*$/gm)].map(m=>m[1].replace(/\\*+/g,"").trim());
-      const norm=s=>s.toLocaleLowerCase("nl").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+      const lines=[...answer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)].map(m=>m[1].replace(/\*+/g,"").trim());
+      const norm=s=>s.toLocaleLowerCase("nl").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
       const byName=new Map(queued.map(track=>[norm(track.track_name+" — "+track.artist_name),track.id]));
       const ids=lines.map(line=>byName.get(norm(line))).filter(Boolean);
       if(queued.length&&ids.length===queued.length&&new Set(ids).size===queued.length){
         if(!window.confirm("DJ#DATUUR heeft een nieuwe volgorde voorgesteld. Wil je deze volgorde toepassen op de echte PartyQueue-wachtrij?")) {
-          output.textContent=answer+"\\n\\nVoorstel niet toegepast. Je huidige wachtrij blijft ongewijzigd.";
+          output.textContent=answer+"\n\nVoorstel niet toegepast. Je huidige wachtrij blijft ongewijzigd.";
           return;
         }
         await api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order:ids})});
-        output.textContent=answer+"\\n\\n✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen.";
+        output.textContent=answer+"\n\n✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen.";
         await refresh();
       }else{
-        output.textContent=answer+"\\n\\n⚠️ Ik heb geen volledige, eenduidige volgorde kunnen herkennen. Er is niets gewijzigd. Pas de volgorde eventueel handmatig aan.";
+        output.textContent=answer+"\n\n⚠️ Ik heb geen volledige, eenduidige volgorde kunnen herkennen. Er is niets gewijzigd. Pas de volgorde eventueel handmatig aan.";
       }
     }else if(mode==="starter"||mode==="fill"){
-      const suggestions=[...answer.matchAll(/^\\s*\\d+[.)]\\s*(.+?)\\s*$/gm)]
-        .map(match=>match[1].replace(/\\*+/g,"").replace(/\\s*\\([^)]*\\)\\s*$/,"").trim())
+      const suggestions=[...answer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)]
+        .map(match=>match[1].replace(/\*+/g,"").replace(/\s*\([^)]*\)\s*$/,"").trim())
         .filter(line=>line.includes("—")||line.includes("-"))
         .slice(0,12);
       output.replaceChildren();
@@ -417,7 +417,7 @@ async function askDJAI(prompt,mode="advice"){
         output.append(el("p","dj-ai-results-hint","Ik kon geen genummerde tracks uit het antwoord halen. Vraag de AI om een lijst met Titel — Artiest."));
       }
     }else{
-      output.textContent=(result.cached?"↻ Eerder advies (wachtrij ongewijzigd)\\n\\n":"")+answer;
+      output.textContent=(result.cached?"↻ Eerder advies (wachtrij ongewijzigd)\n\n":"")+answer;
     }
     input.value="";
   }catch(error){output.textContent=error.message;}
