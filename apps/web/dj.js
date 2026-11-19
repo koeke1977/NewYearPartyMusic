@@ -28,23 +28,13 @@ function trackLine(r,index){
   const info=el("div","queue-track-info");info.append(el("strong","",r.track_name),el("span","",r.artist_name));row.append(info,row.appendChild(el("span","queue-state","QUEUED")));return row;
 }
 function renderDeck(requests){
-  const queued=requests.filter(r=>r.status==="queued");
-  const approved=requests.filter(r=>r.status==="approved");
-  const next=queued[0]||approved[0]||null;
-  const deck=document.querySelector("#now-playing");deck.replaceChildren();
-  if(next){
-    addCover(deck,next.album_image_url,"deck-art");
-    const info=el("div","");
-    info.append(el("p","deck-kicker",next.status==="queued"?"NEXT UP · IN THE MIX":"APPROVED · READY TO CUE"),el("h3","",next.track_name),el("p","dj-muted",next.artist_name),el("p","queue-state", "REQUESTED BY "+(next.nickname||"GUEST").toUpperCase()));
-    deck.append(info);
-  }else{
-    const vinyl=el("div","vinyl-disc");vinyl.append(el("span","","ＰＱ"));
-    const info=el("div","");info.append(el("p","deck-kicker","READY FOR THE NEXT DROP"),el("h3","","No track selected"),el("p","dj-muted","Approve a request and send it to the queue."));
-    deck.append(vinyl,info);
-  }
-  const list=document.querySelector("#up-next");list.replaceChildren();
-  const upcoming=queued.slice(0,5);
-  document.querySelector("#queue-total").textContent=queued.length+" TRACKS";
+  const queued=requests.filter(r=>r.status==="queued").sort((a,b)=>(a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||""));
+  const list=document.querySelector("#up-next");
+  if(!list)return;
+  list.replaceChildren();
+  const upcoming=queued.slice(0,10);
+  const total=document.querySelector("#queue-total");
+  if(total)total.textContent=queued.length+" TRACKS";
   if(!upcoming.length){list.append(el("p","dj-empty","The queue is waiting for its first track."));return;}
   upcoming.forEach((r,i)=>list.append(trackLine(r,i)));
 }
