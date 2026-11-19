@@ -192,11 +192,6 @@ function render(data){
     info.append(el("span","dj-status status-"+r.status,r.status.replace("_"," ").toUpperCase()));card.append(info);
     const actions=el("div","dj-actions");
     const addAction=(action,label,cls)=>{const b=el("button",cls,label);b.type="button";b.addEventListener("click",()=>runAction(r.id,action,b));actions.append(b);};
-    if(isQueued){
-      const position=queuePositions.get(r.id);
-      const up=el("button","dj-action queue-move","↑");up.type="button";up.title="Eén plaats omhoog";up.setAttribute("aria-label","Verplaats "+r.track_name+" één plaats omhoog");up.disabled=position===0;up.addEventListener("click",()=>moveQueuedTrack(r.id,-1));actions.append(up);
-      const down=el("button","dj-action queue-move","↓");down.type="button";down.title="Eén plaats omlaag";down.setAttribute("aria-label","Verplaats "+r.track_name+" één plaats omlaag");down.disabled=position===queuedOrder.length-1;down.addEventListener("click",()=>moveQueuedTrack(r.id,1));actions.append(down);
-    }
     if(r.status==="pending")addAction("approve","✓ APPROVE","dj-action dj-positive");
     if(r.status==="approved")addAction("queue","＋ CUE TO QUEUE","dj-action dj-positive");
     if(["pending","approved","queued"].includes(r.status))addAction("reject","✕ REJECT","dj-action dj-negative");
@@ -215,14 +210,6 @@ async function saveQueueOrder(order){
     await refresh();
   }catch(e){message.textContent=e.message;await refresh();}
   finally{queueReorderBusy=false;}
-}
-async function moveQueuedTrack(id,delta){
-  const cards=[...requestList.querySelectorAll(".dj-request-queued")];
-  const order=cards.map(card=>card.dataset.requestId);
-  const from=order.indexOf(id),to=from+delta;
-  if(from<0||to<0||to>=order.length)return;
-  [order[from],order[to]]=[order[to],order[from]];
-  await saveQueueOrder(order);
 }
 requestList.addEventListener("dragstart",event=>{
   const card=event.target.closest(".dj-request-queued");
