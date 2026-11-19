@@ -55,12 +55,14 @@ The Worker is configured in `wrangler.toml`. Keep Cloudflare bindings and the Wr
 3. Set the D1 database ID in `wrangler.toml`.
 4. Add the custom domain `spotify.electrafest.be` to the Worker.
 5. Configure Worker secrets:
-   - `SPOTIFY_CLIENT_ID`
-   - `SPOTIFY_CLIENT_SECRET`
-   - `SPOTIFY_REDIRECT_URI` = `https://spotify.electrafest.be/auth/spotify/callback`
-   - `DJ_PASSWORD_HASH`
-   - `EVENT_ACCESS_CODE_HASH`
-6. Configure the same exact redirect URI in Spotify Developer Dashboard.
+   - `SPOTIFY_CLIENT_ID` — Client ID from the Spotify Developer Dashboard
+   - `SPOTIFY_CLIENT_SECRET` — Client Secret from the Spotify Developer Dashboard
+   - `SESSION_SECRET` — random secret used to sign guest sessions
+   - `EVENT_ACCESS_CODE_HASH` — SHA-256 hash of the event access code
+6. Configure the same exact redirect URI in Spotify Developer Dashboard only when adding DJ account authorization later.
+
+Do not add Spotify credentials to browser code or commit them to GitHub.
+
 
 Do not commit secrets, tokens, event codes, or password values.
 
@@ -68,6 +70,11 @@ Do not commit secrets, tokens, event codes, or password values.
 
 PartyQueue does not stream audio. Playback remains in the official Spotify app/player. Spotify Developer Mode eligibility, available scopes, and queue endpoint access must be verified in the developer dashboard before enabling the live dispatcher.
 
-## Status
+## Current functionality
 
-Initial project scaffold. The Worker health/config endpoints and visual guest landing page are the first implementation slice. OAuth and live Spotify queue integration are still pending.
+- Guest registration with event code and nickname
+- Signed 12-hour guest session
+- Spotify catalogue search using the server-side Client Credentials flow
+- Track requests stored in D1, with duplicate protection and per-guest limits
+
+Spotify's February 2026 Development Mode rules apply. Search is limited to 10 results per request by Spotify; PartyQueue currently asks for 8. Playback control and the DJ dashboard are not implemented yet.
