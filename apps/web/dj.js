@@ -8,6 +8,7 @@ let token=localStorage.getItem("partyqueue_dj_token")||"";
 let pollHandle=null;
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
+let spotifyStatusRequest=0;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n;};
 async function api(path,options={}){
   const response=await fetch(path,{...options,headers:{...(options.headers||{}),Authorization:"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{})}});
@@ -212,11 +213,13 @@ document.querySelector("#approval-toggle").addEventListener("click",()=>updateSe
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>updateSetting("auto_queue",!currentSettings.autoQueue));
 
 async function refreshSpotify(){
+  const requestId=++spotifyStatusRequest;
   const state=document.querySelector("#spotify-connection-state");
   const device=document.querySelector("#spotify-device");
   const now=document.querySelector("#spotify-now-playing");
   try{
     const data=await api("/api/dj/spotify/status");
+    if(requestId!==spotifyStatusRequest)return;
     state.textContent=data.connected?"CONNECTED":"NOT CONNECTED";
     const booth=document.querySelector("#partyqueue-booth");
     if(booth){
@@ -236,6 +239,7 @@ async function refreshSpotify(){
     else{device.textContent="Spotify is connected. Open Spotify on a device to make it active.";document.querySelector("#master-volume-status").textContent="NO ACTIVE SPOTIFY DEVICE";}
     now.textContent=data.fallbackError?"FALLBACK ERROR · "+data.fallbackError:data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
   }catch(e){
+    if(requestId!==spotifyStatusRequest)return;
     state.textContent="NOT CONNECTED";
     document.querySelector("#spotify-connect")?.classList.remove("is-connected");
     syncPlaybackButtons(false,false);
@@ -278,6 +282,8 @@ document.querySelector("#partyqueue-next").addEventListener("click",async()=>{
   message.textContent="Loading next PartyQueue request…";
   try{
     const result=await api("/api/dj/spotify/next-request",{method:"POST"});
+    spotifyQueuePreview=null;
+    setBoothDeck("right",null);
     message.textContent="Now playing PartyQueue request: "+result.track.name+" — "+result.track.artist;
     await refresh();
     await refreshSpotify();
