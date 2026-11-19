@@ -497,3 +497,35 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
   .booth-queue-layout .partyqueue-booth{order:1}
   .booth-queue-layout .queue-panel-wide{order:2}
 }
+
+
+/* Lock the desktop composition: booth stays wide, queue stays on the right.
+   Explicit grid placement prevents dynamic content/button states from reflowing the panels. */
+@media(min-width:701px){
+  .booth-queue-layout{
+    display:grid!important;
+    grid-template-columns:minmax(0,2.35fr) minmax(270px,.75fr)!important;
+    align-items:stretch!important;
+  }
+  .booth-queue-layout>#partyqueue-booth{
+    grid-column:1!important;
+    grid-row:1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    justify-self:stretch!important;
+  }
+  .booth-queue-layout>.queue-panel-wide{
+    grid-column:2!important;
+    grid-row:1!important;
+    width:100%!important;
+    min-width:0!important;
+    max-width:none!important;
+    justify-self:stretch!important;
+  }
+  .booth-queue-layout .booth-hardware{
+    width:100%!important;
+    max-width:1400px!important;
+    grid-template-columns:minmax(0,1fr) minmax(205px,.72fr) minmax(0,1fr)!important;
+  }
+}
