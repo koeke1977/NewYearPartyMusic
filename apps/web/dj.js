@@ -350,19 +350,53 @@ document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEv
 }));
 
 const aiForm=document.querySelector("#dj-ai-form");
-aiForm.addEventListener("submit",async(event)=>{
-  event.preventDefault();
+async function askDJAI(prompt,mode="advice"){
   const input=document.querySelector("#dj-ai-prompt");
   const button=document.querySelector("#dj-ai-submit");
   const output=document.querySelector("#dj-ai-answer");
-  const prompt=input.value.trim();if(!prompt)return;
-  button.disabled=true;output.textContent="DJ#DATUUR AI denkt even mee…";
+  const actionButtons=[...document.querySelectorAll("[data-ai-action]")];
+  button.disabled=true;actionButtons.forEach(b=>b.disabled=true);
+  output.textContent="DJ#DATUUR AI denkt even mee…";
   try{
     const result=await api("/api/dj/ai/assistant",{method:"POST",body:JSON.stringify({prompt})});
-    output.textContent=(result.cached?"↻ Eerder advies (wachtrij ongewijzigd)\\n\\n":"")+(result.answer||"Geen advies ontvangen.");
+    const answer=result.answer||"Geen advies ontvangen.";
+    if(mode==="optimize"){
+      output.textContent=answer+"\\n\\nWachtrij wordt gecontroleerd…";
+      const overview=await api("/api/dj/overview");
+      const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
+      const lines=[...answer.matchAll(/^\\s*\\d+[.)]\\s*(.+?)\\s*$/gm)].map(m=>m[1].replace(/\\*+/g,"").trim());
+      const norm=s=>s.toLocaleLowerCase("nl").normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
+      const byName=new Map(queued.map(track=>[norm(track.track_name+" — "+track.artist_name),track.id]));
+      const ids=lines.map(line=>byName.get(norm(line))).filter(Boolean);
+      if(queued.length&&ids.length===queued.length&&new Set(ids).size===queued.length){
+        await api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order:ids})});
+        output.textContent=answer+"\\n\\n✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen.";
+        await refresh();
+      }else{
+        output.textContent=answer+"\\n\\n⚠️ Ik heb geen volledige, eenduidige volgorde kunnen herkennen. Er is niets gewijzigd. Pas de volgorde eventueel handmatig aan.";
+      }
+    }else{
+      output.textContent=(result.cached?"↻ Eerder advies (wachtrij ongewijzigd)\\n\\n":"")+answer;
+    }
+    input.value="";
   }catch(error){output.textContent=error.message;}
-  finally{button.disabled=false;}
+  finally{button.disabled=false;actionButtons.forEach(b=>b.disabled=false);}
+}
+aiForm.addEventListener("submit",async event=>{
+  event.preventDefault();
+  const prompt=document.querySelector("#dj-ai-prompt").value.trim();
+  if(prompt)await askDJAI(prompt);
 });
+document.querySelectorAll("[data-ai-action]").forEach(button=>button.addEventListener("click",async()=>{
+  const action=button.dataset.aiAction;
+  if(action==="optimize"){
+    await askDJAI("Optimaliseer de volledige huidige PartyQueue wachtrij voor een vloeiende opbouw van rustig naar energiek. Geef ALLEEN een genummerde lijst, exact in het formaat Titel — Artiest, gebruik elke track uit UP NEXT precies één keer en voeg niets toe. Geen intro of uitleg. Als er minder dan twee tracks zijn, zeg dat.");
+  }else if(action==="starter"){
+    await askDJAI("Maak een gevarieerde basisselectie van 12 bekende, feestgeschikte nummers voor een Oud & Nieuw-feest in België. Bouw op van warm-up naar dansvloer en meezingers. Geef een genummerde lijst met exact Titel — Artiest en vermeld kort waarom de set werkt.");
+  }else{
+    await askDJAI("Stel 8 externe nummers voor die goed aansluiten op de huidige PartyQueue wachtrij en de energie geleidelijk verhogen richting een Oud & Nieuw-feest. Vermijd artiesten en tracks die al in UP NEXT of recent gespeeld staan. Geef een genummerde lijst met exact Titel — Artiest en markeer dit als suggesties buiten de wachtrij.");
+  }
+}));
 
 if(token)setLoggedIn(true);
 
