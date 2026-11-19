@@ -423,6 +423,13 @@ app.post("/api/dj/spotify/queue/:id",async(c)=>{
 
 app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
 
+async function cleanupOldRequests(env: Env): Promise<void> {
+  // Keep the live queue untouched; only purge completed requests older than 30 days.
+  await env.DB.prepare(
+    "DELETE FROM requests WHERE requested_at < datetime('now','-30 days') AND status NOT IN ('pending','approved','queued')"
+  ).run();
+}
+
 export class QueueRoom {
   constructor(private readonly state: DurableObjectState) {}
   async fetch(request: Request): Promise<Response> {
@@ -431,4 +438,9 @@ export class QueueRoom {
     return new Response("Not found", { status: 404 });
   }
 }
-export default app;
+export default {
+  fetch: app.fetch,
+  scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(cleanupOldRequests(env));
+  }
+};
