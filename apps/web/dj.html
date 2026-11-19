@@ -34,6 +34,20 @@
         <button id="approval-toggle" class="control-tile"><span class="control-label">MODERATION MODE</span><strong id="approval-state">Loading…</strong><small>Tap to change approval mode</small></button>
       </div>
       <div class="dj-stats" id="dj-stats"></div>
+      <section class="deck-panel spotify-panel">
+        <div class="deck-heading"><span class="deck-led"></span><span>SPOTIFY CONNECT</span><span id="spotify-connection-state" class="deck-channel">NOT CONNECTED</span></div>
+        <div class="spotify-controls">
+          <button id="spotify-connect" class="dj-action dj-positive">CONNECT SPOTIFY ACCOUNT</button>
+          <span id="spotify-device" class="dj-muted">Connect your Spotify Premium account and keep a Spotify device active.</span>
+          <div class="spotify-transport">
+            <button data-spotify-command="previous" class="dj-action">|◀ PREVIOUS</button>
+            <button data-spotify-command="play" class="dj-action dj-positive">▶ PLAY</button>
+            <button data-spotify-command="pause" class="dj-action">Ⅱ PAUSE</button>
+            <button data-spotify-command="next" class="dj-action dj-positive">NEXT ▶|</button>
+          </div>
+          <div id="spotify-now-playing" class="dj-muted">Waiting for Spotify connection…</div>
+        </div>
+      </section>
       <div class="dj-mixer">
         <section class="deck-panel now-panel">
           <div class="deck-heading"><span class="deck-led"></span><span>DJ DECK</span><span class="deck-channel">A / READY</span></div>
