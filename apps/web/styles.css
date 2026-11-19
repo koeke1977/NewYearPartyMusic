@@ -375,3 +375,10 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .booth-mixer-brand{color:#fff!important;font-weight:1000;letter-spacing:.12em}
 .booth-mixer-brand span{color:var(--green)!important;text-shadow:0 0 12px rgba(30,215,96,.32)}
 .datuur-footer{color:var(--green);letter-spacing:.12em}
+
+/* Current track progress LEDs in the central mixer */
+.track-progress-control{width:100%;padding:10px 12px;border:1px solid #303b33;border-radius:10px;background:linear-gradient(145deg,#1c241f,#0b100d 75%);box-shadow:inset 0 1px 0 #ffffff12;display:flex;flex-direction:column;gap:7px}
+.track-progress-control .master-control-heading strong{font-size:16px}
+.track-progress-leds{width:100%;height:10px}
+.track-progress-time{display:flex;justify-content:space-between;color:#a4afa7;font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
+.track-progress-control>small{min-height:9px;color:#75847a;font-size:7px;font-weight:800;letter-spacing:.12em;text-align:center}
