@@ -264,17 +264,17 @@ async function spotifyFetch(env: Env, path: string, init: RequestInit = {}): Pro
   const token = await spotifyUserToken(env);
   return fetch("https://api.spotify.com/v1"+path,{...init,headers:{...(init.headers||{}),Authorization:"Bearer "+token}});
 }
-app.get("/auth/spotify/login", async (c) => {
-  if (!await requireDJ(c.req.raw,c.env)) return c.redirect("/dj.html?spotify=login-required");
-  const state = toBase64Url(crypto.getRandomValues(new Uint8Array(24)));
-  const redirectUri = c.env.PUBLIC_ORIGIN.replace(/\/$/,"")+"/auth/spotify/callback";
-  const url = new URL("https://accounts.spotify.com/authorize");
+app.post("/api/dj/spotify/connect", async (c) => {
+  if (!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
+  const state=toBase64Url(crypto.getRandomValues(new Uint8Array(24)));
+  const redirectUri=c.env.PUBLIC_ORIGIN.replace(/\/$/,"")+"/auth/spotify/callback";
+  const url=new URL("https://accounts.spotify.com/authorize");
   url.searchParams.set("client_id",c.env.SPOTIFY_CLIENT_ID);
   url.searchParams.set("response_type","code");
   url.searchParams.set("redirect_uri",redirectUri);
   url.searchParams.set("scope","user-read-playback-state user-read-currently-playing user-modify-playback-state");
   url.searchParams.set("state",state);
-  return new Response(null,{status:302,headers:{Location:url.toString(),"Set-Cookie":"pq_spotify_state="+state+"; HttpOnly; Secure; SameSite=Lax; Path=/auth/spotify/callback; Max-Age=600"}});
+  return c.json({url:url.toString()},{headers:{"Set-Cookie":"pq_spotify_state="+state+"; HttpOnly; Secure; SameSite=Lax; Path=/auth/spotify/callback; Max-Age=600"}});
 });
 app.get("/auth/spotify/callback", async (c) => {
   const state=c.req.query("state")||"", code=c.req.query("code")||"", error=c.req.query("error");
