@@ -205,3 +205,14 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .dj-queue-controls .control-tile{min-height:72px}
 @media(min-width:900px){.dj-queue-controls{max-width:50%}}
 @media(max-width:560px){.booth-label{width:42%;height:42%;padding:3px}.booth-label b{font-size:5px}.booth-label small{font-size:4px}}
+
+/* Consolidated live party controls inside Spotify panel */
+.party-control-panel{margin:16px 0 18px;padding:14px;border:1px solid rgba(255,255,255,.09);border-radius:13px;background:linear-gradient(110deg,rgba(7,13,9,.72),rgba(17,27,20,.7))}
+.party-control-heading{display:flex;justify-content:space-between;align-items:center;margin:0 2px 10px;color:#c4d0c7;font-size:9px;font-weight:900;letter-spacing:.16em}
+.party-control-heading small{color:#68776c;font-size:7px;letter-spacing:.12em}
+.party-control-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.party-control-grid .control-tile{min-width:0;min-height:76px;padding:13px 15px;text-align:left;border-radius:10px;background:linear-gradient(135deg,rgba(25,37,29,.95),rgba(11,17,13,.96))}
+.party-control-grid .control-tile strong{display:block;margin:5px 0;color:var(--green,#1ed760);font-size:14px}
+.party-control-grid .control-tile small{display:block;color:#8d9a90;font-size:9px;line-height:1.35}
+@media(max-width:700px){.party-control-grid{grid-template-columns:1fr 1fr}.party-control-grid .control-tile:last-child{grid-column:1/-1}}
+@media(max-width:420px){.party-control-grid{grid-template-columns:1fr}.party-control-grid .control-tile:last-child{grid-column:auto}}
