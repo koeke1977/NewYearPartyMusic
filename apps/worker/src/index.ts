@@ -335,11 +335,11 @@ app.post("/api/dj/spotify/:action",async(c)=>{
 });
 app.post("/api/dj/spotify/queue/:id",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
-  const row=await c.env.DB.prepare("SELECT track_uri,status FROM requests WHERE id=? AND event_id=?").bind(c.req.param("id"),c.env.EVENT_ID).first<{track_uri:string;status:string}>();
-  if(!row||row.status!=="approved")return c.json({error:"Alleen goedgekeurde nummers kunnen naar Spotify."},409);
-  try{const r=await spotifyFetch(c.env,"/me/player/queue?uri="+encodeURIComponent(row.track_uri),{method:"POST"});if(!r.ok)return c.json({error:"Spotify kon het nummer niet toevoegen (HTTP "+r.status+"). Zorg dat Spotify Premium speelt op een actief apparaat."},502);
-    await c.env.DB.prepare("UPDATE requests SET status='queued',queued_at=CURRENT_TIMESTAMP WHERE id=?").bind(c.req.param("id")).run();return c.json({ok:true,status:"queued"});
-  }catch(e){return c.json({error:e instanceof Error?e.message:"Toevoegen aan Spotify-wachtrij mislukt."},503);}
+  const id=c.req.param("id");
+  const row=await c.env.DB.prepare("SELECT status FROM requests WHERE id=? AND event_id=?").bind(id,c.env.EVENT_ID).first<{status:string}>();
+  if(!row||row.status!=="approved")return c.json({error:"Alleen goedgekeurde nummers kunnen naar de PartyQueue-wachtrij."},409);
+  await c.env.DB.prepare("UPDATE requests SET status='queued',queued_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=?").bind(id,c.env.EVENT_ID).run();
+  return c.json({ok:true,status:"queued"});
 });
 
 app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
