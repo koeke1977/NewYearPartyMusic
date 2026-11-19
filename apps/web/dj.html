@@ -33,6 +33,7 @@
         <button id="pause-toggle" class="control-tile"><span class="control-label">GUEST REQUESTS</span><strong id="pause-state">Loading…</strong><small>Tap to pause or resume</small></button>
         <button id="approval-toggle" class="control-tile"><span class="control-label">MODERATION MODE</span><strong id="approval-state">Loading…</strong><small>Tap to change approval mode</small></button>
       </div>
+      <div class="dj-controls dj-queue-controls"><button id="auto-queue-toggle" class="control-tile"><span class="control-label">AUTO CUE</span><strong id="auto-queue-state">Loading…</strong><small>Automatically send approved requests to the queue</small></button></div>
       <div class="dj-stats" id="dj-stats"></div>
       <section class="deck-panel spotify-panel">
         <div class="deck-heading"><span class="deck-led"></span><span>SPOTIFY CONNECT</span><span id="spotify-connection-state" class="deck-channel">NOT CONNECTED</span></div>
@@ -53,7 +54,7 @@
         <div class="booth-topline"><span><i class="booth-live-led"></i> PARTYQUEUE TURNTABLE SYSTEM</span><span id="booth-play-state">STANDBY</span></div>
         <div class="booth-hardware">
           <div class="booth-deck booth-deck-left">
-            <div class="booth-jog"><div class="booth-vinyl"><div class="booth-grooves"></div><div class="booth-label"><b>PQ</b><small>DECK 01</small></div></div><span class="booth-tonearm"></span></div>
+            <div class="booth-jog"><div class="booth-vinyl"><div class="booth-grooves"></div><div class="booth-label"><b id="booth-track-title-left">PARTYQUEUE</b><small id="booth-track-artist-left">DECK 01</small></div></div><span class="booth-tonearm"></span></div>
             <div class="booth-deck-meta"><span>LEFT DECK</span><b>A</b></div>
           </div>
           <div class="booth-mixer">
@@ -68,11 +69,10 @@
             <div class="booth-mixer-foot">MASTER MIX <b>● ● ●</b></div>
           </div>
           <div class="booth-deck booth-deck-right">
-            <div class="booth-jog"><div class="booth-vinyl"><div class="booth-grooves"></div><div class="booth-label"><b>PQ</b><small>DECK 02</small></div></div><span class="booth-tonearm"></span></div>
+            <div class="booth-jog"><div class="booth-vinyl"><div class="booth-grooves"></div><div class="booth-label"><b id="booth-track-title-right">PARTYQUEUE</b><small id="booth-track-artist-right">DECK 02</small></div></div><span class="booth-tonearm"></span></div>
             <div class="booth-deck-meta"><span>RIGHT DECK</span><b>B</b></div>
           </div>
         </div>
-        <div class="booth-nowline"><span class="booth-spectrum"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><span id="booth-track-label">WAITING FOR SPOTIFY PLAYBACK</span><span class="booth-frequency">44.1 KHZ</span></div>
       </section>
       <div class="dj-mixer">
         <section class="deck-panel now-panel">
