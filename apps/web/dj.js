@@ -16,7 +16,7 @@ async function api(path,options={}){
 }
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
-  if(on){refresh();if(pollHandle)clearInterval(pollHandle);pollHandle=setInterval(refresh,5000);}
+  if(on){refresh();refreshSpotify();if(pollHandle)clearInterval(pollHandle);pollHandle=setInterval(()=>{refresh();refreshSpotify();},5000);}
   else if(pollHandle){clearInterval(pollHandle);pollHandle=null;}
 }
 function stat(label,value){const box=el("div","dj-stat");box.append(el("span","dj-muted",label),el("strong","",String(value)));return box;}
@@ -83,7 +83,7 @@ async function refresh(){
 }
 async function runAction(id,action,button){
   button.disabled=true;message.textContent="Sending command to the booth…";
-  try{await api("/api/dj/requests/"+encodeURIComponent(id)+"/"+action,{method:"POST"});message.textContent="Deck updated.";await refresh();}
+  try{if(action==="queue") await api("/api/dj/spotify/queue/"+encodeURIComponent(id),{method:"POST"});else await api("/api/dj/requests/"+encodeURIComponent(id)+"/"+action,{method:"POST"});message.textContent="Deck updated.";await refresh();}
   catch(e){message.textContent=e.message;button.disabled=false;}
 }
 async function updateSetting(key,enabled){
@@ -101,4 +101,34 @@ loginForm.addEventListener("submit",async e=>{
 document.querySelector("#dj-logout").addEventListener("click",logout);
 document.querySelector("#pause-toggle").addEventListener("click",()=>updateSetting("requests_paused",!currentSettings.requestsPaused));
 document.querySelector("#approval-toggle").addEventListener("click",()=>updateSetting("auto_approve",!currentSettings.autoApprove));
+
+async function refreshSpotify(){
+  const state=document.querySelector("#spotify-connection-state");
+  const device=document.querySelector("#spotify-device");
+  const now=document.querySelector("#spotify-now-playing");
+  try{
+    const data=await api("/api/dj/spotify/status");
+    state.textContent=data.connected?"CONNECTED":"NOT CONNECTED";
+    state.classList.toggle("accent",!!data.connected);
+    if(data.device)device.textContent="ACTIVE DEVICE · "+data.device.name+" ("+data.device.type+")";
+    else device.textContent="Spotify is connected. Open Spotify on a device to make it active.";
+    now.textContent=data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
+  }catch(e){
+    state.textContent="NOT CONNECTED";
+    device.textContent=e.message;
+    now.textContent="Connect your Spotify account to enable live playback.";
+  }
+}
+document.querySelector("#spotify-connect").addEventListener("click",async()=>{
+  const button=document.querySelector("#spotify-connect");button.disabled=true;message.textContent="Opening Spotify authorization…";
+  try{const data=await api("/api/dj/spotify/connect",{method:"POST"});window.location.href=data.url;}
+  catch(e){message.textContent=e.message;button.disabled=false;}
+});
+document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEventListener("click",async()=>{
+  const action=button.dataset.spotifyCommand;button.disabled=true;
+  try{await api("/api/dj/spotify/"+action,{method:"POST"});message.textContent="Spotify command sent.";await refreshSpotify();}
+  catch(e){message.textContent=e.message;}
+  finally{button.disabled=false;}
+}));
+
 if(token)setLoggedIn(true);
