@@ -30,31 +30,9 @@
         <button id="dj-logout" class="text-button">LOG OUT</button>
       </div>
       <div class="dj-stats" id="dj-stats"></div>
-      <section class="deck-panel spotify-panel">
-        <div class="deck-heading"><span class="deck-led"></span><span>SPOTIFY CONNECT</span><span id="spotify-connection-state" class="deck-channel">NOT CONNECTED</span></div>
-        <div class="party-control-panel">
-          <div class="party-control-heading"><span>PARTY CONTROLS</span><small>LIVE EVENT SETTINGS</small></div>
-          <div class="party-control-grid">
-            <button id="pause-toggle" class="control-tile"><span class="control-label">GUEST REQUESTS</span><strong id="pause-state">Loading…</strong><small>Tap to pause or resume</small></button>
-            <button id="approval-toggle" class="control-tile"><span class="control-label">MODERATION MODE</span><strong id="approval-state">Loading…</strong><small>Tap to change approval mode</small></button>
-            <button id="auto-queue-toggle" class="control-tile"><span class="control-label">AUTO CUE</span><strong id="auto-queue-state">Loading…</strong><small>Automatically send approved requests to the queue</small></button>
-          </div>
-        </div>
-        <div class="spotify-controls">
-          <button id="spotify-connect" class="dj-action dj-positive">CONNECT SPOTIFY ACCOUNT</button>
-          <span id="spotify-device" class="dj-muted">Connect your Spotify Premium account and keep a Spotify device active.</span>
-          <div class="spotify-transport">
-            <button data-spotify-command="previous" class="dj-action">|◀ PREVIOUS</button>
-            <button data-spotify-command="play" class="dj-action dj-positive">▶ PLAY</button>
-            <button data-spotify-command="pause" class="dj-action">Ⅱ PAUSE</button>
-            <button id="partyqueue-next" class="dj-action dj-positive">NEXT REQUEST ⏭</button>
-            <button data-spotify-command="next" class="dj-action">SPOTIFY NEXT ▶|</button>
-          </div>
-          <div id="spotify-now-playing" class="dj-muted">Waiting for Spotify connection…</div>
-        </div>
-      </section>
       <section id="partyqueue-booth" class="partyqueue-booth" aria-label="Animated DJ turntable console">
-        <div class="booth-topline"><span><i class="booth-live-led"></i> PARTYQUEUE TURNTABLE SYSTEM</span><span id="booth-play-state">STANDBY</span></div>
+        <div class="booth-topline"><span><i class="booth-live-led"></i> PARTYQUEUE TURNTABLE SYSTEM</span><div class="booth-top-actions"><span id="booth-play-state">STANDBY</span><button id="spotify-connect" class="booth-connect">CONNECT SPOTIFY</button><span id="spotify-connection-state" class="booth-connect-state">NOT CONNECTED</span></div></div>
+        <div class="booth-device-line"><span id="spotify-device">Connect your Spotify Premium account and keep a Spotify device active.</span><span id="spotify-now-playing">Waiting for Spotify connection…</span></div>
         <div class="booth-hardware">
           <div class="booth-deck booth-deck-left">
             <div class="booth-jog"><div class="booth-vinyl"><div class="booth-grooves"></div><div class="booth-label"><b id="booth-track-title-left">PARTYQUEUE</b><small id="booth-track-artist-left">DECK 01</small></div></div><span class="booth-tonearm"></span></div>
@@ -70,6 +48,20 @@
             </div>
             <div class="booth-crossfader"><span> A</span><div><i></i></div><span>B</span></div>
             <div class="booth-mixer-foot">MASTER MIX <b>● ● ●</b></div>
+            <div class="booth-hardware-controls">
+              <div class="booth-transport">
+                <button data-spotify-command="previous" title="Previous track">|◀</button>
+                <button data-spotify-command="play" class="is-primary" title="Play">▶</button>
+                <button data-spotify-command="pause" title="Pause">Ⅱ</button>
+                <button id="partyqueue-next" class="is-primary" title="Play next PartyQueue request">NEXT ↗</button>
+                <button data-spotify-command="next" title="Spotify next">▶|</button>
+              </div>
+              <div class="booth-quick-settings">
+                <button id="pause-toggle"><small>REQUESTS</small><b id="pause-state">Loading…</b></button>
+                <button id="approval-toggle"><small>MODE</small><b id="approval-state">Loading…</b></button>
+                <button id="auto-queue-toggle"><small>AUTO CUE</small><b id="auto-queue-state">Loading…</b></button>
+              </div>
+            </div>
           </div>
           <div class="booth-deck booth-deck-right">
             <div class="booth-jog"><div class="booth-vinyl"><div class="booth-grooves"></div><div class="booth-label"><b id="booth-track-title-right">PARTYQUEUE</b><small id="booth-track-artist-right">DECK 02</small></div></div><span class="booth-tonearm"></span></div>
