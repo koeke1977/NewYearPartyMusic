@@ -83,6 +83,34 @@ function updateMasterVolumeDisplay(value){
     leds.setAttribute("aria-valuenow",String(volume));
   }
 }
+function formatTrackTime(milliseconds){
+  const total=Math.max(0,Math.floor((Number(milliseconds)||0)/1000));
+  return Math.floor(total/60)+":"+String(total%60).padStart(2,"0");
+}
+function updateTrackProgress(progressMs,durationMs,playing){
+  const duration=Math.max(0,Number(durationMs)||0);
+  const progress=Math.max(0,Math.min(duration,Number(progressMs)||0));
+  const percent=duration?Math.round(progress/duration*100):0;
+  const leds=document.querySelector("#track-progress-leds");
+  const value=document.querySelector("#track-progress-value");
+  const elapsed=document.querySelector("#track-progress-elapsed");
+  const total=document.querySelector("#track-progress-duration");
+  const status=document.querySelector("#track-progress-status");
+  if(value)value.textContent=duration?percent+"%":"—%";
+  if(elapsed)elapsed.textContent=formatTrackTime(progress);
+  if(total)total.textContent=formatTrackTime(duration);
+  if(status)status.textContent=!duration?"WAITING FOR TRACK":playing?"TRACK PLAYING":"TRACK PAUSED";
+  if(leds){
+    const active=Math.round(percent/5);
+    leds.replaceChildren();
+    for(let i=0;i<20;i++){
+      const led=document.createElement("i");
+      if(i<active)led.className=i>=16?"hot":i>=12?"high":"active";
+      leds.append(led);
+    }
+    leds.setAttribute("aria-valuenow",String(percent));
+  }
+}
 function syncPlaybackButtons(connected,playing){
   const play=document.querySelector('[data-spotify-command="play"]');
   const pause=document.querySelector('[data-spotify-command="pause"]');
@@ -183,6 +211,7 @@ async function refreshSpotify(){
       booth.classList.toggle("is-playing",!!data.playing);
       document.querySelector("#booth-play-state").textContent=data.playing?"ON AIR":"STANDBY";
       setBoothDeck("left",data.track?{name:data.track.name,artists:data.track.artists,image:data.track.image}:null);
+      updateTrackProgress(data.progressMs,data.track?.durationMs,data.playing);
     }
     state.classList.toggle("accent",!!data.connected);
     document.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);
@@ -195,7 +224,7 @@ async function refreshSpotify(){
     document.querySelector("#spotify-connect")?.classList.remove("is-connected");
     syncPlaybackButtons(false,false);
     const booth=document.querySelector("#partyqueue-booth");
-    if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";setBoothDeck("left",null);}
+    if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";setBoothDeck("left",null);updateTrackProgress(0,0,false);}
     device.textContent=e.message;
     now.textContent="Connect your Spotify account to enable live playback.";
   }
