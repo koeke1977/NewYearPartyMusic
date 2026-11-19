@@ -25,7 +25,7 @@ function showMusicSearch(session) {
   const top = element("div", "section-heading");
   top.append(element("span", "step", "02"));
   const title = element("div");
-  title.append(element("h2", "", "Find your track"), element("p", "", "You're in, " + session.guest.nickname + ". What should we play?"));
+  title.append(element("h2", "", "Zoek jouw nummer"), element("p", "", "Welkom, " + session.guest.nickname + "! Welk nummer wil je horen?"));
   top.append(title);
   card.append(top);
 
@@ -40,14 +40,14 @@ function showMusicSearch(session) {
   searchInput.minLength = 2;
   searchInput.maxLength = 100;
   searchInput.required = true;
-  const searchLabel = element("label", "search-label", "WELK NUMMER WIL JE HOREN?");
+  const searchLabel = element("label", "search-label", "TYP HIER OM JOUW NUMMER TE ZOEKEN");
   searchLabel.htmlFor = "guest-track-search";
   searchInput.id = "guest-track-search";
-  searchInput.placeholder = "Bijv. Madonna, Like a Prayer…";
+  searchInput.placeholder = "Begin hier te typen… bv. Madonna of Like a Prayer";
   searchForm.append(searchLabel, searchInput);
   card.append(searchForm);
 
-  const searchHint = element("p", "search-hint", "Begin gewoon te typen — resultaten verschijnen vanzelf. Je hoeft de titel niet exact te kennen.");
+  const searchHint = element("p", "search-hint", "Typ een artiest, titel of een stukje tekst. De suggesties verschijnen automatisch.");
   card.append(searchHint);
   const feedback = element("p", "form-message search-feedback");
   feedback.setAttribute("role", "status");
@@ -56,13 +56,13 @@ function showMusicSearch(session) {
   const results = element("div", "track-results");
   results.id = "track-results";
   card.append(results);
-  const attribution = element("p", "fine-print", "Music data provided by Spotify");
+  const attribution = element("p", "fine-print", "Muziekgegevens aangeboden door Spotify");
   card.append(attribution);
   const brandCredit = element("p", "guest-brand-credit");
   brandCredit.append(document.createTextNode("POWERED BY "));
   brandCredit.append(element("strong", "datuur-mark", "#DATUUR"));
   card.append(brandCredit);
-  const logout = element("button", "text-button", "Niet jij? Verlaat PartyQueue");
+  const logout = element("button", "text-button", "Niet jij? Afmelden");
   logout.type = "button";
   logout.addEventListener("click", () => {
     localStorage.removeItem("partyqueue_session");
@@ -80,11 +80,11 @@ function showMusicSearch(session) {
     if (activeSearch) activeSearch.abort();
     if (query.length < 2) {
       results.replaceChildren();
-      feedback.textContent = query.length ? "Typ nog minstens één teken…" : "";
+      feedback.textContent = query.length ? "Typ nog één teken om te zoeken…" : "";
       return;
     }
     activeSearch = new AbortController();
-    feedback.textContent = "Even zoeken…";
+    feedback.textContent = "We zoeken even…";
     results.replaceChildren();
     try {
       const response = await fetch("/api/spotify/search?q=" + encodeURIComponent(query), {
@@ -95,10 +95,10 @@ function showMusicSearch(session) {
       if (searchId !== latestSearch) return;
       if (!response.ok) throw new Error(data.error || "Zoeken is niet gelukt.");
       if (!data.tracks.length) {
-        feedback.textContent = "Geen match gevonden. Probeer eens alleen de artiest of een korter stukje van de titel.";
+        feedback.textContent = "Geen resultaat? Probeer alleen de artiest of een korter stukje van de titel.";
         return;
       }
-      feedback.textContent = data.tracks.length + " suggesties — tik op het nummer dat je wil horen.";
+      feedback.textContent = data.tracks.length + " nummers gevonden — tik op jouw keuze.";
       for (const track of data.tracks) {
         const item = element("article", "track-item");
         if (track.albumImageUrl) {
@@ -115,7 +115,7 @@ function showMusicSearch(session) {
         details.append(element("span", "track-artist", track.artists.join(", ")));
         const duration = Math.floor(track.durationMs / 60000) + ":" + String(Math.floor(track.durationMs / 1000) % 60).padStart(2, "0");
         details.append(element("span", "track-duration", duration));
-        const requestButton = element("button", "request-button", "KIES");
+        const requestButton = element("button", "request-button", "AANVRAGEN");
         requestButton.type = "button";
         requestButton.addEventListener("click", async () => {
           requestButton.disabled = true;
@@ -134,7 +134,7 @@ function showMusicSearch(session) {
               (requestData.request.status === "approved" ? "goedgekeurd en klaar voor de DJ." : "doorgestuurd naar de DJ.");
           } catch (error) {
             requestButton.disabled = false;
-            requestButton.textContent = "KIES";
+            requestButton.textContent = "AANVRAGEN";
             feedback.textContent = error instanceof Error ? error.message : "Aanvragen is niet gelukt.";
           }
         });
@@ -143,7 +143,7 @@ function showMusicSearch(session) {
       }
     } catch (error) {
       if (error?.name === "AbortError" || searchId !== latestSearch) return;
-      feedback.textContent = error instanceof Error ? error.message : "Spotify zoeken is tijdelijk niet beschikbaar.";
+      feedback.textContent = error instanceof Error ? error.message : "Muziek zoeken is tijdelijk niet beschikbaar.";
     }
   }
 
@@ -172,9 +172,9 @@ form?.addEventListener("submit", async (event) => {
   }
   if (submitButton) {
     submitButton.disabled = true;
-    submitButton.textContent = "ONE MOMENT...";
+    submitButton.textContent = "EVEN GEDULD…";
   }
-  message.textContent = "We controleren je toegang...";
+  message.textContent = "We controleren je feestcode…";
   try {
     const response = await fetch("/api/guests/join", {
       method: "POST",
@@ -190,7 +190,7 @@ form?.addEventListener("submit", async (event) => {
     message.textContent = error instanceof Error ? error.message : "Er ging iets mis. Probeer opnieuw.";
     if (submitButton) {
       submitButton.disabled = false;
-      submitButton.innerHTML = 'LET ME IN <span aria-hidden="true">↗</span>';
+      submitButton.innerHTML = 'IK DOE MEE <span aria-hidden="true">↗</span>';
     }
   }
 });
