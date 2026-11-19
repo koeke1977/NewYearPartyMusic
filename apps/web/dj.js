@@ -369,6 +369,10 @@ async function askDJAI(prompt,mode="advice"){
       const byName=new Map(queued.map(track=>[norm(track.track_name+" — "+track.artist_name),track.id]));
       const ids=lines.map(line=>byName.get(norm(line))).filter(Boolean);
       if(queued.length&&ids.length===queued.length&&new Set(ids).size===queued.length){
+        if(!window.confirm("DJ#DATUUR heeft een nieuwe volgorde voorgesteld. Wil je deze volgorde toepassen op de echte PartyQueue-wachtrij?")) {
+          output.textContent=answer+"\\n\\nVoorstel niet toegepast. Je huidige wachtrij blijft ongewijzigd.";
+          return;
+        }
         await api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order:ids})});
         output.textContent=answer+"\\n\\n✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen.";
         await refresh();
