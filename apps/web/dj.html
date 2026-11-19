@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b0a">
+  <meta name="description" content="PartyQueue DJ dashboard">
+  <title>PartyQueue — DJ Console</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <main class="shell dj-shell">
+    <header class="topbar">
+      <a class="brand" href="/" aria-label="PartyQueue home"><span class="brand-mark">P</span><span>PARTY<span class="accent">QUEUE</span></span></a>
+      <span class="event-pill"><span class="live-dot"></span> DJ CONSOLE</span>
+    </header>
+    <section class="hero dj-hero">
+      <p class="eyebrow">BACKSTAGE CONTROL</p>
+      <h1>Own the<br><span class="accent">party queue.</span></h1>
+      <p class="intro">Live requests, moderation and party controls in one place.</p>
+    </section>
+    <section id="dj-login-card" class="join-card">
+      <div class="section-heading"><span class="step">DJ</span><div><h2>DJ sign in</h2><p>Enter your private DJ access code.</p></div></div>
+      <form id="dj-login-form">
+        <label for="dj-code">DJ access code</label>
+        <input id="dj-code" name="code" type="password" autocomplete="current-password" placeholder="Your private DJ code" required>
+        <button class="button button-primary" type="submit">OPEN DJ CONSOLE <span aria-hidden="true">↗</span></button>
+      </form>
+      <p id="dj-login-message" class="form-message" role="status" aria-live="polite"></p>
+    </section>
+    <section id="dj-console" hidden>
+      <div class="dj-toolbar">
+        <div><p class="eyebrow">NYE2026 · CONTROL ROOM</p><h2>Request manager</h2><p id="last-updated" class="dj-muted">Connecting...</p></div>
+        <button id="dj-logout" class="text-button">LOG OUT</button>
+      </div>
+      <div class="dj-controls">
+        <button id="pause-toggle" class="control-tile"><span class="control-label">GUEST REQUESTS</span><strong id="pause-state">Loading…</strong><small>Tap to pause or resume</small></button>
+        <button id="approval-toggle" class="control-tile"><span class="control-label">MODERATION MODE</span><strong id="approval-state">Loading…</strong><small>Tap to change approval mode</small></button>
+      </div>
+      <div class="dj-stats" id="dj-stats"></div>
+      <div class="dj-list-heading"><h2>Live requests</h2><span id="request-count" class="event-pill">0 REQUESTS</span></div>
+      <div id="dj-requests" class="dj-requests"><p class="dj-muted">Loading requests…</p></div>
+      <p id="dj-message" class="form-message" role="status" aria-live="polite"></p>
+    </section>
+    <footer><span>POWERED BY <strong>PARTYQUEUE</strong></span><span>DJ CONSOLE <span class="accent">→</span></span></footer>
+  </main>
+  <script src="/dj.js" defer></script>
+</body>
+</html>
