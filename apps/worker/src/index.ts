@@ -13,6 +13,13 @@ interface Env {
   SESSION_SECRET: string;
   SPOTIFY_CLIENT_ID: string;
   SPOTIFY_CLIENT_SECRET: string;
+  AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };
+  AI_PROVIDER?: string;
+  AI_MODEL?: string;
+  OPENAI_API_KEY?: string;
+  OPENAI_MODEL?: string;
+  ANTHROPIC_API_KEY?: string;
+  ANTHROPIC_MODEL?: string;
 }
 
 type Session = { sub: string; eventId: string; nickname: string; exp: number; role?: string };
@@ -187,6 +194,53 @@ app.post("/api/dj/login", async (c) => {
   const payload = toBase64Url(encoder.encode(JSON.stringify({ sub: "dj", eventId: c.env.EVENT_ID, nickname: "DJ", role: "dj", exp: expiresAt })));
   const token = payload + "." + await signSession(payload, c.env.SESSION_SECRET);
   return c.json({ ok: true, token, expiresAt });
+});
+app.post("/api/dj/ai/assistant", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
+  let body: { prompt?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+  if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
+  const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
+  if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
+  const [rows, current] = await Promise.all([
+    c.env.DB.prepare("SELECT track_name,artist_name,duration_ms,status FROM requests WHERE event_id=? AND status IN ('pending','approved','queued','played') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END, requested_at DESC LIMIT 45").bind(c.env.EVENT_ID).all<{track_name:string;artist_name:string;duration_ms:number;status:string}>(),
+    c.env.DB.prepare("SELECT track_name,artist_name FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 1").bind(c.env.EVENT_ID).first<{track_name:string;artist_name:string}>()
+  ]);
+  const tracks = rows.results || [];
+  const queued = tracks.filter(t=>t.status==="queued").slice(0,15);
+  const recent = tracks.filter(t=>t.status==="played").slice(0,8);
+  const context = {
+    event: c.env.EVENT_NAME,
+    currentlyLastPlayed: current ? current.track_name+" — "+current.artist_name : "unknown",
+    upNext: queued.map(t=>t.track_name+" — "+t.artist_name),
+    recentPlayed: recent.map(t=>t.track_name+" — "+t.artist_name),
+    requestMix: tracks.reduce((acc,t)=>{acc[t.status]=(acc[t.status]||0)+1;return acc;},{} as Record<string,number>)
+  };
+  const system = "You are DJ#DATUUR AI, a concise Dutch-language assistant for a live party DJ. Analyse only the supplied PartyQueue metadata. Give practical music-flow advice and specific suggestions. Never claim to hear audio, know the crowd, access Spotify audio, or control playback. Do not invent tracks as if they are in the queue; clearly label outside suggestions. The DJ always decides. Keep answers under 120 words.";
+  const user = "PARTYQUEUE CONTEXT:\n"+JSON.stringify(context)+"\n\nDJ QUESTION:\n"+prompt;
+  const provider = (c.env.AI_PROVIDER || "cloudflare").toLowerCase();
+  try {
+    let answer = "";
+    if (provider === "openai") {
+      if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI is nog niet geconfigureerd. Voeg OPENAI_API_KEY toe als Worker secret." }, 503);
+      const response = await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+c.env.OPENAI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({model:c.env.OPENAI_MODEL||"gpt-4.1-mini",messages:[{role:"system",content:system},{role:"user",content:user}],max_tokens:220,temperature:0.4})});
+      const data:any=await response.json(); if(!response.ok)throw new Error("OpenAI HTTP "+response.status+": "+JSON.stringify(data.error||{}).slice(0,220));
+      answer=data.choices?.[0]?.message?.content||"Geen antwoord ontvangen.";
+    } else if (provider === "anthropic") {
+      if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "Claude is nog niet geconfigureerd. Voeg ANTHROPIC_API_KEY toe als Worker secret." }, 503);
+      const response = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"x-api-key":c.env.ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},body:JSON.stringify({model:c.env.ANTHROPIC_MODEL||"claude-3-5-haiku-latest",max_tokens:240,system,messages:[{role:"user",content:user}]})});
+      const data:any=await response.json(); if(!response.ok)throw new Error("Claude HTTP "+response.status+": "+JSON.stringify(data.error||{}).slice(0,220));
+      answer=(data.content||[]).filter((part:any)=>part.type==="text").map((part:any)=>part.text).join("\n")||"Geen antwoord ontvangen.";
+    } else {
+      if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
+      const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/meta/llama-3.1-8b-instruct",{messages:[{role:"system",content:system},{role:"user",content:user}],max_tokens:220,temperature:0.4});
+      answer=result.response||result.result?.response||"Geen antwoord ontvangen.";
+    }
+    return c.json({ ok:true,provider,answer:String(answer).slice(0,1800) });
+  } catch(error) {
+    return c.json({ error:error instanceof Error?error.message:"AI-assistent is tijdelijk niet beschikbaar." },502);
+  }
 });
 app.get("/api/dj/overview", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
