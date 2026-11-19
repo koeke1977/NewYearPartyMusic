@@ -333,6 +333,8 @@ async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;track?:
 
 async function maybeAdvancePartyQueue(env: Env, playing: boolean): Promise<{advanced:boolean;error?:string}> {
   if (playing) return {advanced:false};
+  const manualPause = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_manual_pause'").first<{value:string}>();
+  if (manualPause?.value === "true") return {advanced:false};
   const lastState = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_last_partyqueue_track'").first<{value:string}>();
   if (!lastState?.value) return {advanced:false};
   let last: {uri:string;durationMs:number;startedAt:number};
@@ -347,6 +349,8 @@ async function maybeAdvancePartyQueue(env: Env, playing: boolean): Promise<{adva
 }
 
 async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, progressMs: number, currentDurationMs: number): Promise<boolean> {
+  const manualPause = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_manual_pause'").first<{value:string}>();
+  if (manualPause?.value === "true") return false;
   const state = await env.DB.prepare("SELECT value,updated_at FROM settings WHERE key='spotify_fallback_active'").first<{value:string;updated_at:string}>();
   if (state?.value === "true") return true;
   if (state?.value === "starting" && Date.now() - Date.parse(state.updated_at + "Z") < 60000) return false;
@@ -438,7 +442,13 @@ app.post("/api/dj/spotify/:action",async(c)=>{
   const action=c.req.param("action");
   const paths:Record<string,{method:string;path:string}>={play:{method:"PUT",path:"/me/player/play"},pause:{method:"PUT",path:"/me/player/pause"},next:{method:"POST",path:"/me/player/next"},previous:{method:"POST",path:"/me/player/previous"}};
   const command=paths[action];if(!command)return c.json({error:"Onbekend Spotify-commando."},400);
-  try{const r=await spotifyFetch(c.env,command.path,{method:command.method});if(!r.ok&&r.status!==204)return c.json({error:"Spotify-commando geweigerd (HTTP "+r.status+"). Controleer of een Spotify Connect-apparaat actief is."},502);return c.json({ok:true});}
+  try{
+    const r=await spotifyFetch(c.env,command.path,{method:command.method});
+    if(!r.ok&&r.status!==204)return c.json({error:"Spotify-commando geweigerd (HTTP "+r.status+"). Controleer of een Spotify Connect-apparaat actief is."},502);
+    if(action==="pause") await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
+    if(action==="play") await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
+    return c.json({ok:true});
+  }
   catch(e){return c.json({error:e instanceof Error?e.message:"Spotify-commando mislukt."},503);}
 });
 app.post("/api/dj/spotify/queue/:id",async(c)=>{
