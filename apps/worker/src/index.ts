@@ -145,7 +145,7 @@ app.post("/api/requests", async (c) => {
   const guest = await c.env.DB.prepare("SELECT id FROM guests WHERE id = ? AND event_id = ?").bind(session.sub, session.eventId).first();
   if (!guest) return c.json({ error: "Gast niet gevonden. Meld je opnieuw aan." }, 401);
 
-  const settings = await c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','max_open_requests_per_guest','max_requests_per_30_minutes','auto_approve')").all<{ key: string; value: string }>();
+  const settings = await c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','max_open_requests_per_guest','max_requests_per_30_minutes','auto_approve','auto_queue')").all<{ key: string; value: string }>();
   const config = Object.fromEntries((settings.results || []).map((row) => [row.key, row.value]));
   if (config.requests_paused === "true") return c.json({ error: "De DJ heeft aanvragen tijdelijk gepauzeerd." }, 403);
 
@@ -164,10 +164,10 @@ app.post("/api/requests", async (c) => {
     if (!trackResponse.ok) return c.json({ error: "We konden dit nummer niet meer ophalen bij Spotify." }, 400);
     const track = await trackResponse.json() as SpotifyTrack;
     const requestId = crypto.randomUUID();
-    const status = config.auto_approve === "true" ? "approved" : "pending";
+    const status = config.auto_approve === "true" ? (config.auto_queue === "true" ? "queued" : "approved") : "pending";
     await c.env.DB.prepare(
-      "INSERT INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at) VALUES (?,?,?,?,?,?,?,?,?,?,CASE WHEN ? = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END)",
-    ).bind(requestId, session.eventId, session.sub, track.id, track.uri, track.name, track.artists.map((artist) => artist.name).join(", "), track.album.images?.[1]?.url || track.album.images?.[0]?.url || null, track.duration_ms, status, status).run();
+      "INSERT INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) VALUES (?,?,?,?,?,?,?,?,?,?,CASE WHEN ? IN ('approved','queued') THEN CURRENT_TIMESTAMP ELSE NULL END,CASE WHEN ? = 'queued' THEN CURRENT_TIMESTAMP ELSE NULL END)",
+    ).bind(requestId, session.eventId, session.sub, track.id, track.uri, track.name, track.artists.map((artist) => artist.name).join(", "), track.album.images?.[1]?.url || track.album.images?.[0]?.url || null, track.duration_ms, status, status, status).run();
     return c.json({ ok: true, request: { id: requestId, name: track.name, artists: track.artists.map((artist) => artist.name), status } }, 201);
   } catch (error) {
     return c.json({ error: error instanceof Error ? error.message : "Aanvraag kon niet worden opgeslagen." }, 503);
@@ -195,10 +195,10 @@ app.get("/api/dj/overview", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   const [requests, settings] = await Promise.all([
     c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'queued' THEN 2 WHEN 'played' THEN 3 ELSE 4 END, r.requested_at ASC LIMIT 100").bind(c.env.EVENT_ID).all(),
-    c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve')").all<{key:string;value:string}>()
+    c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve','auto_queue')").all<{key:string;value:string}>()
   ]);
   const config = Object.fromEntries((settings.results || []).map(x => [x.key, x.value]));
-  return c.json({ requests: requests.results || [], settings: { requestsPaused: config.requests_paused === "true", autoApprove: config.auto_approve === "true" } });
+  return c.json({ requests: requests.results || [], settings: { requestsPaused: config.requests_paused === "true", autoApprove: config.auto_approve === "true", autoQueue: config.auto_queue === "true" } });
 });
 app.post("/api/dj/requests/:id/:action", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
@@ -211,16 +211,18 @@ app.post("/api/dj/requests/:id/:action", async (c) => {
     played: {from:["approved","queued"],to:"played"}, queue: {from:["approved"],to:"queued"}
   };
   const transition = transitions[action];
+  const autoQueue = action === "approve" && (await c.env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind("auto_queue").first<{value:string}>())?.value === "true";
   if (!transition || !transition.from.includes(current.status)) return c.json({ error: "Deze actie kan niet op deze aanvraag worden uitgevoerd." }, 409);
-  const timestamp = action === "played" ? "played_at" : action === "queue" ? "queued_at" : action === "approve" ? "approved_at" : null;
+  const nextStatus = autoQueue ? "queued" : transition.to;
+  const timestamp = action === "played" ? "played_at" : action === "queue" || autoQueue ? "queued_at" : action === "approve" ? "approved_at" : null;
   const sql = timestamp ? "UPDATE requests SET status = ?, " + timestamp + " = CURRENT_TIMESTAMP WHERE id = ? AND event_id = ?" : "UPDATE requests SET status = ? WHERE id = ? AND event_id = ?";
-  await c.env.DB.prepare(sql).bind(transition.to, id, c.env.EVENT_ID).run();
-  return c.json({ ok: true, status: transition.to });
+  await c.env.DB.prepare(sql).bind(nextStatus, id, c.env.EVENT_ID).run();
+  return c.json({ ok: true, status: nextStatus });
 });
 app.post("/api/dj/settings/:key", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   const key = c.req.param("key");
-  if (!["requests_paused","auto_approve"].includes(key)) return c.json({ error: "Onbekende instelling." }, 400);
+  if (!["requests_paused","auto_approve","auto_queue"].includes(key)) return c.json({ error: "Onbekende instelling." }, 400);
   let body: { enabled?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   if (typeof body.enabled !== "boolean") return c.json({ error: "Ongeldige waarde." }, 400);
