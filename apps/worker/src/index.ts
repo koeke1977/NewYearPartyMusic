@@ -313,14 +313,16 @@ async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | nul
   if (Number(retry?.value || 0) > Date.now()) return false;
   const queued = await env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(env.EVENT_ID).first<{count:number}>();
   if ((queued?.count || 0) > 0) return false;
-  const last = await env.DB.prepare("SELECT track_uri,duration_ms,CAST(strftime('%s',played_at) AS INTEGER)*1000 AS played_at_ms FROM requests WHERE event_id=? AND status='played' AND played_at IS NOT NULL ORDER BY played_at DESC LIMIT 1")
-    .bind(env.EVENT_ID).first<{track_uri:string;duration_ms:number;played_at_ms:number}>();
-  if (!last) return false;
-  const elapsed = Date.now() - last.played_at_ms;
-  if (elapsed < Math.max(0, last.duration_ms - 4000)) return false;
+  const lastState = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_last_partyqueue_track'").first<{value:string}>();
+  if (!lastState?.value) return false;
+  let last: { uri: string; durationMs: number; startedAt: number };
+  try { last = JSON.parse(lastState.value); } catch { return false; }
+  if (!last.uri || !last.durationMs || !last.startedAt) return false;
+  const elapsed = Date.now() - last.startedAt;
+  if (elapsed < Math.max(0, last.durationMs - 4000)) return false;
   // Do not interrupt a still-playing track or a different track selected manually in Spotify.
-  if (playing || (currentTrackUri && currentTrackUri !== last.track_uri)) return false;
-  if (currentTrackUri === last.track_uri && currentDurationMs > 0 && progressMs < currentDurationMs - 4000) return false;
+  if (playing || (currentTrackUri && currentTrackUri !== last.uri)) return false;
+  if (currentTrackUri === last.uri && currentDurationMs > 0 && progressMs < currentDurationMs - 4000) return false;
   try {
     await startSpotifyFallback(env);
     await env.DB.prepare("DELETE FROM settings WHERE key='spotify_fallback_retry_after'").run();
@@ -355,8 +357,8 @@ app.get("/api/dj/spotify/devices",async(c)=>{
 });
 app.post("/api/dj/spotify/next-request",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
-  const next=await c.env.DB.prepare("SELECT id,track_uri,track_name,artist_name FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC LIMIT 1")
-    .bind(c.env.EVENT_ID).first<{id:string;track_uri:string;track_name:string;artist_name:string}>();
+  const next=await c.env.DB.prepare("SELECT id,track_uri,track_name,artist_name,duration_ms FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC LIMIT 1")
+    .bind(c.env.EVENT_ID).first<{id:string;track_uri:string;track_name:string;artist_name:string;duration_ms:number}>();
   if(!next)return c.json({error:"Er staan geen PartyQueue-aanvragen klaar. Cue eerst een goedgekeurd nummer naar de wachtrij."},404);
   try{
     const response=await spotifyFetch(c.env,"/me/player/play",{
@@ -368,6 +370,8 @@ app.post("/api/dj/spotify/next-request",async(c)=>{
     await c.env.DB.prepare("UPDATE requests SET status='played',played_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND status='queued'")
       .bind(next.id,c.env.EVENT_ID).run();
     await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
+    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_last_partyqueue_track',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
+      .bind(JSON.stringify({uri:next.track_uri,durationMs:next.duration_ms,startedAt:Date.now()})).run();
     return c.json({ok:true,track:{name:next.track_name,artist:next.artist_name},requestId:next.id});
   }catch(error){
     return c.json({error:error instanceof Error?error.message:"Volgende PartyQueue-aanvraag starten is mislukt."},503);
