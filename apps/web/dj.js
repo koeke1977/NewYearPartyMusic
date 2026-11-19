@@ -379,6 +379,43 @@ async function askDJAI(prompt,mode="advice"){
       }else{
         output.textContent=answer+"\\n\\n⚠️ Ik heb geen volledige, eenduidige volgorde kunnen herkennen. Er is niets gewijzigd. Pas de volgorde eventueel handmatig aan.";
       }
+    }else if(mode==="starter"||mode==="fill"){
+      const suggestions=[...answer.matchAll(/^\\s*\\d+[.)]\\s*(.+?)\\s*$/gm)]
+        .map(match=>match[1].replace(/\\*+/g,"").replace(/\\s*\\([^)]*\\)\\s*$/,"").trim())
+        .filter(line=>line.includes("—")||line.includes("-"))
+        .slice(0,12);
+      output.replaceChildren();
+      const intro=el("p","",answer);
+      output.append(intro);
+      if(suggestions.length){
+        const hint=el("p","dj-ai-results-hint","Spotify-matches — kies de juiste uitvoering om die rechtstreeks aan UP NEXT toe te voegen.");
+        output.append(hint);
+        const results=await api("/api/dj/ai/music/search",{method:"POST",body:JSON.stringify({queries:suggestions})});
+        for(const group of results.results||[]){
+          const groupBox=el("div","dj-ai-suggestion");
+          groupBox.append(el("strong","dj-ai-query",group.query));
+          if(!group.tracks?.length)groupBox.append(el("span","dj-ai-no-match","Geen Spotify-match gevonden."));
+          for(const track of group.tracks||[]){
+            const option=el("div","dj-ai-track");
+            if(track.albumImageUrl){const cover=el("img","dj-ai-track-cover");cover.src=track.albumImageUrl;cover.alt="";option.append(cover);}
+            const details=el("div","dj-ai-track-details");
+            details.append(el("strong","",track.name),el("span","",track.artists.join(", ")));
+            const add=el("button","dj-ai-add","＋ TOEVOEGEN");
+            add.type="button";
+            add.addEventListener("click",async()=>{
+              add.disabled=true;add.textContent="TOEVOEGEN…";
+              try{
+                await api("/api/dj/ai/music/add",{method:"POST",body:JSON.stringify({trackId:track.id})});
+                add.textContent="✓ TOEGEVOEGD";add.classList.add("is-added");await refresh();
+              }catch(error){add.disabled=false;add.textContent=error.message;}
+            });
+            option.append(details,add);groupBox.append(option);
+          }
+          output.append(groupBox);
+        }
+      }else{
+        output.append(el("p","dj-ai-results-hint","Ik kon geen genummerde tracks uit het antwoord halen. Vraag de AI om een lijst met Titel — Artiest."));
+      }
     }else{
       output.textContent=(result.cached?"↻ Eerder advies (wachtrij ongewijzigd)\\n\\n":"")+answer;
     }
@@ -396,9 +433,9 @@ document.querySelectorAll("[data-ai-action]").forEach(button=>button.addEventLis
   if(action==="optimize"){
     await askDJAI("Optimaliseer de volledige huidige PartyQueue wachtrij voor een vloeiende opbouw van rustig naar energiek. Geef ALLEEN een genummerde lijst, exact in het formaat Titel — Artiest, gebruik elke track uit UP NEXT precies één keer en voeg niets toe. Geen intro of uitleg. Als er minder dan twee tracks zijn, zeg dat.");
   }else if(action==="starter"){
-    await askDJAI("Maak een gevarieerde basisselectie van 12 bekende, feestgeschikte nummers voor een Oud & Nieuw-feest in België. Bouw op van warm-up naar dansvloer en meezingers. Geef een genummerde lijst met exact Titel — Artiest en vermeld kort waarom de set werkt.");
+    await askDJAI("Maak een gevarieerde basisselectie van 12 bekende, feestgeschikte nummers voor een Oud & Nieuw-feest in België. Bouw op van warm-up naar dansvloer en meezingers. Geef een genummerde lijst met exact Titel — Artiest en vermeld kort waarom de set werkt.","starter");
   }else{
-    await askDJAI("Stel 8 externe nummers voor die goed aansluiten op de huidige PartyQueue wachtrij en de energie geleidelijk verhogen richting een Oud & Nieuw-feest. Vermijd artiesten en tracks die al in UP NEXT of recent gespeeld staan. Geef een genummerde lijst met exact Titel — Artiest en markeer dit als suggesties buiten de wachtrij.");
+    await askDJAI("Stel 8 externe nummers voor die goed aansluiten op de huidige PartyQueue wachtrij en de energie geleidelijk verhogen richting een Oud & Nieuw-feest. Vermijd artiesten en tracks die al in UP NEXT of recent gespeeld staan. Geef een genummerde lijst met exact Titel — Artiest en markeer dit als suggesties buiten de wachtrij.","fill");
   }
 }));
 
