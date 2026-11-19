@@ -203,19 +203,25 @@ app.post("/api/dj/ai/assistant", async (c) => {
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
   const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
   if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
-  const [rows, current] = await Promise.all([
-    c.env.DB.prepare("SELECT track_name,artist_name,duration_ms,status FROM requests WHERE event_id=? AND status IN ('pending','approved','queued','played') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END, requested_at DESC LIMIT 45").bind(c.env.EVENT_ID).all<{track_name:string;artist_name:string;duration_ms:number;status:string}>(),
-    c.env.DB.prepare("SELECT track_name,artist_name FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 1").bind(c.env.EVENT_ID).first<{track_name:string;artist_name:string}>()
+  const [rows, playedRows, countRows, orderSetting] = await Promise.all([
+    c.env.DB.prepare("SELECT id,track_name,artist_name,duration_ms,status,queued_at,requested_at FROM requests WHERE event_id=? AND status IN ('pending','approved','queued') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, requested_at DESC LIMIT 45").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string;duration_ms:number|null;status:string;queued_at:string|null;requested_at:string}>(),
+    c.env.DB.prepare("SELECT track_name,artist_name FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 8").bind(c.env.EVENT_ID).all<{track_name:string;artist_name:string}>(),
+    c.env.DB.prepare("SELECT status,COUNT(*) AS count FROM requests WHERE event_id=? AND status IN ('pending','approved','queued','played') GROUP BY status").bind(c.env.EVENT_ID).all<{status:string;count:number}>(),
+    c.env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>()
   ]);
   const tracks = rows.results || [];
-  const queued = tracks.filter(t=>t.status==="queued").slice(0,15);
-  const recent = tracks.filter(t=>t.status==="played").slice(0,8);
+  let savedOrder: string[] = [];
+  try { savedOrder = JSON.parse(orderSetting?.value || "[]"); } catch { savedOrder = []; }
+  const orderIndex = new Map(savedOrder.map((id,index)=>[id,index]));
+  const queued = tracks.filter(t=>t.status==="queued").sort((a,b)=>(orderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(orderIndex.get(b.id)??Number.MAX_SAFE_INTEGER)||String(a.queued_at||a.requested_at).localeCompare(String(b.queued_at||b.requested_at))).slice(0,15);
+  const recent = playedRows.results || [];
+  const current = recent[0];
   const context = {
     event: c.env.EVENT_NAME,
     currentlyLastPlayed: current ? current.track_name+" — "+current.artist_name : "unknown",
     upNext: queued.map(t=>t.track_name+" — "+t.artist_name),
     recentPlayed: recent.map(t=>t.track_name+" — "+t.artist_name),
-    requestMix: tracks.reduce((acc,t)=>{acc[t.status]=(acc[t.status]||0)+1;return acc;},{} as Record<string,number>)
+    requestMix: Object.fromEntries((countRows.results||[]).map(row=>[row.status,row.count]))
   };
   const system = "You are DJ#DATUUR AI, a concise Dutch-language assistant for a live party DJ. Analyse only the supplied PartyQueue metadata. Give practical music-flow advice and specific suggestions. Never claim to hear audio, know the crowd, access Spotify audio, or control playback. Do not invent tracks as if they are in the queue; clearly label outside suggestions. The DJ always decides. Keep answers under 120 words.";
   const user = "PARTYQUEUE CONTEXT:\n"+JSON.stringify(context)+"\n\nDJ QUESTION:\n"+prompt;
