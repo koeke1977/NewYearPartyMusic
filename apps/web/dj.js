@@ -230,7 +230,7 @@ async function refreshSpotify(){
     if(data.fallbackActive)document.querySelector("#booth-play-state").textContent="SPOTIFY MIX";
     if(data.device){device.textContent="ACTIVE DEVICE · "+data.device.name+" ("+data.device.type+")";if(typeof data.device.volume==="number"){updateMasterVolumeDisplay(data.device.volume);document.querySelector("#master-volume-status").textContent="SPOTIFY MASTER OUTPUT";}}
     else{device.textContent="Spotify is connected. Open Spotify on a device to make it active.";document.querySelector("#master-volume-status").textContent="NO ACTIVE SPOTIFY DEVICE";}
-    now.textContent=data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
+    now.textContent=data.fallbackError?"FALLBACK ERROR · "+data.fallbackError:data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
   }catch(e){
     state.textContent="NOT CONNECTED";
     document.querySelector("#spotify-connect")?.classList.remove("is-connected");
