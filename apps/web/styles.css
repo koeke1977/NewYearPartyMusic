@@ -290,3 +290,18 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .booth-transport button[data-spotify-command="pause"].is-selected{background:linear-gradient(180deg,#237a40 0%,#12502a 48%,#0b2b16 100%)!important;border:1px solid #42ff83!important;color:#f0fff4!important;box-shadow:inset 0 1px 0 #ffffff88,0 0 0 1px #1ed76066,0 0 15px #1ed76088,0 2px 5px #000c!important}
 .booth-transport button[data-spotify-command="play"].is-idle,
 .booth-transport button[data-spotify-command="pause"].is-idle{background:linear-gradient(180deg,#252c27 0%,#111612 55%,#090d0a 100%)!important;border:1px solid #39423b!important;color:#78837b!important;box-shadow:inset 0 1px 0 #ffffff16,inset 0 -2px 3px #000b,0 2px 3px #0008!important}
+
+/* Album artwork sits in the spindle label; track metadata lives beneath each platter */
+.booth-label{width:31%!important;height:31%!important;padding:0!important;overflow:hidden;border:3px solid #d5e3d8!important;background:radial-gradient(circle at 35% 30%,#eaffef,#1ed760 55%,#08772f)!important;box-shadow:0 0 0 2px #080b09,0 2px 8px #000b,0 0 12px #1ed76035!important}
+.booth-label img{display:block;width:100%;height:100%;object-fit:cover;border-radius:50%}
+.booth-label img[hidden],.booth-label span[hidden]{display:none}
+.booth-label span{font-size:clamp(9px,1vw,15px);font-weight:1000;letter-spacing:.08em;color:#071109}
+.booth-deck-meta{min-height:34px;gap:8px;align-items:center;padding:8px 4px 2px}
+.booth-deck-meta>div{display:flex;min-width:0;flex:1;flex-direction:column;gap:3px}
+.booth-deck-meta>div>span{color:#1ed760;font-size:6px;font-weight:1000;letter-spacing:.15em}
+.booth-deck-meta strong{overflow:hidden;color:#f0f5f1;font-size:clamp(8px,.8vw,12px);font-weight:900;line-height:1.2;text-overflow:ellipsis;white-space:nowrap}
+.booth-deck-meta small{overflow:hidden;color:#8e9b91;font-size:clamp(6px,.58vw,9px);text-overflow:ellipsis;white-space:nowrap}
+.booth-deck-meta>b{flex:0 0 auto;color:#1ed760;font-size:9px}
+.partyqueue-booth.is-playing .booth-deck-left .booth-vinyl{animation-play-state:running}
+.partyqueue-booth .booth-deck-right .booth-vinyl{animation-play-state:paused}
+@media(max-width:700px){.booth-deck-meta{min-height:30px;padding:6px 2px 1px}.booth-deck-meta strong{font-size:7px}.booth-deck-meta small{font-size:6px}}
