@@ -56,6 +56,12 @@ function syncPlaybackButtons(connected,playing){
     button.classList.toggle("is-idle",!active);
     button.setAttribute("aria-pressed",String(active));
   });
+  const booth=document.querySelector("#partyqueue-booth");
+  if(booth){
+    booth.classList.toggle("is-playing",!!connected&&!!playing);
+    const status=document.querySelector("#booth-play-state");
+    if(status)status.textContent=!connected?"OFFLINE":playing?"ON AIR":"PAUSED";
+  }
 }
 function render(data){
   currentSettings=data.settings||currentSettings;
