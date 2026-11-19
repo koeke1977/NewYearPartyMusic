@@ -436,7 +436,7 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 /* Side-by-side DJ layout: ready queue on the left, turntable booth on the right */
 .booth-queue-layout{
   display:grid;
-  grid-template-columns:minmax(230px,.72fr) minmax(0,2.28fr);
+  grid-template-columns:minmax(0,2.35fr) minmax(230px,.75fr);
   align-items:stretch;
   gap:16px;
   margin:4px 0 22px;
@@ -484,9 +484,9 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
   white-space:nowrap;
 }
 .booth-queue-layout .partyqueue-booth{min-width:0;margin:0}
-@media(max-width:900px){
+@media(max-width:700px){
   .booth-queue-layout{grid-template-columns:1fr}
-  .booth-queue-layout .queue-panel-wide{order:2}
   .booth-queue-layout .partyqueue-booth{order:1}
+  .booth-queue-layout .queue-panel-wide{order:2}
   .booth-queue-layout .queue-panel-wide .up-next{max-height:360px}
 }
