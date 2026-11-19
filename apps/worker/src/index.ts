@@ -272,21 +272,48 @@ async function saveSpotifyTokens(env: Env, accessToken: string, refreshToken: st
     .bind(accessEnc,refreshEnc,Date.now()+expiresIn*1000).run();
 }
 async function spotifyUserToken(env: Env): Promise<string> {
-  const row = await env.DB.prepare("SELECT access_token_enc,refresh_token_enc,expires_at FROM spotify_auth WHERE id='main'").first<{access_token_enc:string;refresh_token_enc:string;expires_at:number}>();
-  if (!row) throw new Error("Koppel eerst je Spotify-account via de DJ-console.");
-  if (row.expires_at > Date.now()+60000) return unseal(row.access_token_enc,env.SESSION_SECRET);
-  const refreshToken = await unseal(row.refresh_token_enc,env.SESSION_SECRET);
-  const basic = btoa(env.SPOTIFY_CLIENT_ID+":"+env.SPOTIFY_CLIENT_SECRET);
-  const response = await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"refresh_token",refresh_token:refreshToken})});
-  if (!response.ok) throw new Error("Spotify-sessie verlopen. Koppel Spotify opnieuw (HTTP "+response.status+").");
-  const data = await response.json() as {access_token:string;expires_in:number;refresh_token?:string};
-  const nextRefresh = data.refresh_token || refreshToken;
-  await saveSpotifyTokens(env,data.access_token,nextRefresh,data.expires_in);
-  return data.access_token;
+  // Serialize refresh-token rotation across concurrent Worker requests.
+  const owner = crypto.randomUUID();
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const row = await env.DB.prepare("SELECT access_token_enc,refresh_token_enc,expires_at FROM spotify_auth WHERE id='main'").first<{access_token_enc:string;refresh_token_enc:string;expires_at:number}>();
+    if (!row) throw new Error("Koppel eerst je Spotify-account via de DJ-console.");
+    if (row.expires_at > Date.now()+60000) return unseal(row.access_token_enc,env.SESSION_SECRET);
+    const claim = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_token_refresh_lock',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-30 seconds')").bind(owner).run();
+    if (!claim.meta.changes) {
+      await new Promise(resolve => setTimeout(resolve,200));
+      continue;
+    }
+    try {
+      // Another request may have refreshed while this request was waiting to acquire the lock.
+      const latest = await env.DB.prepare("SELECT access_token_enc,refresh_token_enc,expires_at FROM spotify_auth WHERE id='main'").first<{access_token_enc:string;refresh_token_enc:string;expires_at:number}>();
+      if (!latest) throw new Error("Spotify-koppeling ontbreekt.");
+      if (latest.expires_at > Date.now()+60000) return await unseal(latest.access_token_enc,env.SESSION_SECRET);
+      const refreshToken = await unseal(latest.refresh_token_enc,env.SESSION_SECRET);
+      const basic = btoa(env.SPOTIFY_CLIENT_ID+":"+env.SPOTIFY_CLIENT_SECRET);
+      const response = await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"refresh_token",refresh_token:refreshToken})});
+      if (!response.ok) {
+        const detail = (await response.text()).slice(0,300);
+        throw new Error("Spotify-token vernieuwen mislukt (HTTP "+response.status+"). "+detail);
+      }
+      const data = await response.json() as {access_token:string;expires_in:number;refresh_token?:string};
+      await saveSpotifyTokens(env,data.access_token,data.refresh_token||refreshToken,data.expires_in);
+      return data.access_token;
+    } finally {
+      await env.DB.prepare("DELETE FROM settings WHERE key='spotify_token_refresh_lock' AND value=?").bind(owner).run();
+    }
+  }
+  throw new Error("Spotify-token wordt momenteel door een andere aanvraag vernieuwd. Probeer zo opnieuw.");
 }
 async function spotifyFetch(env: Env, path: string, init: RequestInit = {}): Promise<Response> {
-  const token = await spotifyUserToken(env);
-  return fetch("https://api.spotify.com/v1"+path,{...init,headers:{...(init.headers||{}),Authorization:"Bearer "+token}});
+  let token = await spotifyUserToken(env);
+  let response = await fetch("https://api.spotify.com/v1"+path,{...init,headers:{...(init.headers||{}),Authorization:"Bearer "+token}});
+  if (response.status === 401) {
+    // The cached token may have been revoked or rotated by another concurrent request.
+    await env.DB.prepare("UPDATE spotify_auth SET expires_at=0 WHERE id='main'").run();
+    token = await spotifyUserToken(env);
+    response = await fetch("https://api.spotify.com/v1"+path,{...init,headers:{...(init.headers||{}),Authorization:"Bearer "+token}});
+  }
+  return response;
 }
 app.post("/api/dj/spotify/connect", async (c) => {
   if (!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
@@ -328,10 +355,11 @@ async function startSpotifyFallback(env: Env): Promise<void> {
   await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
 }
 
-async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;track?:{name:string;artist:string};requestId?:string;error?:string}> {
-  // A short D1 lock prevents overlapping status polls and manual NEXT clicks from starting the same request twice.
-  const lock = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_partyqueue_next_lock','starting',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='starting',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-30 seconds')").run();
-  if (!lock.meta.changes) return {ok:false,error:"Er wordt al een volgend nummer gestart."};
+async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;busy?:boolean;track?:{name:string;artist:string};requestId?:string;error?:string}> {
+  // A unique lock owner prevents overlapping auto/manual NEXT and prevents an old request deleting a newer lock.
+  const owner = crypto.randomUUID();
+  const lock = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_partyqueue_next_lock',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-30 seconds')").bind(owner).run();
+  if (!lock.meta.changes) return {ok:false,busy:true,error:"Een andere NEXT-actie wordt al verwerkt."};
   try {
     const queued = await env.DB.prepare("SELECT id,track_uri,track_name,artist_name,duration_ms,queued_at,requested_at FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC")
       .bind(env.EVENT_ID).all<{id:string;track_uri:string;track_name:string;artist_name:string;duration_ms:number;queued_at:string;requested_at:string}>();
@@ -359,7 +387,7 @@ async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;track?:
   } catch (error) {
     return {ok:false,error:error instanceof Error?error.message:"Volgende PartyQueue-aanvraag starten is mislukt."};
   } finally {
-    await env.DB.prepare("DELETE FROM settings WHERE key='spotify_partyqueue_next_lock'").run();
+    await env.DB.prepare("DELETE FROM settings WHERE key='spotify_partyqueue_next_lock' AND value=?").bind(owner).run();
   }
 }
 
@@ -459,6 +487,7 @@ app.get("/api/dj/spotify/devices",async(c)=>{
 app.post("/api/dj/spotify/next-request",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
   const result=await startNextPartyQueueRequest(c.env);
+  if(result.busy)return c.json({ok:false,busy:true,error:result.error||"Een andere NEXT-actie wordt al verwerkt."});
   if(!result.ok)return c.json({error:result.error||"Volgende aanvraag starten is mislukt."},409);
   return c.json({ok:true,track:result.track,requestId:result.requestId});
 });
@@ -480,7 +509,10 @@ app.post("/api/dj/spotify/:action",async(c)=>{
   const command=paths[action];if(!command)return c.json({error:"Onbekend Spotify-commando."},400);
   try{
     const r=await spotifyFetch(c.env,command.path,{method:command.method});
-    if(!r.ok&&r.status!==204)return c.json({error:"Spotify-commando geweigerd (HTTP "+r.status+"). Controleer of een Spotify Connect-apparaat actief is."},502);
+    if(!r.ok&&r.status!==204){
+      const detail=(await r.text()).slice(0,400);
+      return c.json({error:"Spotify-commando geweigerd (HTTP "+r.status+"). "+detail},502);
+    }
     if(action==="pause") await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
     if(action==="play") await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
     return c.json({ok:true});
