@@ -7,6 +7,7 @@ const message=document.querySelector("#dj-message");
 let token=localStorage.getItem("partyqueue_dj_token")||"";
 let pollHandle=null;
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
+let spotifyQueuePreview=null;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n;};
 async function api(path,options={}){
   const response=await fetch(path,{...options,headers:{...(options.headers||{}),Authorization:"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{})}});
@@ -152,7 +153,7 @@ function render(data){
   renderDeck(requests);
   const queuedRequests=requests.filter(r=>r.status==="queued").sort((a,b)=>(a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||""));
   const nextQueued=queuedRequests[0]||null;
-  setBoothDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:null);
+  setBoothDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:spotifyQueuePreview);
   const nextButton=document.querySelector("#partyqueue-next");
   if(nextButton){
     const empty=queuedRequests.length===0;
@@ -222,6 +223,9 @@ async function refreshSpotify(){
       booth.classList.toggle("is-playing",!!data.playing);
       document.querySelector("#booth-play-state").textContent=data.fallbackActive?"SPOTIFY MIX":data.playing?"ON AIR":"STANDBY";
       setBoothDeck("left",data.track?{name:data.track.name,artists:data.track.artists,image:data.track.image}:null);
+      spotifyQueuePreview=data.fallbackActive?data.nextTrack:null;
+      const nextButton=document.querySelector("#partyqueue-next");
+      if(nextButton?.disabled)setBoothDeck("right",spotifyQueuePreview);
       updateTrackProgress(data.progressMs,data.track?.durationMs,data.playing);
     }
     state.classList.toggle("accent",!!data.connected);
