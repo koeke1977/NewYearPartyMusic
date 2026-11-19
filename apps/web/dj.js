@@ -150,8 +150,18 @@ function render(data){
     stat("WAITING",count("pending")),stat("APPROVED",count("approved")),stat("IN QUEUE",count("queued")),stat("PLAYED",count("played"))
   );
   renderDeck(requests);
-  const nextQueued=requests.filter(r=>r.status==="queued").sort((a,b)=>(a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||""))[0]||null;
+  const queuedRequests=requests.filter(r=>r.status==="queued").sort((a,b)=>(a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||""));
+  const nextQueued=queuedRequests[0]||null;
   setBoothDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:null);
+  const nextButton=document.querySelector("#partyqueue-next");
+  if(nextButton){
+    const empty=queuedRequests.length===0;
+    nextButton.disabled=empty;
+    nextButton.classList.toggle("is-empty",empty);
+    nextButton.textContent=empty?"QUEUE EMPTY":"NEXT ↗";
+    nextButton.title=empty?"No PartyQueue requests are queued":"Play next PartyQueue request";
+    nextButton.setAttribute("aria-label",empty?"PartyQueue queue is empty":"Play next PartyQueue request");
+  }
   document.querySelector("#request-count").textContent=requests.length+" REQUESTS";
   document.querySelector("#last-updated").textContent="SYNCED "+new Date().toLocaleTimeString();
   requestList.replaceChildren();
@@ -268,6 +278,6 @@ document.querySelector("#partyqueue-next").addEventListener("click",async()=>{
   }catch(e){
     message.textContent=e.message;
   }finally{
-    button.disabled=false;
+    await refresh();
   }
 });
