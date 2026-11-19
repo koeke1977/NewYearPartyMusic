@@ -37,11 +37,22 @@ npm install
 npm run dev
 ```
 
+## Cloudflare Builds
+
+The repository is configured for Cloudflare Workers Builds:
+
+- Build command: `npm install`
+- Deploy command: `npm run deploy`
+- Preview command: leave empty
+- Root directory: repository root
+
+The Worker is configured in `wrangler.toml`. Keep Cloudflare bindings and the Wrangler configuration aligned.
+
 ## Cloudflare setup
 
 1. Create a Worker named `partyqueue`.
 2. Create a D1 database named `partyqueue-db`.
-3. Replace the placeholder `database_id` in `wrangler.toml`.
+3. Set the D1 database ID in `wrangler.toml`.
 4. Add the custom domain `spotify.electrafest.be` to the Worker.
 5. Configure Worker secrets:
    - `SPOTIFY_CLIENT_ID`
