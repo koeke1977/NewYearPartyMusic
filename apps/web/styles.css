@@ -140,3 +140,15 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 @media(min-width:1500px){.dj-shell .dj-mixer{grid-template-columns:minmax(0,1.15fr) minmax(440px,.85fr)}.dj-shell .dj-requests{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.dj-shell{width:calc(100% - 32px)}.dj-shell .dj-mixer{grid-template-columns:1fr}.dj-shell .dj-requests{grid-template-columns:1fr}.dj-shell .deck-panel{min-height:unset}}
 @media(max-width:560px){.dj-shell{width:calc(100% - 24px)}.dj-shell .topbar{min-height:60px}.dj-shell .dj-controls{grid-template-columns:1fr 1fr;gap:8px}.dj-shell .control-tile{min-height:84px;padding:12px}.dj-shell .dj-stats{gap:8px}.dj-shell .dj-stat{min-height:70px;padding:11px}.dj-shell .now-playing{min-height:130px;gap:14px}.dj-shell .deck-art,.dj-shell .vinyl-disc{width:100px;height:100px;flex-basis:100px}.dj-shell .deck-panel{padding:15px}.dj-shell .dj-request{align-items:center}.dj-shell .dj-actions{padding-left:0}}
+
+
+/* Spotify transport controls */
+.spotify-panel{margin:18px 0 22px;padding:20px}
+.spotify-controls{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px}
+.spotify-controls .dj-muted{flex:1 1 260px}
+.spotify-transport{display:flex;flex-wrap:wrap;gap:8px;width:100%;margin-top:6px}
+.spotify-transport button{min-height:42px}
+#spotify-now-playing{width:100%;padding-top:8px}
+#spotify-connection-state{color:#8b9290}
+#spotify-connection-state.accent{color:var(--accent,#19d66b)}
+@media(max-width:640px){.spotify-panel{padding:14px}.spotify-transport button{flex:1 1 40%}}
