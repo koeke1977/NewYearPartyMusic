@@ -191,11 +191,36 @@ app.post("/api/dj/login", async (c) => {
 app.get("/api/dj/overview", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   const [requests, settings] = await Promise.all([
-    c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'queued' THEN 2 WHEN 'played' THEN 3 ELSE 4 END, r.requested_at ASC LIMIT 100").bind(c.env.EVENT_ID).all(),
-    c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve','auto_queue')").all<{key:string;value:string}>()
+    c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, r.queued_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'queued' THEN 2 WHEN 'played' THEN 3 ELSE 4 END, r.requested_at ASC LIMIT 100").bind(c.env.EVENT_ID).all(),
+    c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve','auto_queue','partyqueue_order')").all<{key:string;value:string}>()
   ]);
   const config = Object.fromEntries((settings.results || []).map(x => [x.key, x.value]));
-  return c.json({ requests: requests.results || [], settings: { requestsPaused: config.requests_paused === "true", autoApprove: config.auto_approve === "true", autoQueue: config.auto_queue === "true" } });
+  let savedOrder: string[] = [];
+  try { savedOrder = JSON.parse(config.partyqueue_order || "[]"); } catch { savedOrder = []; }
+  const orderIndex = new Map(savedOrder.map((id, index) => [id, index]));
+  const rows = (requests.results || []) as Array<Record<string, any>>;
+  rows.sort((a,b) => {
+    const rank = (status: string) => status === "pending" ? 0 : status === "approved" ? 1 : status === "queued" ? 2 : status === "played" ? 3 : 4;
+    const statusDiff = rank(a.status) - rank(b.status);
+    if (statusDiff) return statusDiff;
+    if (a.status === "queued") return (orderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (orderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER) || String(a.queued_at || a.requested_at).localeCompare(String(b.queued_at || b.requested_at));
+    return String(a.requested_at).localeCompare(String(b.requested_at));
+  });
+  const queuedIds = rows.filter(r => r.status === "queued").map(r => r.id);
+  const normalizedOrder = [...savedOrder.filter(id => queuedIds.includes(id)), ...queuedIds.filter(id => !savedOrder.includes(id))];
+  return c.json({ requests: rows, queueOrder: normalizedOrder, settings: { requestsPaused: config.requests_paused === "true", autoApprove: config.auto_approve === "true", autoQueue: config.auto_queue === "true" } });
+});
+app.post("/api/dj/queue/reorder", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
+  let body: { order?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
+  if (!Array.isArray(body.order) || body.order.length > 100 || !body.order.every(id => typeof id === "string")) return c.json({ error: "Ongeldige wachtrijvolgorde." }, 400);
+  const current = await c.env.DB.prepare("SELECT id FROM requests WHERE event_id=? AND status='queued'").bind(c.env.EVENT_ID).all<{id:string}>();
+  const currentIds = (current.results || []).map(row => row.id);
+  const requested = body.order as string[];
+  if (new Set(requested).size !== requested.length || requested.length !== currentIds.length || currentIds.some(id => !requested.includes(id))) return c.json({ error: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." }, 409);
+  await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('partyqueue_order',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(requested)).run();
+  return c.json({ ok: true, order: requested });
 });
 app.post("/api/dj/requests/:id/:action", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
@@ -308,8 +333,15 @@ async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;track?:
   const lock = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_partyqueue_next_lock','starting',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='starting',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-30 seconds')").run();
   if (!lock.meta.changes) return {ok:false,error:"Er wordt al een volgend nummer gestart."};
   try {
-    const next = await env.DB.prepare("SELECT id,track_uri,track_name,artist_name,duration_ms FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC LIMIT 1")
-      .bind(env.EVENT_ID).first<{id:string;track_uri:string;track_name:string;artist_name:string;duration_ms:number}>();
+    const queued = await env.DB.prepare("SELECT id,track_uri,track_name,artist_name,duration_ms,queued_at,requested_at FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC")
+      .bind(env.EVENT_ID).all<{id:string;track_uri:string;track_name:string;artist_name:string;duration_ms:number;queued_at:string;requested_at:string}>();
+    const saved = await env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>();
+    let order: string[] = [];
+    try { order = JSON.parse(saved?.value || "[]"); } catch { order = []; }
+    const orderIndex = new Map(order.map((id,index) => [id,index]));
+    const candidates = queued.results || [];
+    candidates.sort((a,b) => (orderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (orderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER) || String(a.queued_at || a.requested_at).localeCompare(String(b.queued_at || b.requested_at)));
+    const next = candidates[0];
     if (!next) return {ok:false,error:"Er staan geen PartyQueue-aanvragen klaar."};
     const response = await spotifyFetch(env,"/me/player/play",{
       method:"PUT",
