@@ -366,3 +366,12 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .master-volume-leds i.hot{background:#ffb13b;box-shadow:0 0 5px #ff9d3399}
 .booth-master-control>small{min-height:9px;color:#75847a;font-size:7px;font-weight:800;letter-spacing:.12em;text-align:center}
 @media(max-width:700px){.booth-master-control{min-height:130px;padding:10px}.master-control-heading strong{font-size:17px}.master-volume-slider::-webkit-slider-thumb{height:29px}}
+
+/* DJ#DATUUR brand identity */
+.datuur-brand{gap:11px}
+.datuur-brand .brand-mark{width:38px;height:31px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,.32);color:#fff;box-shadow:none;font-size:12px;letter-spacing:-.04em}
+.datuur-word{color:#fff;font-size:14px;font-weight:950;letter-spacing:.08em}
+.datuur-word span{color:var(--green);text-shadow:0 0 14px rgba(30,215,96,.28)}
+.booth-mixer-brand{color:#fff!important;font-weight:1000;letter-spacing:.12em}
+.booth-mixer-brand span{color:var(--green)!important;text-shadow:0 0 12px rgba(30,215,96,.32)}
+.datuur-footer{color:var(--green);letter-spacing:.12em}
