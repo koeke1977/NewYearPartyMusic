@@ -388,8 +388,9 @@ app.get("/api/dj/spotify/status",async(c)=>{
     const response=await spotifyFetch(c.env,"/me/player");
     if(response.status===204){
       const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0,0);
+      const autoAdvance=await maybeAdvancePartyQueue(c.env,false);
       const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
-      return c.json({connected:true,playing:false,device:null,track:null,nextTrack:null,fallbackActive,fallbackError:fallbackError?.value||null});
+      return c.json({connected:true,playing:false,device:null,track:null,nextTrack:null,fallbackActive,autoAdvanced:autoAdvance.advanced,autoAdvanceError:autoAdvance.error||null,fallbackError:fallbackError?.value||null});
     }
     if(!response.ok) return c.json({error:"Spotify playbackstatus niet beschikbaar (HTTP "+response.status+")."},502);
     const data=await response.json() as any;
