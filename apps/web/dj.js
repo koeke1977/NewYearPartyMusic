@@ -9,6 +9,8 @@ let pollHandle=null;
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
 let spotifyStatusRequest=0;
+let queueDragId=null;
+let queueReorderBusy=false;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n;};
 async function api(path,options={}){
   const response=await fetch(path,{...options,headers:{...(options.headers||{}),Authorization:"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{})}});
@@ -158,16 +160,35 @@ function render(data){
   document.querySelector("#request-count").textContent=requests.length+" REQUESTS";
   document.querySelector("#last-updated").textContent="SYNCED "+new Date().toLocaleTimeString();
   requestList.replaceChildren();
+  if(queueDragId)return;
   const live=requests.filter(r=>["pending","approved","queued"].includes(r.status));
   if(!live.length){requestList.append(el("p","dj-empty","No incoming requests. The dancefloor is waiting…"));return;}
+  const queuedOrder=live.filter(r=>r.status==="queued");
+  const queuePositions=new Map(queuedOrder.map((r,i)=>[r.id,i]));
   for(const r of live){
-    const card=el("article","dj-request");
+    const isQueued=r.status==="queued";
+    const card=el("article","dj-request"+(isQueued?" dj-request-queued":""));
+    card.dataset.requestId=r.id;
+    if(isQueued){
+      card.draggable=true;
+      card.dataset.queueIndex=String(queuePositions.get(r.id));
+      const grip=el("span","queue-drag-handle","⠿");
+      grip.title="Sleep om de afspeelvolgorde te wijzigen";
+      grip.setAttribute("aria-hidden","true");
+      card.append(grip);
+    }
     addCover(card,r.album_image_url,"dj-cover");
     const info=el("div","dj-track");
+    if(isQueued)info.append(el("span","queue-position",String(queuePositions.get(r.id)+1).padStart(2,"0")));
     info.append(el("strong","dj-track-name",r.track_name),el("span","dj-muted",r.artist_name),el("span","dj-requester","REQUESTED BY "+(r.nickname||"GUEST").toUpperCase()));
     info.append(el("span","dj-status status-"+r.status,r.status.replace("_"," ").toUpperCase()));card.append(info);
     const actions=el("div","dj-actions");
     const addAction=(action,label,cls)=>{const b=el("button",cls,label);b.type="button";b.addEventListener("click",()=>runAction(r.id,action,b));actions.append(b);};
+    if(isQueued){
+      const position=queuePositions.get(r.id);
+      const up=el("button","dj-action queue-move","↑");up.type="button";up.title="Eén plaats omhoog";up.setAttribute("aria-label","Verplaats "+r.track_name+" één plaats omhoog");up.disabled=position===0;up.addEventListener("click",()=>moveQueuedTrack(r.id,-1));actions.append(up);
+      const down=el("button","dj-action queue-move","↓");down.type="button";down.title="Eén plaats omlaag";down.setAttribute("aria-label","Verplaats "+r.track_name+" één plaats omlaag");down.disabled=position===queuedOrder.length-1;down.addEventListener("click",()=>moveQueuedTrack(r.id,1));actions.append(down);
+    }
     if(r.status==="pending")addAction("approve","✓ APPROVE","dj-action dj-positive");
     if(r.status==="approved")addAction("queue","＋ CUE TO QUEUE","dj-action dj-positive");
     if(["pending","approved","queued"].includes(r.status))addAction("reject","✕ REJECT","dj-action dj-negative");
@@ -176,6 +197,57 @@ function render(data){
     requestList.append(card);
   }
 }
+async function saveQueueOrder(order){
+  if(queueReorderBusy)return;
+  queueReorderBusy=true;
+  message.textContent="Saving new play order…";
+  try{
+    await api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order})});
+    message.textContent="Play order updated.";
+    await refresh();
+  }catch(e){message.textContent=e.message;await refresh();}
+  finally{queueReorderBusy=false;}
+}
+async function moveQueuedTrack(id,delta){
+  const cards=[...requestList.querySelectorAll(".dj-request-queued")];
+  const order=cards.map(card=>card.dataset.requestId);
+  const from=order.indexOf(id),to=from+delta;
+  if(from<0||to<0||to>=order.length)return;
+  [order[from],order[to]]=[order[to],order[from]];
+  await saveQueueOrder(order);
+}
+requestList.addEventListener("dragstart",event=>{
+  const card=event.target.closest(".dj-request-queued");
+  if(!card)return;
+  queueDragId=card.dataset.requestId;
+  card.classList.add("is-dragging");
+  event.dataTransfer.effectAllowed="move";
+  event.dataTransfer.setData("text/plain",queueDragId);
+});
+requestList.addEventListener("dragover",event=>{
+  if(!queueDragId)return;
+  const target=event.target.closest(".dj-request-queued");
+  if(!target||target.dataset.requestId===queueDragId)return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect="move";
+  requestList.querySelectorAll(".dj-request-queued").forEach(card=>card.classList.toggle("drop-before",card===target&&event.clientY<target.getBoundingClientRect().top+target.offsetHeight/2));
+  target.classList.toggle("drop-after",event.clientY>=target.getBoundingClientRect().top+target.offsetHeight/2);
+});
+requestList.addEventListener("drop",async event=>{
+  if(!queueDragId)return;
+  const target=event.target.closest(".dj-request-queued");
+  if(!target||target.dataset.requestId===queueDragId)return;
+  event.preventDefault();
+  const order=[...requestList.querySelectorAll(".dj-request-queued")].map(card=>card.dataset.requestId);
+  const from=order.indexOf(queueDragId),to=order.indexOf(target.dataset.requestId);
+  if(from>=0&&to>=0){const [moved]=order.splice(from,1);const insertAt=event.clientY<target.getBoundingClientRect().top+target.offsetHeight/2?to:to+1;order.splice(insertAt>from?insertAt-1:insertAt,0,moved);}
+  queueDragId=null;
+  await saveQueueOrder(order);
+});
+requestList.addEventListener("dragend",()=>{
+  queueDragId=null;
+  requestList.querySelectorAll(".dj-request-queued").forEach(card=>card.classList.remove("is-dragging","drop-before","drop-after"));
+});
 async function refresh(){
   try{const data=await api("/api/dj/overview");render(data);}
   catch(e){if(e.message.toLowerCase().includes("sessie")){logout();return;}message.textContent=e.message;}
