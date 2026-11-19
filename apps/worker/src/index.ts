@@ -303,6 +303,49 @@ async function startSpotifyFallback(env: Env): Promise<void> {
   await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
 }
 
+async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;track?:{name:string;artist:string};requestId?:string;error?:string}> {
+  // A short D1 lock prevents overlapping status polls and manual NEXT clicks from starting the same request twice.
+  const lock = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_partyqueue_next_lock','starting',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='starting',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-30 seconds')").run();
+  if (!lock.meta.changes) return {ok:false,error:"Er wordt al een volgend nummer gestart."};
+  try {
+    const next = await env.DB.prepare("SELECT id,track_uri,track_name,artist_name,duration_ms FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC LIMIT 1")
+      .bind(env.EVENT_ID).first<{id:string;track_uri:string;track_name:string;artist_name:string;duration_ms:number}>();
+    if (!next) return {ok:false,error:"Er staan geen PartyQueue-aanvragen klaar."};
+    const response = await spotifyFetch(env,"/me/player/play",{
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({uris:[next.track_uri]})
+    });
+    if (!response.ok) throw new Error("Spotify kon het volgende nummer niet starten (HTTP "+response.status+").");
+    const updated = await env.DB.prepare("UPDATE requests SET status='played',played_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND status='queued'")
+      .bind(next.id,env.EVENT_ID).run();
+    if (!updated.meta.changes) throw new Error("De aanvraag is intussen gewijzigd; probeer opnieuw.");
+    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
+    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_last_partyqueue_track',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
+      .bind(JSON.stringify({uri:next.track_uri,durationMs:next.duration_ms,startedAt:Date.now()})).run();
+    return {ok:true,track:{name:next.track_name,artist:next.artist_name},requestId:next.id};
+  } catch (error) {
+    return {ok:false,error:error instanceof Error?error.message:"Volgende PartyQueue-aanvraag starten is mislukt."};
+  } finally {
+    await env.DB.prepare("DELETE FROM settings WHERE key='spotify_partyqueue_next_lock'").run();
+  }
+}
+
+async function maybeAdvancePartyQueue(env: Env, playing: boolean): Promise<{advanced:boolean;error?:string}> {
+  if (playing) return {advanced:false};
+  const lastState = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_last_partyqueue_track'").first<{value:string}>();
+  if (!lastState?.value) return {advanced:false};
+  let last: {uri:string;durationMs:number;startedAt:number};
+  try { last=JSON.parse(lastState.value); } catch { return {advanced:false}; }
+  if (!last.uri || !last.durationMs || !last.startedAt) return {advanced:false};
+  // Wait until the expected end of the last PartyQueue track; tolerate Spotify's end-of-track reporting delay.
+  if (Date.now()-last.startedAt < Math.max(0,last.durationMs-2500)) return {advanced:false};
+  const queued = await env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(env.EVENT_ID).first<{count:number}>();
+  if (!(queued?.count||0)) return {advanced:false};
+  const result=await startNextPartyQueueRequest(env);
+  return result.ok ? {advanced:true} : {advanced:false,error:result.error};
+}
+
 async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, progressMs: number, currentDurationMs: number): Promise<boolean> {
   const state = await env.DB.prepare("SELECT value,updated_at FROM settings WHERE key='spotify_fallback_active'").first<{value:string;updated_at:string}>();
   if (state?.value === "true") return true;
@@ -353,6 +396,7 @@ app.get("/api/dj/spotify/status",async(c)=>{
     const item=data.item;
     const playing=!!data.is_playing;
     const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0,item?.duration_ms||0);
+    const autoAdvance=await maybeAdvancePartyQueue(c.env,playing);
     const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
     let nextTrack=null;
     if(fallbackActive){
@@ -363,7 +407,7 @@ app.get("/api/dj/spotify/status",async(c)=>{
         if(upcoming) nextTrack={id:upcoming.id,uri:upcoming.uri,name:upcoming.name,artists:(upcoming.artists||[]).map((a:any)=>a.name),image:upcoming.album?.images?.[0]?.url||null,durationMs:upcoming.duration_ms};
       }
     }
-    return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,nextTrack,fallbackError:fallbackError?.value||null,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
+    return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,autoAdvanced:autoAdvance.advanced,autoAdvanceError:autoAdvance.error||null,nextTrack,fallbackError:fallbackError?.value||null,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
   }catch(e){return c.json({connected:false,error:e instanceof Error?e.message:"Spotify niet verbonden."},503);}
 });
 app.get("/api/dj/spotify/devices",async(c)=>{
@@ -373,25 +417,9 @@ app.get("/api/dj/spotify/devices",async(c)=>{
 });
 app.post("/api/dj/spotify/next-request",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
-  const next=await c.env.DB.prepare("SELECT id,track_uri,track_name,artist_name,duration_ms FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC LIMIT 1")
-    .bind(c.env.EVENT_ID).first<{id:string;track_uri:string;track_name:string;artist_name:string;duration_ms:number}>();
-  if(!next)return c.json({error:"Er staan geen PartyQueue-aanvragen klaar. Cue eerst een goedgekeurd nummer naar de wachtrij."},404);
-  try{
-    const response=await spotifyFetch(c.env,"/me/player/play",{
-      method:"PUT",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({uris:[next.track_uri]})
-    });
-    if(!response.ok)return c.json({error:"Spotify kon de volgende PartyQueue-aanvraag niet starten (HTTP "+response.status+"). Controleer of Spotify actief speelt op je apparaat."},502);
-    await c.env.DB.prepare("UPDATE requests SET status='played',played_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND status='queued'")
-      .bind(next.id,c.env.EVENT_ID).run();
-    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
-    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_last_partyqueue_track',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
-      .bind(JSON.stringify({uri:next.track_uri,durationMs:next.duration_ms,startedAt:Date.now()})).run();
-    return c.json({ok:true,track:{name:next.track_name,artist:next.artist_name},requestId:next.id});
-  }catch(error){
-    return c.json({error:error instanceof Error?error.message:"Volgende PartyQueue-aanvraag starten is mislukt."},503);
-  }
+  const result=await startNextPartyQueueRequest(c.env);
+  if(!result.ok)return c.json({error:result.error||"Volgende aanvraag starten is mislukt."},409);
+  return c.json({ok:true,track:result.track,requestId:result.requestId});
 });
 app.put("/api/dj/spotify/volume",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
