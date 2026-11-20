@@ -114,6 +114,11 @@ describe("guest request lifecycle", () => {
       ok:true,request:{id:"request-new",name:"Test Song",artists:["Artist A","Artist B"],status:"queued"},
     }});
     const insert=calls.find(call=>call.sql.includes("INTO requests"));
+    expect(insert?.sql).toContain("INSERT OR IGNORE INTO requests");
+    expect(insert?.sql).toContain("SELECT");
+    expect(insert?.sql).toContain("status IN ('pending','approved','queued')");
+    expect(insert?.sql).toContain("requested_at >= datetime('now','-30 minutes')");
+    expect(insert?.values.slice(-4)).toEqual(["guest-1",2,"guest-1",5]);
     expect(insert?.values).toContain("queued");
     expect(insert?.values).toContain("Artist A, Artist B");
     expect(insert?.values).toContain("https://image.example/medium");
