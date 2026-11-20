@@ -322,7 +322,7 @@ Application-owned ports cover guest request persistence and Spotify track lookup
 
 The DJ AI workflow has also been split: `dj-ai-assistant.js` owns API/workflow orchestration, `dj-ai-assistant-view.js` owns DOM rendering and confirmation UI, and `dj-ai-actions.js` owns queue/track mutation policy. Explicit DJ confirmation and sequential per-track failure reporting remain covered.
 
-The current Cloudflare Worker, D1 and Spotify OAuth state are test-only and disposable. `npm run deploy` targets that default test environment; `npm run deploy:production` is a separate guarded path for any future real-event release. This future release path is not a prerequisite for current engineering.
+The current Cloudflare Worker, D1 and Spotify OAuth state are test-only and disposable. The unused `event_code_hash` column and placeholder were removed from `db/schema.sql`; event-code verification uses the Worker secret. `npm run deploy` targets the default test environment; `npm run deploy:production` is a separate guarded path for any future real-event release. This future release path is not a prerequisite for current engineering.
 
 
 ### Follow-up: normalized individual Spotify track lookup — 2026-11-20
