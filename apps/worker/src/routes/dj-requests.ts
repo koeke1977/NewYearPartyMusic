@@ -4,15 +4,16 @@ import { getDjOverview, reorderDjQueue, updateDjSetting } from "../modules/reque
 import { moderatePartyRequest } from "../modules/requests/application/guest-request-lifecycle";
 import { requireDJSession } from "./dj-auth";
 import { createGuestRequestRepository } from "../modules/requests/infrastructure/guest-request-d1-repository";
+import { createDjQueueRepository } from "../modules/requests/infrastructure/dj-queue-d1-repository";
 export const djRequestRoutes = new Hono<{ Bindings: Env }>();
 djRequestRoutes.use("/api/dj/*", requireDJSession("DJ-sessie verlopen. Meld opnieuw aan."));
 djRequestRoutes.get("/api/dj/overview", async (c) => {
-  return c.json(await getDjOverview({ db: c.env.DB, eventId: c.env.EVENT_ID }));
+  return c.json(await getDjOverview({ repository: createDjQueueRepository(c.env.DB), eventId: c.env.EVENT_ID }));
 });
 djRequestRoutes.post("/api/dj/queue/reorder", async (c) => {
   let body: { order?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const result = await reorderDjQueue({ db: c.env.DB, eventId: c.env.EVENT_ID, order: body.order });
+  const result = await reorderDjQueue({ repository: createDjQueueRepository(c.env.DB), eventId: c.env.EVENT_ID, order: body.order });
   return c.json(result.body, result.status as 200 | 400 | 409);
 });
 djRequestRoutes.post("/api/dj/requests/:id/:action", async (c) => {
@@ -24,7 +25,6 @@ djRequestRoutes.post("/api/dj/requests/:id/:action", async (c) => {
 djRequestRoutes.post("/api/dj/settings/:key", async (c) => {
   let body: { enabled?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const result = await updateDjSetting({ db: c.env.DB, key: c.req.param("key"), enabled: body.enabled });
+  const result = await updateDjSetting({ repository: createDjQueueRepository(c.env.DB), key: c.req.param("key"), enabled: body.enabled });
   return c.json(result.body, result.status as 200 | 400);
 });
-

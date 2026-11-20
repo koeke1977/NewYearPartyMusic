@@ -1,15 +1,4 @@
-import type { GuestRequestDatabase } from "../infrastructure/guest-request-repository";
-import {
-  readActiveDjRequests,
-  readDjAiHistory,
-  readDjOverviewSettings,
-  readQueuedRequestIds,
-  readQueuedRequestTracks,
-  readRecentPlayedDjRequests,
-  saveDjAiHistory,
-  saveDjQueueOrder,
-  saveDjSetting,
-} from "../infrastructure/dj-queue-repository";
+import type { DjQueueRepository } from "./dj-queue-ports";
 
 type Result = { status: number; body: Record<string, unknown> };
 
@@ -23,13 +12,13 @@ function parseStringArray(value: string | undefined): string[] {
 }
 
 export async function getDjOverview(input: {
-  db: GuestRequestDatabase;
+  repository: DjQueueRepository;
   eventId: string;
 }): Promise<Record<string, unknown>> {
   const [activeRequests, recentPlayed, config] = await Promise.all([
-    readActiveDjRequests(input.db, input.eventId),
-    readRecentPlayedDjRequests(input.db, input.eventId),
-    readDjOverviewSettings(input.db),
+    input.repository.readActiveRequests(input.eventId),
+    input.repository.readRecentPlayedRequests(input.eventId),
+    input.repository.readOverviewSettings(),
   ]);
   const savedOrder = parseStringArray(config.partyqueue_order);
   const orderIndex = new Map(savedOrder.map((id, index) => [id, index]));
@@ -59,7 +48,7 @@ export async function getDjOverview(input: {
 }
 
 export async function reorderDjQueue(input: {
-  db: GuestRequestDatabase;
+  repository: DjQueueRepository;
   eventId: string;
   order: unknown;
   nowIso?: () => string;
@@ -68,27 +57,25 @@ export async function reorderDjQueue(input: {
     return { status: 400, body: { error: "Ongeldige wachtrijvolgorde." } };
   }
   const requested = input.order as string[];
-  const currentIds = await readQueuedRequestIds(input.db, input.eventId);
+  const currentIds = await input.repository.readQueuedRequestIds(input.eventId);
   if (new Set(requested).size !== requested.length || requested.length !== currentIds.length
     || currentIds.some(id => !requested.includes(id))) {
     return { status: 409, body: { error: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." } };
   }
 
-  const tracks = await readQueuedRequestTracks(input.db, input.eventId);
+  const tracks = await input.repository.readQueuedRequestTracks(input.eventId);
   const trackById = new Map(tracks.map(track => [track.id, track]));
-  // Re-check the event-scoped queued set before persisting, so a concurrent state change
-  // between the two reads cannot silently create an incomplete saved order.
   if (tracks.length !== requested.length || requested.some(id => !trackById.has(id))) {
     return { status: 409, body: { error: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." } };
   }
   const acceptedTracks = requested.map(id => trackById.get(id)!)
     .map(track => track.track_name + " — " + track.artist_name);
 
-  await saveDjQueueOrder(input.db, requested);
-  const previous = await readDjAiHistory(input.db, input.eventId);
+  await input.repository.saveQueueOrder(requested);
+  const previous = await input.repository.readAiHistory(input.eventId);
   const parsed = parseHistory(previous);
   parsed.push({ at: (input.nowIso || (() => new Date().toISOString()))(), tracks: acceptedTracks });
-  await saveDjAiHistory(input.db, input.eventId, parsed.slice(-5));
+  await input.repository.saveAiHistory(input.eventId, parsed.slice(-5));
   return { status: 200, body: { ok: true, order: requested } };
 }
 
@@ -106,7 +93,7 @@ function parseHistory(value: string | null): Array<{ at: string; tracks: string[
 }
 
 export async function updateDjSetting(input: {
-  db: GuestRequestDatabase;
+  repository: DjQueueRepository;
   key: string;
   enabled: unknown;
 }): Promise<Result> {
@@ -116,6 +103,6 @@ export async function updateDjSetting(input: {
   if (typeof input.enabled !== "boolean") {
     return { status: 400, body: { error: "Ongeldige waarde." } };
   }
-  await saveDjSetting(input.db, input.key, input.enabled);
+  await input.repository.saveSetting(input.key, input.enabled);
   return { status: 200, body: { ok: true, enabled: input.enabled } };
 }
