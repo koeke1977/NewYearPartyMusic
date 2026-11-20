@@ -40,7 +40,21 @@ Invoke-RestMethod http://127.0.0.1:8787/health
 
 Create a named Cloudflare Tunnel in your account and route a dedicated hostname (for example `partyqueue-ai.your-domain.example`) to `http://localhost:8787`. Use Cloudflare Access service-token protection as an additional edge layer if your account supports it. Do not use a temporary public quick tunnel for a permanent production integration.
 
-The bridge itself still requires its bearer token. Never publish the token in the browser, guest app, repository, URL, logs or a client-side environment variable. Configure the Worker endpoint and token only as Worker secrets/variables. Keep the bridge's local listener on loopback.
+The bridge itself still requires its bearer token. Never publish the token in the browser, guest app, repository, URL, logs or a client-side environment variable. Keep the bridge local listener on loopback. Configure the Worker endpoint as a Worker variable and the token as a Worker secret. From the repository root, with Wrangler authenticated:
+
+```powershell
+npx wrangler secret put LOCAL_AI_BRIDGE_TOKEN --env production
+npx wrangler secret put LOCAL_AI_ACCESS_CLIENT_ID --env production
+npx wrangler secret put LOCAL_AI_ACCESS_CLIENT_SECRET --env production
+```
+
+Set `LOCAL_AI_BRIDGE_URL` to the HTTPS tunnel origin in the production Worker variables. The Access client ID/secret are optional and only needed when the tunnel hostname is protected by Cloudflare Access. Configure the same values separately for the test Worker if you want to test there first.
+
+## Connect PartyQueue to the bridge
+
+The Worker uses the local bridge automatically when both `LOCAL_AI_BRIDGE_URL` and `LOCAL_AI_BRIDGE_TOKEN` are configured. It sends only the Spotify-independent prompt created by the existing DJ assistant. The local Claude provider is preferred over Workers AI; if Claude is unavailable or has reached its subscription limit, PartyQueue returns a clear error and does not fall back to an API provider. If the bridge is not configured, the existing budget-guarded Cloudflare Workers AI path remains active.
+
+The first run is deliberately manual. Start Claude Code and authenticate with your Claude Pro account, then start the bridge in PowerShell. Keep the PC awake and online while the event app needs the local provider.
 
 ## Claude Code subscription and policy note
 
