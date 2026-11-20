@@ -1,4 +1,5 @@
 import type { GuestRequestRepository } from "./guest-request-ports";
+import type { CatalogTrack } from "../../music/domain/catalog-track";
 
 type Result = { status: number; body: Record<string, unknown> };
 
@@ -7,8 +8,7 @@ function positiveIntegerSetting(value: string | undefined, fallback: number): nu
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-export type GuestRequestTrack = { id:string; uri:string; name:string; artists:Array<{name:string}>; album?:{images?:Array<{url:string}>}; duration_ms:number };
-export type GuestRequestTrackGateway = { getTrack(trackId:string):Promise<GuestRequestTrack|null> };
+export type GuestRequestTrackGateway = { getTrack(trackId: string): Promise<CatalogTrack | null> };
 
 export async function joinPartyGuest(input: {
   repository: GuestRequestRepository;
@@ -79,12 +79,12 @@ export async function submitGuestTrackRequest(input: {
     if (!track) return { status: 400, body: { error: "We konden dit nummer niet meer ophalen bij Spotify." } };
     const requestId = input.createId();
     const status = config.auto_approve === "true" ? (config.auto_queue === "true" ? "queued" : "approved") : "pending";
-    const artists = track.artists.map(artist => artist.name);
+    const artists = track.artists;
     await input.repository.insertTrackRequest({
       id: requestId, event_id: input.eventId, guest_id: input.guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
-      album_image_url: track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || null,
-      duration_ms: track.duration_ms, status,
+      album_image_url: track.albumImageUrl,
+      duration_ms: track.durationMs, status,
     });
     return { status: 201, body: { ok: true, request: { id: requestId, name: track.name, artists, status } } };
   } catch (error) {
@@ -148,12 +148,12 @@ export async function addDjTrackToPartyQueue(input: {
     if (!track) return { status: 502, body: { error: "Spotify kon dit nummer niet meer ophalen." } };
     const guestId = await input.repository.createDjQueueGuest(input.eventId);
     const requestId = input.createId();
-    const artists = track.artists.map(artist => artist.name);
+    const artists = track.artists;
     await input.repository.insertTrackRequest({
       id: requestId, event_id: input.eventId, guest_id: guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
-      album_image_url: track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || null,
-      duration_ms: track.duration_ms, status: "queued",
+      album_image_url: track.albumImageUrl,
+      duration_ms: track.durationMs, status: "queued",
     });
     await input.repository.appendRequestToQueueOrder(requestId);
     return {
