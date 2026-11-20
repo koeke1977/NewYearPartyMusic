@@ -2,7 +2,7 @@ import type { GuestRequestRepository } from "../application/guest-request-ports"
 import {
   appendRequestToQueueOrder, countOpenGuestRequests, countRecentGuestRequests, createDjQueueGuest, findActiveEvent,
   findActiveTrackRequest, findEventGuest, findEventRequestStatus, insertGuest, insertTrackRequest,
-  moveApprovedRequestToQueue, readAutoQueueSetting, readGuestRequestSettings, updateRequestStatus,
+  moveApprovedRequestToQueue, readAutoQueueSetting, readGuestRequestSettings, transitionRequestStatus,
   type GuestRequestDatabase,
 } from "./guest-request-repository";
 
@@ -20,7 +20,7 @@ export function createGuestRequestRepository(db:GuestRequestDatabase):GuestReque
     appendRequestToQueueOrder:requestId=>appendRequestToQueueOrder(db,requestId),
     findEventRequestStatus:(eventId,requestId)=>findEventRequestStatus(db,eventId,requestId),
     readAutoQueueSetting:()=>readAutoQueueSetting(db),
-    updateRequestStatus:(eventId,requestId,status,column)=>updateRequestStatus(db,eventId,requestId,status,column),
+    transitionRequestStatus:(eventId,requestId,fromStatuses,status,column)=>transitionRequestStatus(db,eventId,requestId,fromStatuses,status,column),
     moveApprovedRequestToQueue:(eventId,requestId)=>moveApprovedRequestToQueue(db,eventId,requestId),
   };
 }
