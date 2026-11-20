@@ -14,6 +14,7 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-ai-suggestions.js`: extracts bounded, normalized numbered track suggestions and preserves the Spotify-query fallback when the AI response contains no parseable list.
 - `modules/dj-polling.js`: owns the immediate refresh + five-second polling interval lifecycle and ensures a repeated start replaces the prior interval.
 - `modules/dj-playback-display.js`: pure playback display helpers for elapsed time, clamped progress percentage and playing/paused/waiting labels; DOM rendering remains in the DJ entrypoint.
+- `modules/dj-request-guard.js`: prevents overlapping status requests, invalidates in-flight responses when the DJ session ends, and prevents an old request's `finally` block from clearing a newer request's in-flight state.
 - `dj.js` remains the page composition/controller for login, rendering, moderation, playback and AI interactions until those flows have dedicated tests.
 
 `dj.html` now loads `dj.js` as a native ES module; no bundler or new runtime dependency was introduced.
@@ -30,7 +31,7 @@ The remaining DJ entrypoint still owns several separate concerns:
 | Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()`, drag/drop handlers | `modules/dj-queue.js` (ordering extracted), then `dj/features/queue/` |
 | Request moderation | `runAction()`, action buttons | `dj/features/requests/` |
 | Settings controls | pause, auto-approve and auto-queue toggles | `dj/features/settings/` |
-| Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle extracted), then `dj/services/polling-service.ts` |
+| Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle) and `modules/dj-request-guard.js` (stale-response/in-flight guard) extracted; then `dj/services/polling-service.ts` |
 | Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `dj/features/playback/`; pure time/progress calculations extracted to `modules/dj-playback-display.js` |
 | AI request lifecycle | `askDJAI()`, prompt actions, response display and loading state | `dj/features/ai-assistant/` |
 | AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `modules/dj-ai-queue-parser.js` (pure matching extracted), then `dj/features/ai-assistant/queue-proposal-parser.ts` |
