@@ -74,7 +74,7 @@ The guest search/request transport is now separated from rendering. Browser-leve
 
 ## CSS ownership
 
-The current `styles.css` is approximately 58.8 KB and serves both guest and DJ surfaces. Do not split it by arbitrary file size. First inventory selectors and actual usage, then separate:
+The current `styles.css` is approximately 58.8 KB and serves both guest and DJ surfaces. The measured selector clusters and shared-selector risks are recorded in `docs/architecture/CSS-SELECTOR-INVENTORY.md` (574 selector blocks, 32 media-query blocks). Do not split it by arbitrary file size. Capture desktop/mobile browser screenshots first, then separate:
 
 1. `styles/tokens.css`: color, spacing, typography, radii, shadows and motion tokens.
 2. `styles/base.css`: reset, body, accessibility and shared layout primitives.
