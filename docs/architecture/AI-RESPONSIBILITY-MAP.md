@@ -4,8 +4,8 @@
 
 The AI route is `POST /api/dj/ai/assistant` in `apps/worker/src/index.ts`. It still combines several concerns, although the first extraction steps are now in place:
 
-1. Detects explicit preference statements and persists DJ preferences in D1.
-2. Loads active queue, recent played tracks, request counts, saved order, preferences and accepted-set history.
+1. Detects explicit preference statements and delegates DJ preference persistence to a D1 repository.
+2. Loads active queue, recent played tracks, request counts, saved order, preferences and accepted-set history through a bounded context repository.
 3. Computes the Belgian local event-time phase.
 4. Builds the AI context.
 5. Constructs the system and user prompts.
@@ -31,6 +31,8 @@ This is too much responsibility for one route and is the primary AI extraction t
 | Spotify read-only search tool schema, argument validation, query bounds and result mapping | `integrations/ai/spotify-catalog-search.ts` | Extracted; route delegates to it |
 | One bounded assistant turn, read-only tool dispatch, verified-result follow-up and answer normalization | `modules/ai/orchestration/assistant-orchestrator.ts` | Extracted; route delegates to it |
 | Daily free-tier Neuron estimation, UTC usage tracking and follow-up budget checks | `modules/ai/infrastructure/neuron-budget.ts` | Extracted; route preflights and orchestrator records usage |
+| DJ preference persistence, answer cache and atomic eight-second cooldown | `modules/ai/infrastructure/assistant-settings-repository.ts` | Extracted; route delegates all persistence |
+| Bounded queue/history/count/settings reads for assistant context | `modules/ai/infrastructure/assistant-context-repository.ts` | Extracted; route receives a typed snapshot |
 
 The prompt builder receives typed context and a question, and returns a system/user message pair. It does not access D1, Spotify, Cloudflare bindings or HTTP requests.
 
@@ -70,7 +72,7 @@ The prompt builder receives typed context and a question, and returns a system/u
 
 1. Keep the prompt builder pure and maintain prompt contract tests. (done)
 2. Extract event-time calculation and typed context assembly. (event time and context builder done)
-3. Extract preference/history persistence behind a repository. (pure preference rules done; D1 repository pending)
+3. Extract preference persistence behind a repository. (preference rules and D1 persistence done; accepted-set history remains read-only)
 4. Extract the Cloudflare provider adapter and response normalization. (adapter done)
 5. Extract the Spotify read-only tool adapter. (done)
 6. Extract rate limiting and answer caching.
