@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import type { Env } from "./platform/env";
 import { constantTimeEqual, decryptSecret, encryptSecret, sha256, toBase64Url } from "./platform/security/crypto";
 import { createSessionToken, readSession, type Session } from "./modules/identity/session-token";
-import { getSpotifyCatalogToken } from "./integrations/spotify/catalog-token";
+import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
 
 
@@ -39,12 +39,7 @@ app.get("/api/spotify/search", async (c) => {
   const query = (c.req.query("q") || "").trim();
   if (query.length < 2 || query.length > 100) return c.json({ error: "Zoek op minstens 2 en maximaal 100 tekens." }, 400);
   try {
-    const token = await getSpotifyCatalogToken(c.env);
-    const url = new URL("https://api.spotify.com/v1/search");
-    url.searchParams.set("q", query);
-    url.searchParams.set("type", "track");
-    url.searchParams.set("limit", "8");
-    const response = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+    const response = await searchSpotifyTracks(c.env, query, 8);
     if (response.status === 429) return c.json({ error: "Spotify krijgt even veel zoekopdrachten. Probeer zo meteen opnieuw." }, 429);
     if (!response.ok) return c.json({ error: "Spotify zoeken is mislukt (HTTP " + response.status + ")." }, 502);
     const data = await response.json() as { tracks?: { items?: SpotifyTrack[] } };
@@ -82,8 +77,7 @@ app.post("/api/requests", async (c) => {
   if (duplicate) return c.json({ error: "Dit nummer staat al in de wachtrij." }, 409);
 
   try {
-    const token = await getSpotifyCatalogToken(c.env);
-    const trackResponse = await fetch("https://api.spotify.com/v1/tracks/" + trackId, { headers: { Authorization: "Bearer " + token } });
+    const trackResponse = await getSpotifyTrack(c.env, trackId);
     if (!trackResponse.ok) return c.json({ error: "We konden dit nummer niet meer ophalen bij Spotify." }, 400);
     const track = await trackResponse.json() as SpotifyTrack;
     const requestId = crypto.randomUUID();
@@ -263,14 +257,9 @@ app.post("/api/dj/ai/assistant", async (c) => {
         : [];
       if (queries.length) {
         // The model can search Spotify, but this tool has no write/playback capability.
-        const spotifyToken = await getSpotifyCatalogToken(c.env);
         spotifyMatches = await Promise.all(queries.map(async (query:string) => {
           try {
-            const url = new URL("https://api.spotify.com/v1/search");
-            url.searchParams.set("q",query);
-            url.searchParams.set("type","track");
-            url.searchParams.set("limit","3");
-            const response = await fetch(url,{headers:{Authorization:"Bearer "+spotifyToken}});
+            const response = await searchSpotifyTracks(c.env, query, 3);
             if (!response.ok) return {query,tracks:[]};
             const data = await response.json() as {tracks?:{items?:SpotifyTrack[]}};
             return {query,tracks:(data.tracks?.items||[]).map(track=>({
@@ -324,13 +313,8 @@ app.post("/api/dj/ai/music/search", async (c) => {
   const queries = (body.queries as string[]).map(q => q.replace(/\s+/g," ").trim().slice(0,140)).filter(q => q.length > 2);
   if (!queries.length) return c.json({ error: "Ik kon geen bruikbare titels en artiesten uit de lijst halen." }, 400);
   try {
-    const token = await getSpotifyCatalogToken(c.env);
     const results = await Promise.all(queries.map(async query => {
-      const url = new URL("https://api.spotify.com/v1/search");
-      url.searchParams.set("q", query);
-      url.searchParams.set("type", "track");
-      url.searchParams.set("limit", "3");
-      const response = await fetch(url, { headers: { Authorization: "Bearer " + token } });
+      const response = await searchSpotifyTracks(c.env, query, 3);
       if (!response.ok) return { query, tracks: [] };
       const data = await response.json() as { tracks?: { items?: SpotifyTrack[] } };
       return { query, tracks: (data.tracks?.items || []).map(track => ({
@@ -352,8 +336,7 @@ app.post("/api/dj/ai/music/add", async (c) => {
   try {
     const duplicate = await c.env.DB.prepare("SELECT id,status FROM requests WHERE event_id=? AND spotify_track_id=? AND status IN ('pending','approved','queued') LIMIT 1").bind(c.env.EVENT_ID,trackId).first<{id:string;status:string}>();
     if (duplicate) return c.json({ ok:true,alreadyQueued:true,status:duplicate.status });
-    const token = await getSpotifyCatalogToken(c.env);
-    const response = await fetch("https://api.spotify.com/v1/tracks/"+trackId,{headers:{Authorization:"Bearer "+token}});
+    const response = await getSpotifyTrack(c.env, trackId);
     if (!response.ok) return c.json({error:"Spotify kon dit nummer niet meer ophalen."},502);
     const track = await response.json() as SpotifyTrack;
     const djGuestId = "dj-music-director-"+c.env.EVENT_ID;
