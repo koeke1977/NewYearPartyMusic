@@ -32,17 +32,17 @@ The Worker composition root now mounts dedicated system, guest, DJ identity, AI,
 
 ## Executive summary
 
-The current application is a Cloudflare Workers + Hono + D1 single-event Spotify request/DJ application. Its functional scope has grown beyond the original repository documentation. The largest architectural risks are concentrated entrypoints and mixed responsibilities:
+The following measurements describe the **original pre-extraction baseline**, not the current branch. They are retained as historical context only. The implementation has since moved the Worker routes, DJ UI behaviour and page-specific CSS into dedicated modules and files.
 
-| Area | Current file | Observed size | Concern |
-|---|---|---:|---|
-| Worker | `apps/worker/src/index.ts` | ~66.5 KB / 860 lines | HTTP routing, session security, Spotify token lifecycle, OAuth, AI endpoints, moderation, queue orchestration, D1 queries, cron cleanup and Durable Object class in one module |
-| DJ UI | `apps/web/dj.js` | ~36 KB | Authentication, API client, polling, Spotify playback controls, queue management, AI actions, state and DOM rendering together |
-| CSS | `apps/web/styles.css` | ~58.8 KB | Global style ownership likely mixed across guest and DJ surfaces; requires selector inventory before splitting |
-| HTML | `apps/web/dj.html` | ~9 KB | DJ layout contains multiple complex functional areas; retain semantic markup while moving behaviour into isolated modules |
-| Documentation | `docs/architecture.md`, `docs/development.md` | small | Documentation does not reflect the current implementation |
+| Area | Original baseline | Current architectural position |
+|---|---|---|
+| Worker | `apps/worker/src/index.ts`, ~66.5 KB / 860 lines | Composition root mounting system, guest, DJ identity, AI, request and playback route groups |
+| DJ UI | `apps/web/dj.js`, ~36 KB | Small page composition root; behaviour is distributed across native ES modules |
+| CSS | `apps/web/styles.css`, ~58.8 KB | Shared foundations plus guest and five DJ feature stylesheets; see the selector inventory for historical extraction measurements |
+| HTML | `apps/web/dj.html`, ~9 KB | Semantic page structure and stable hooks; behaviour loads through external native ES modules |
+| Documentation | Original architecture/development notes | Responsibility maps are maintained in `docs/architecture/`; this plan records target boundaries and remaining work |
 
-The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need.
+The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The current remaining risks are dependency inversion and composition consistency in some Worker features, plus limited controller/view mixing in two DJ frontend modules.
 
 ## Production safety findings
 
