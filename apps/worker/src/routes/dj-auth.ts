@@ -8,9 +8,9 @@ export async function requireDJ(request: Request, env: Env): Promise<boolean> {
 
 export function requireDJSession(message = "DJ-sessie verlopen.") {
   return createMiddleware<{ Bindings: Env }>(async (c, next) => {
-  if (!await requireDJ(c.req.raw, c.env)) {
-    return c.json({ error: message }, 401);
-  }
-  await next();
+    if (!await requireDJ(c.req.raw, c.env)) {
+      return c.json({ error: message }, 401);
+    }
+    await next();
   });
 }
