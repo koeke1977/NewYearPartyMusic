@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:browser": "node scripts/test-browser-flows.mjs",
     "screenshots:baseline": "node scripts/capture-ui-baseline.mjs",
-    "release:preflight": "node scripts/release-guard.mjs preflight"
+    "release:preflight": "node scripts/release-guard.mjs preflight",
+    "test:architecture": "node scripts/check-architecture-boundaries.mjs"
   },
   "dependencies": {
     "hono": "^4.10.0"
