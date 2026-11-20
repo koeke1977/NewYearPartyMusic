@@ -379,14 +379,18 @@ async function askDJAI(prompt,mode="advice"){
       const ids=lines.map(line=>{
         const parsed=parseLine(line);if(!parsed){unmatchedLines.push(line);return null;}
         let best=null,bestScore=0;
+        const titleOnlyCandidates=[];
         for(const track of queued){
           if(!unused.has(track.id))continue;
           const title=norm(track.track_name),artist=norm(track.artist_name);
           const titleMatch=title===parsed.title||title.startsWith(parsed.title+" ")||parsed.title.startsWith(title+" ");
           const artistMatch=artist===parsed.artist||artist.includes(parsed.artist)||parsed.artist.includes(artist);
+          if(titleMatch)titleOnlyCandidates.push(track);
           const score=(title===parsed.title?4:titleMatch?2:0)+(artistMatch?3:0);
           if(titleMatch&&artistMatch&&score>bestScore){best=track;bestScore=score;}
         }
+        // If the AI supplied the wrong artist, accept the title only when exactly one unused queued track matches it.
+        if(!best&&titleOnlyCandidates.length===1)best=titleOnlyCandidates[0];
         if(best){unused.delete(best.id);return best.id;}
         unmatchedLines.push(line);
         return null;
