@@ -22,6 +22,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | DJ overview composition, queue reorder and setting validation | `modules/requests/application/dj-queue-management.ts` | `modules/requests/application/dj-queue-management.ts` |
 | Completed-request 30-day retention policy and deletion | `modules/requests/application/cleanup-completed-requests.ts` + `request-retention-repository.ts` | Same application/repository boundary |
 | Queue end-of-track advancement and fallback eligibility/retry policy | `modules/playback/application/playback-automation.ts` | `modules/playback/application/playback-automation.ts` + `modules/playback/infrastructure/playback-policy-repository.ts` |
+| DJ Spotify status orchestration, response mapping and fallback queue preview | `modules/playback/application/get-dj-spotify-playback-status.ts` | Same playback application module |
 | Playback policy settings, fallback leases/errors/retry state and manual-pause persistence | `modules/playback/infrastructure/playback-policy-repository.ts` | Same repository |
 | Spotify playback HTTP route state reads/writes | Thin adapters calling playback repository functions | `modules/playback/infrastructure/playback-policy-repository.ts` |
 
@@ -50,7 +51,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | `startNextPartyQueueRequest` | Thin adapter supplying the Spotify playback operation | `modules/queue/application/dispatch-next-track.ts` + `modules/queue/infrastructure/queue-dispatch-repository.ts` |
 | `maybeAdvancePartyQueue` | Thin adapter to queue advancement policy | `modules/playback/application/playback-automation.ts` |
 | `maybeStartSpotifyFallback` | Thin adapter to fallback eligibility/retry policy | `modules/playback/application/playback-automation.ts` |
-| `GET /api/dj/spotify/status` | Spotify state read plus queue advancement and fallback orchestration; no inline D1 SQL | Get-playback-state use case coordinating queue/playback services; HTTP calls via `integrations/spotify/playback-api.ts` |
+| `GET /api/dj/spotify/status` | DJ authorization and HTTP response serialization | `modules/playback/application/get-dj-spotify-playback-status.ts` + playback policy + Spotify playback adapter |
 | `GET /api/dj/spotify/devices` | DJ auth, Spotify device request, response forwarding | List-Spotify-devices use case |
 | `POST /api/dj/spotify/next-request` | DJ auth and queue dispatch | Dispatch-next-track use case |
 | `PUT /api/dj/spotify/volume` | DJ auth, validation and Spotify volume command | Set-volume use case |
@@ -73,7 +74,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 1. Characterize and extract guest join, guest track submission, DJ moderation transitions and AI-added queue tracks. The application use cases and D1 repository now live under `modules/requests/`.
 2. DJ overview, queue reorder, DJ settings and 30-day completed-request retention now live under `modules/requests/`; keep future request-related D1 access in the same repository/application boundaries.
 3. Keep Spotify catalogue and OAuth user-token handling separate. OAuth code exchange, refresh rotation and authenticated user API requests now live in `integrations/spotify/user-auth-service.ts`; encrypted persistence remains in `user-auth-repository.ts`. Playback paths and payloads live in `playback-api.ts`.
-4. Queue dispatch and playback/fallback orchestration now use dedicated application and repository modules. The Spotify playback routes no longer issue D1 SQL directly; the next step is extracting their remaining orchestration into use cases.
+4. Queue dispatch, fallback policy and DJ Spotify status orchestration now use dedicated application/repository modules. The Spotify playback routes no longer issue D1 SQL directly; remaining transport commands, device listing and volume handling still need use-case extraction.
 5. Split AI context, memory, prompt catalog, provider adapter, tool adapter and use cases.
 6. Convert route handlers to thin transport adapters and assemble them from `app.ts`.
 7. Keep `index.ts` as the Worker composition root only.
