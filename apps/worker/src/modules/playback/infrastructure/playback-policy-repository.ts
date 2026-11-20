@@ -60,3 +60,16 @@ export async function clearSpotifyFallbackFailure(db: PlaybackPolicyDatabase): P
   await db.prepare("DELETE FROM settings WHERE key='spotify_fallback_retry_after'").run();
   await db.prepare("DELETE FROM settings WHERE key='spotify_fallback_error'").run();
 }
+
+/** D1 adapter for the application-owned playback policy repository. */
+export function createPlaybackPolicyRepository(db: PlaybackPolicyDatabase): PlaybackPolicyRepository {
+  return {
+    readSetting: (key) => readPlaybackSetting(db, key),
+    countQueuedRequests: (eventId) => readQueuedRequestCount(db, eventId),
+    claimFallbackStart: () => claimSpotifyFallbackStart(db),
+    setFallbackState: (value) => setSpotifyFallbackState(db, value),
+    setFallbackError: (message) => setSpotifyFallbackError(db, message),
+    setFallbackRetryAfter: (timestamp) => setSpotifyFallbackRetryAfter(db, timestamp),
+    clearFallbackFailure: () => clearSpotifyFallbackFailure(db),
+  };
+}
