@@ -9,7 +9,7 @@ import { queueApprovedPartyRequest } from "../modules/requests/application/guest
 import { maybeAdvancePartyQueue, maybeStartSpotifyFallback, startNextPartyQueueRequest } from "./dj-playback-workflows";
 import { requireDJSession } from "./dj-auth";
 export const djPlaybackRoutes = new Hono<{ Bindings: Env }>();
-djPlaybackRoutes.use("/api/dj/*", requireDJSession);
+djPlaybackRoutes.use("/api/dj/*", requireDJSession());
 djPlaybackRoutes.get("/api/dj/spotify/status", async (c) => {
   const spotify = spotifyFetch.bind(null, c.env);
   const result = await getDjSpotifyPlaybackStatus({
@@ -24,7 +24,6 @@ djPlaybackRoutes.get("/api/dj/spotify/status", async (c) => {
   return c.json(result.body, result.status);
 });
 djPlaybackRoutes.get("/api/dj/spotify/devices", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
   const result = await listDjSpotifyDevices({
     getDevices: () => getPlaybackDevices(spotifyFetch.bind(null, c.env)),
   });
@@ -37,7 +36,6 @@ djPlaybackRoutes.post("/api/dj/spotify/next-request",async(c)=>{
   return c.json({ok:true,track:result.track,requestId:result.requestId});
 });
 djPlaybackRoutes.put("/api/dj/spotify/volume", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
   let body: { volume?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const result = await setDjSpotifyVolume({
@@ -47,7 +45,6 @@ djPlaybackRoutes.put("/api/dj/spotify/volume", async (c) => {
   return c.json(result.body, result.status);
 });
 djPlaybackRoutes.post("/api/dj/spotify/:action", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
   const result = await executeDjSpotifyCommand({
     action: c.req.param("action"),
     sendCommand: (action) => sendPlaybackCommand(spotifyFetch.bind(null, c.env), action),
@@ -56,7 +53,6 @@ djPlaybackRoutes.post("/api/dj/spotify/:action", async (c) => {
   return c.json(result.body, result.status);
 });
 djPlaybackRoutes.post("/api/dj/spotify/queue/:id",async(c)=>{
-  if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
   const result=await queueApprovedPartyRequest({db:c.env.DB,eventId:c.env.EVENT_ID,requestId:c.req.param("id")});
   return c.json(result.body,result.status as 200);
 });

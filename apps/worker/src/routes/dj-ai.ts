@@ -17,7 +17,6 @@ djAiRoutes.post("/api/dj/ai/assistant", async (c) => {
   return c.json(result.body, result.status as 200 | 429 | 503 | 502);
 });
 djAiRoutes.post("/api/dj/ai/music/search", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   let body: { queries?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const result = await searchDjSpotifyTracks({
@@ -27,7 +26,6 @@ djAiRoutes.post("/api/dj/ai/music/search", async (c) => {
   return c.json(result.body, result.status);
 });
 djAiRoutes.post("/api/dj/ai/music/add", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   let body: { trackId?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const trackId = typeof body.trackId === "string" ? body.trackId.trim() : "";
