@@ -10,6 +10,7 @@ function node() {
     setAttribute: vi.fn(),
     replaceChildren: vi.fn(),
     append: vi.fn(),
+    appendChild(child) { return child; },
   };
 }
 
