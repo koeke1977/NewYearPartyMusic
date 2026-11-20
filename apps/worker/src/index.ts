@@ -1,22 +1,8 @@
 import { Hono } from "hono";
+import type { Env } from "./platform/env";
+import { constantTimeEqual, decryptSecret, encryptSecret, sha256, toBase64Url } from "./platform/security/crypto";
+import { createSessionToken, readSession, type Session } from "./modules/identity/session-token";
 
-interface Env {
-  DB: D1Database;
-  ASSETS: Fetcher;
-  EVENT_ID: string;
-  EVENT_NAME: string;
-  APP_ENV: string;
-  PUBLIC_ORIGIN: string;
-  QUEUE_ROOM: DurableObjectNamespace;
-  EVENT_ACCESS_CODE_HASH: string;
-  DJ_ACCESS_CODE_HASH: string;
-  SESSION_SECRET: string;
-  SPOTIFY_CLIENT_ID: string;
-  SPOTIFY_CLIENT_SECRET: string;
-  AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };
-}
-
-type Session = { sub: string; eventId: string; nickname: string; exp: number; role?: string };
 type SpotifyTrack = {
   id: string; uri: string; name: string; duration_ms: number;
   artists: { name: string }[];
@@ -24,49 +10,7 @@ type SpotifyTrack = {
 };
 
 const app = new Hono<{ Bindings: Env }>();
-const encoder = new TextEncoder();
 let spotifyToken: { value: string; expiresAt: number } | null = null;
-
-function toHex(bytes: ArrayBuffer): string {
-  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-function toBase64Url(bytes: Uint8Array): string {
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-function fromBase64Url(value: string): Uint8Array {
-  const base64 = value.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - value.length % 4) % 4);
-  const binary = atob(base64);
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
-}
-async function sha256(value: string): Promise<string> {
-  return toHex(await crypto.subtle.digest("SHA-256", encoder.encode(value)));
-}
-async function signSession(payload: string, secret: string): Promise<string> {
-  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-  return toBase64Url(new Uint8Array(signature));
-}
-function constantTimeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let mismatch = 0;
-  for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return mismatch === 0;
-}
-async function readSession(request: Request, secret: string): Promise<Session | null> {
-  const auth = request.headers.get("Authorization") || "";
-  const token = auth.startsWith("Bearer ") ? auth.slice(7) : "";
-  const [payload, signature, extra] = token.split(".");
-  if (!payload || !signature || extra || !secret) return null;
-  try {
-    const expected = await signSession(payload, secret);
-    if (!constantTimeEqual(signature, expected)) return null;
-    const session = JSON.parse(new TextDecoder().decode(fromBase64Url(payload))) as Session;
-    if (!session.sub || !session.eventId || session.exp <= Math.floor(Date.now() / 1000)) return null;
-    return session;
-  } catch { return null; }
-}
 async function getSpotifyToken(env: Env): Promise<string> {
   if (spotifyToken && spotifyToken.expiresAt > Date.now() + 60_000) return spotifyToken.value;
   if (!env.SPOTIFY_CLIENT_ID || !env.SPOTIFY_CLIENT_SECRET) throw new Error("Spotify API is nog niet geconfigureerd.");
@@ -103,8 +47,7 @@ app.post("/api/guests/join", async (c) => {
   const guestId = crypto.randomUUID();
   await c.env.DB.prepare("INSERT INTO guests (id, event_id, nickname) VALUES (?, ?, ?)").bind(guestId, event.id, nickname).run();
   const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 12;
-  const payload = toBase64Url(encoder.encode(JSON.stringify({ sub: guestId, eventId: event.id, nickname, exp: expiresAt })));
-  const token = payload + "." + await signSession(payload, c.env.SESSION_SECRET);
+  const token = await createSessionToken({ sub: guestId, eventId: event.id, nickname, exp: expiresAt }, c.env.SESSION_SECRET);
   return c.json({ ok: true, guest: { id: guestId, nickname }, sessionToken: token, expiresAt }, 201);
 });
 
@@ -185,8 +128,7 @@ app.post("/api/dj/login", async (c) => {
   const code = typeof body.code === "string" ? body.code.trim() : "";
   if (!code || code.length > 64 || (await sha256(code)) !== c.env.DJ_ACCESS_CODE_HASH.trim().toLowerCase()) return c.json({ error: "Onjuiste DJ-code." }, 401);
   const expiresAt = Math.floor(Date.now() / 1000) + 28800;
-  const payload = toBase64Url(encoder.encode(JSON.stringify({ sub: "dj", eventId: c.env.EVENT_ID, nickname: "DJ", role: "dj", exp: expiresAt })));
-  const token = payload + "." + await signSession(payload, c.env.SESSION_SECRET);
+  const token = await createSessionToken({ sub: "dj", eventId: c.env.EVENT_ID, nickname: "DJ", role: "dj", exp: expiresAt }, c.env.SESSION_SECRET);
   return c.json({ ok: true, token, expiresAt });
 });
 app.post("/api/dj/ai/assistant", async (c) => {
@@ -523,22 +465,8 @@ app.post("/api/dj/settings/:key", async (c) => {
   return c.json({ ok: true, enabled: body.enabled });
 });
 
-async function tokenKey(secret: string): Promise<CryptoKey> {
-  const raw = await crypto.subtle.digest("SHA-256", encoder.encode(secret));
-  return crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
-}
-async function seal(value: string, secret: string): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encrypted = await crypto.subtle.encrypt({name:"AES-GCM",iv}, await tokenKey(secret), encoder.encode(value));
-  return toBase64Url(new Uint8Array([...iv, ...new Uint8Array(encrypted)]));
-}
-async function unseal(value: string, secret: string): Promise<string> {
-  const bytes = fromBase64Url(value); const iv = bytes.slice(0,12); const data = bytes.slice(12);
-  const decrypted = await crypto.subtle.decrypt({name:"AES-GCM",iv}, await tokenKey(secret), data);
-  return new TextDecoder().decode(decrypted);
-}
 async function saveSpotifyTokens(env: Env, accessToken: string, refreshToken: string, expiresIn: number) {
-  const [accessEnc, refreshEnc] = await Promise.all([seal(accessToken,env.SESSION_SECRET),seal(refreshToken,env.SESSION_SECRET)]);
+  const [accessEnc, refreshEnc] = await Promise.all([encryptSecret(accessToken,env.SESSION_SECRET),encryptSecret(refreshToken,env.SESSION_SECRET)]);
   await env.DB.prepare("INSERT INTO spotify_auth (id,access_token_enc,refresh_token_enc,expires_at,updated_at) VALUES ('main',?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET access_token_enc=excluded.access_token_enc,refresh_token_enc=excluded.refresh_token_enc,expires_at=excluded.expires_at,updated_at=CURRENT_TIMESTAMP")
     .bind(accessEnc,refreshEnc,Date.now()+expiresIn*1000).run();
 }
@@ -548,7 +476,7 @@ async function spotifyUserToken(env: Env): Promise<string> {
   for (let attempt = 0; attempt < 16; attempt++) {
     const row = await env.DB.prepare("SELECT access_token_enc,refresh_token_enc,expires_at FROM spotify_auth WHERE id='main'").first<{access_token_enc:string;refresh_token_enc:string;expires_at:number}>();
     if (!row) throw new Error("Koppel eerst je Spotify-account via de DJ-console.");
-    if (row.expires_at > Date.now()+60000) return unseal(row.access_token_enc,env.SESSION_SECRET);
+    if (row.expires_at > Date.now()+60000) return decryptSecret(row.access_token_enc,env.SESSION_SECRET);
     const claim = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_token_refresh_lock',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-30 seconds')").bind(owner).run();
     if (!claim.meta.changes) {
       await new Promise(resolve => setTimeout(resolve,200));
@@ -558,8 +486,8 @@ async function spotifyUserToken(env: Env): Promise<string> {
       // Another request may have refreshed while this request was waiting to acquire the lock.
       const latest = await env.DB.prepare("SELECT access_token_enc,refresh_token_enc,expires_at FROM spotify_auth WHERE id='main'").first<{access_token_enc:string;refresh_token_enc:string;expires_at:number}>();
       if (!latest) throw new Error("Spotify-koppeling ontbreekt.");
-      if (latest.expires_at > Date.now()+60000) return await unseal(latest.access_token_enc,env.SESSION_SECRET);
-      const refreshToken = await unseal(latest.refresh_token_enc,env.SESSION_SECRET);
+      if (latest.expires_at > Date.now()+60000) return await decryptSecret(latest.access_token_enc,env.SESSION_SECRET);
+      const refreshToken = await decryptSecret(latest.refresh_token_enc,env.SESSION_SECRET);
       const basic = btoa(env.SPOTIFY_CLIENT_ID+":"+env.SPOTIFY_CLIENT_SECRET);
       const response = await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"refresh_token",refresh_token:refreshToken})});
       if (!response.ok) {
