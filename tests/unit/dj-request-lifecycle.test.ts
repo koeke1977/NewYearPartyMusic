@@ -30,7 +30,7 @@ function fakeDb(options:{
         },
         async run(){
           calls.push({sql,values:[...values]});
-          return {meta:{changes:sql.startsWith("INSERT INTO requests") ? (options.insertChanges??1) : (options.updateChanges??1)}};
+          return {meta:{changes:sql.includes("INTO requests") ? (options.insertChanges??1) : (options.updateChanges??1)}};
         },
       };
       return statement;
@@ -84,7 +84,7 @@ describe("DJ request lifecycle",()=>{
     });
     expect(result).toEqual({status:200,body:{ok:true,alreadyQueued:true,status:"queued"}});
     expect(getTrack).not.toHaveBeenCalled();
-    expect(calls.some(call=>call.sql.startsWith("INSERT INTO requests"))).toBe(false);
+    expect(calls.some(call=>call.sql.includes("INTO requests"))).toBe(false);
   });
 
   it("creates a DJ guest, queues the selected track and appends its ID to saved order",async()=>{
