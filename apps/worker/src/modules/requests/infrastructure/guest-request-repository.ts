@@ -46,6 +46,24 @@ export async function findActiveTrackRequest(db: GuestRequestDatabase, eventId: 
   ).bind(eventId, trackId).first<{ id: string; status: string }>();
 }
 
+export async function insertGuestTrackRequest(
+  db: GuestRequestDatabase, request: StoredTrackRequest,
+  limits: { maxOpenRequests: number; maxRequestsPer30Minutes: number },
+): Promise<boolean> {
+  const result = await db.prepare(
+    "INSERT OR IGNORE INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) " +
+    "SELECT ?,?,?,?,?,?,?,?,?,?,CASE WHEN ? IN ('approved','queued') THEN CURRENT_TIMESTAMP ELSE NULL END,CASE WHEN ? = 'queued' THEN CURRENT_TIMESTAMP ELSE NULL END " +
+    "WHERE (SELECT COUNT(*) FROM requests WHERE guest_id = ? AND status IN ('pending','approved','queued')) < ? " +
+    "AND (SELECT COUNT(*) FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-30 minutes')) < ?",
+  ).bind(
+    request.id, request.event_id, request.guest_id, request.spotify_track_id, request.track_uri,
+    request.track_name, request.artist_name, request.album_image_url, request.duration_ms,
+    request.status, request.status, request.status,
+    request.guest_id, limits.maxOpenRequests, request.guest_id, limits.maxRequestsPer30Minutes,
+  ).run();
+  return result.meta.changes === 1;
+}
+
 export async function insertTrackRequest(db: GuestRequestDatabase, request: StoredTrackRequest): Promise<boolean> {
   const result = await db.prepare(
     "INSERT OR IGNORE INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) " +
