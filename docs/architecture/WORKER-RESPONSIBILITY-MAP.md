@@ -17,14 +17,14 @@
 | `scheduled/handler.ts` | Cloudflare scheduled-event adapter; delegates completed-request cleanup |
 | `durable-objects/queue-room.ts` | Isolated Durable Object export. Currently a health endpoint only; it is not the queue transport or synchronization mechanism |
 
-The route handlers are substantially thinner than the original Worker entrypoint. They still perform HTTP parsing, authentication/middleware application and response serialization. They must not own business policy or raw SQL.
+The route handlers are substantially thinner than the original Worker entrypoint. DJ request, DJ playback and DJ identity provider wiring now live behind focused composition adapters. Routes retain HTTP parsing, authentication/middleware application, OAuth state-cookie handling and response serialization; they must not own business policy, D1 repository construction or Spotify provider wiring.
 
 ## Application and domain ownership
 
 | Capability | Current owner | Boundary |
 |---|---|---|
-| DJ and guest sessions | `modules/identity/*` | Session signing, validation, event binding and DJ login policy |
-| Spotify OAuth policy | `modules/identity/spotify-oauth.ts` | Authorization URL/scope and authorization completion orchestration |
+| DJ and guest sessions | `modules/identity/*` | Session signing/validation policy, event binding and DJ login policy; cryptographic implementation is currently supplied by platform security |
+| Spotify OAuth policy | `modules/identity/spotify-oauth.ts` | Pure authorization URL, callback URI and scope policy; code exchange is provided by the platform composition adapter |
 | Guest and DJ request lifecycle | `modules/requests/application/guest-request-lifecycle.ts` | Join, submit, add, moderate and queue-approved workflows |
 | DJ queue management | `modules/requests/application/dj-queue-management.ts` | Overview composition, queue ordering and setting validation |
 | Request retention | `modules/requests/application/cleanup-completed-requests.ts` | 30-day completed/terminal request cleanup policy |
@@ -59,7 +59,10 @@ Concrete Cloudflare bindings and provider/repository implementations are current
 
 - `platform/composition/guest-workflows.ts`: guest join/request, guest/DJ catalogue search and DJ AI track insertion.
 - `platform/composition/ai-assistant.ts`: AI application ports, D1 repositories, Cloudflare AI binding and read-only Spotify search.
-- `platform/composition/dj-playback-workflows.ts`: queue dispatch, Spotify playback calls and playback automation/repository wiring.
+- `platform/composition/dj-playback-workflows.ts`: queue dispatch, playback status, DJ controls, Spotify calls and playback automation/repository wiring.
+- `platform/composition/dj-request-workflows.ts`: D1 repository wiring for DJ overview, queue ordering, moderation, settings and approved-request queueing.
+- `platform/composition/dj-identity-workflows.ts`: DJ login policy wired to platform hashing and signed-token services.
+- `platform/composition/spotify-oauth.ts`: OAuth authorization-code exchange wired to encrypted Spotify token persistence.
 
 These are infrastructure composition adapters, not domain/application modules.
 
@@ -74,11 +77,10 @@ These are infrastructure composition adapters, not domain/application modules.
 
 ## Verified remaining architecture work
 
-1. **Composition is not yet centralized consistently.** `dj-requests.ts` constructs concrete D1 repositories in route handlers. `dj-playback.ts` directly wires Spotify gateways and playback-policy repository callbacks for status/commands, while also calling composition adapters for some workflows. Move this wiring behind focused `platform/composition/*` functions so routes become transport-only. Do not move business rules into composition.
-2. **Repository-port coverage is partial.** Guest/request lifecycle and queue dispatch have application-owned repository ports. DJ queue management, playback policy and AI paths still have concrete D1-oriented dependencies in parts of their application/infrastructure boundary. Complete this only with explicit contracts and tests; do not add interfaces that merely mirror one concrete implementation without a useful boundary.
-3. **Playback status remains a compatibility seam.** `GET /api/dj/spotify/status` may advance PartyQueue or start fallback playback. Preserve and test these existing side effects; do not silently turn the endpoint into a read-only operation.
-4. **Identity transport still has explicit provider wiring.** OAuth state/cookie handling belongs to the HTTP adapter, while code exchange/token lifecycle belongs to identity/integration owners. Keep this split explicit.
-5. **Automated dependency-boundary enforcement is not yet present.** Add checks only after module ownership/ports are stable; avoid brittle rules that simply whitelist today's violations.
+1. **Session-token cryptography still crosses a layer boundary.** `modules/identity/session-token.ts` currently imports signing and base64 primitives from `platform/security/crypto.ts`. Decide whether to invert this with a narrow cryptographic port or explicitly classify session-token signing as a platform security adapter. Preserve the current token format and signature contract.
+2. **Playback status remains a compatibility seam.** `GET /api/dj/spotify/status` may advance PartyQueue or start fallback playback. Preserve and test these existing side effects; do not silently turn the endpoint into a read-only operation.
+3. **Guest session verification remains directly called from the HTTP route.** Confirm whether this is an intentional authentication-adapter responsibility or move it behind a small identity composition helper. Avoid unnecessary pass-through wrappers.
+4. **Automated dependency-boundary enforcement is not yet present.** Add checks only after module ownership/ports are stable; avoid brittle rules that simply whitelist today's violations.
 
 ## Behaviour and safety invariants
 
