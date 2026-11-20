@@ -224,10 +224,11 @@ app.post("/api/dj/ai/assistant", async (c) => {
   const localMinute = Number(localPart("minute"));
   const isNewYearsEve = localDate === "2026-12-31";
   const isAfterMidnight = localDate === "2027-01-01" && localHour < 3;
-  const minutesToMidnight = isNewYearsEve ? Math.max(0, 1440-(localHour*60+localMinute)) : null;
-  const minutesAfterMidnight = isAfterMidnight ? localHour*60+localMinute : null;
+  const roundedLocalMinute = Math.floor(localMinute/15)*15;
+  const minutesToMidnight = isNewYearsEve ? Math.ceil((1440-(localHour*60+roundedLocalMinute))/15)*15 : null;
+  const minutesAfterMidnight = isAfterMidnight ? Math.floor((localHour*60+roundedLocalMinute)/15)*15 : null;
   const eventMoment = {
-    belgianLocalTime: localDate+" "+localPart("hour")+":"+localPart("minute"),
+    belgianLocalTime: localDate+" "+localPart("hour")+":"+String(roundedLocalMinute).padStart(2,"0")+" (rounded to 15 min)",
     isNewYearsEve2026: isNewYearsEve,
     minutesToMidnight,
     minutesAfterMidnight,
