@@ -75,7 +75,7 @@ The guest search transport and Spotify result-card rendering are now separate fr
 
 ## CSS ownership
 
-The current `styles.css` is approximately 58.8 KB and serves both guest and DJ surfaces. The measured selector clusters and shared-selector risks are recorded in `docs/architecture/CSS-SELECTOR-INVENTORY.md` (574 selector blocks, 32 media-query blocks). Do not split it by arbitrary file size. Capture desktop/mobile browser screenshots first, then separate:
+The stylesheet foundation is now layered: `styles/tokens.css` owns the six root design tokens, `styles/base.css` owns the font import and universal/html/body reset, and `styles.css` retains the shared components plus guest and DJ surfaces. Both HTML entrypoints load these in that order. The first extraction moved rules without changing values or visual design. The remaining `styles.css` still serves both guest and DJ surfaces. The measured selector clusters and shared-selector risks are recorded in `docs/architecture/CSS-SELECTOR-INVENTORY.md` (574 selector blocks, 32 media-query blocks). Do not split it by arbitrary file size. Capture desktop/mobile browser screenshots first, then separate:
 
 1. `styles/tokens.css`: color, spacing, typography, radii, shadows and motion tokens.
 2. `styles/base.css`: reset, body, accessibility and shared layout primitives.
