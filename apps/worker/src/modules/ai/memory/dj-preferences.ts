@@ -1,4 +1,4 @@
-const EXPLICIT_PREFERENCE_PATTERN = /\\b(onthoud|vanaf nu|voortaan|mijn voorkeur|ik wil altijd|ik hou van|ik houd van|ik verkies)\\b/i;
+const EXPLICIT_PREFERENCE_PATTERN = /\b(onthoud|vanaf nu|voortaan|mijn voorkeur|ik wil altijd|ik hou van|ik houd van|ik verkies)\b/i;
 
 export type RememberPreferenceResult = {
   preferences: string[];
@@ -27,7 +27,7 @@ export function rememberDJPreference(
   const preferences = parseDJPreferences(storedValue);
   if (!EXPLICIT_PREFERENCE_PATTERN.test(prompt)) return { preferences, updated: false };
 
-  const preference = prompt.replace(/\\s+/g, " ").trim().slice(0, 240);
+  const preference = prompt.replace(/\s+/g, " ").trim().slice(0, 240);
   if (!preference || preferences.includes(preference)) return { preferences, updated: false };
 
   return { preferences: [...preferences, preference].slice(-20), updated: true };
