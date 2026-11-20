@@ -1,0 +1,25 @@
+import type { GuestRequestRepository } from "../application/guest-request-ports";
+import {
+  appendRequestToQueueOrder, countRecentGuestRequests, createDjQueueGuest, findActiveEvent,
+  findActiveTrackRequest, findEventGuest, findEventRequestStatus, insertGuest, insertTrackRequest,
+  moveApprovedRequestToQueue, readAutoQueueSetting, readGuestRequestSettings, updateRequestStatus,
+  type GuestRequestDatabase,
+} from "./guest-request-repository";
+
+export function createGuestRequestRepository(db:GuestRequestDatabase):GuestRequestRepository {
+  return {
+    findActiveEvent:eventId=>findActiveEvent(db,eventId),
+    insertGuest:guest=>insertGuest(db,guest),
+    findEventGuest:(guestId,eventId)=>findEventGuest(db,guestId,eventId),
+    readGuestRequestSettings:()=>readGuestRequestSettings(db),
+    countRecentGuestRequests:guestId=>countRecentGuestRequests(db,guestId),
+    findActiveTrackRequest:(eventId,trackId)=>findActiveTrackRequest(db,eventId,trackId),
+    insertTrackRequest:request=>insertTrackRequest(db,request),
+    createDjQueueGuest:eventId=>createDjQueueGuest(db,eventId),
+    appendRequestToQueueOrder:requestId=>appendRequestToQueueOrder(db,requestId),
+    findEventRequestStatus:(eventId,requestId)=>findEventRequestStatus(db,eventId,requestId),
+    readAutoQueueSetting:()=>readAutoQueueSetting(db),
+    updateRequestStatus:(eventId,requestId,status,column)=>updateRequestStatus(db,eventId,requestId,status,column),
+    moveApprovedRequestToQueue:(eventId,requestId)=>moveApprovedRequestToQueue(db,eventId,requestId),
+  };
+}

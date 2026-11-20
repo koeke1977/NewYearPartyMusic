@@ -1,21 +1,9 @@
-import {
-  appendRequestToQueueOrder,
-  countRecentGuestRequests,
-  createDjQueueGuest,
-  findActiveEvent,
-  findActiveTrackRequest,
-  findEventGuest,
-  findEventRequestStatus,
-  insertGuest,
-  insertTrackRequest,
-  moveApprovedRequestToQueue,
-  readAutoQueueSetting,
-  readGuestRequestSettings,
-  updateRequestStatus,
-  type GuestRequestDatabase,
-} from "../infrastructure/guest-request-repository";
+import type { GuestRequestRepository } from "./guest-request-ports";
 
 type Result = { status: number; body: Record<string, unknown> };
+
+export type GuestRequestTrack = { id:string; uri:string; name:string; artists:Array<{name:string}>; album?:{images?:Array<{url:string}>}; duration_ms:number };
+export type GuestRequestTrackGateway = { getTrack(trackId:string):Promise<GuestRequestTrack|null> };
 
 export type GuestRequestTrack = {
   id: string;
@@ -31,7 +19,7 @@ export type GuestRequestTrackGateway = {
 };
 
 export async function joinPartyGuest(input: {
-  db: GuestRequestDatabase;
+  repository: GuestRequestRepository;
   eventId: string;
   nickname: string;
   eventCode: string;
@@ -51,10 +39,10 @@ export async function joinPartyGuest(input: {
   if ((await input.hashCode(input.eventCode)) !== input.expectedCodeHash.trim().toLowerCase()) {
     return { status: 401, body: { error: "Die feestcode klopt niet. Vraag de DJ om de juiste code." } };
   }
-  const event = await findActiveEvent(input.db, input.eventId);
+  const event = await input.repository.findActiveEvent(input.eventId);
   if (!event) return { status: 403, body: { error: "Dit feest is momenteel niet actief." } };
   const guestId = input.createId();
-  await insertGuest(input.db, { id: guestId, eventId: event.id, nickname: input.nickname });
+  await input.repository.insertGuest({ id: guestId, eventId: event.id, nickname: input.nickname });
   const expiresAt = input.nowSeconds() + 60 * 60 * 12;
   const token = await input.createToken({ sub: guestId, eventId: event.id, nickname: input.nickname, exp: expiresAt }, input.sessionSecret);
   return {
@@ -64,28 +52,28 @@ export async function joinPartyGuest(input: {
 }
 
 export async function submitGuestTrackRequest(input: {
-  db: GuestRequestDatabase;
+  repository: GuestRequestRepository;
   eventId: string;
   guestId: string;
   trackId: string;
   createId(): string;
   trackGateway: GuestRequestTrackGateway;
 }): Promise<Result> {
-  const guest = await findEventGuest(input.db, input.guestId, input.eventId);
+  const guest = await input.repository.findEventGuest(input.guestId, input.eventId);
   if (!guest) return { status: 401, body: { error: "Gast niet gevonden. Meld je opnieuw aan." } };
 
-  const config = await readGuestRequestSettings(input.db);
+  const config = await input.repository.readGuestRequestSettings();
   if (config.requests_paused === "true") {
     return { status: 403, body: { error: "De DJ heeft aanvragen tijdelijk gepauzeerd." } };
   }
 
   const rateLimit = Number(config.max_requests_per_hour || 20);
-  const recentCount = await countRecentGuestRequests(input.db, input.guestId);
+  const recentCount = await input.repository.countRecentGuestRequests(input.guestId);
   if (recentCount >= rateLimit) {
     return { status: 429, body: { error: "Je maximum van " + rateLimit + " aanvragen per uur is bereikt." } };
   }
 
-  const duplicate = await findActiveTrackRequest(input.db, input.eventId, input.trackId);
+  const duplicate = await input.repository.findActiveTrackRequest(input.eventId, input.trackId);
   if (duplicate) return { status: 409, body: { error: "Dit nummer staat al in de wachtrij." } };
 
   try {
@@ -94,7 +82,7 @@ export async function submitGuestTrackRequest(input: {
     const requestId = input.createId();
     const status = config.auto_approve === "true" ? (config.auto_queue === "true" ? "queued" : "approved") : "pending";
     const artists = track.artists.map(artist => artist.name);
-    await insertTrackRequest(input.db, {
+    await input.repository.insertTrackRequest({
       id: requestId, event_id: input.eventId, guest_id: input.guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
       album_image_url: track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || null,
@@ -107,12 +95,12 @@ export async function submitGuestTrackRequest(input: {
 }
 
 export async function moderatePartyRequest(input: {
-  db: GuestRequestDatabase;
+  repository: GuestRequestRepository;
   eventId: string;
   requestId: string;
   action: string;
 }): Promise<Result> {
-  const current = await findEventRequestStatus(input.db, input.eventId, input.requestId);
+  const current = await input.repository.findEventRequestStatus(input.eventId, input.requestId);
   if (!current) return { status: 404, body: { error: "Aanvraag niet gevonden." } };
 
   const transitions: Record<string, { from: string[]; to: string }> = {
@@ -122,7 +110,7 @@ export async function moderatePartyRequest(input: {
     queue: { from: ["approved"], to: "queued" },
   };
   const transition = transitions[input.action];
-  const autoQueue = input.action === "approve" ? await readAutoQueueSetting(input.db) : false;
+  const autoQueue = input.action === "approve" ? await input.repository.readAutoQueueSetting() : false;
   if (!transition || !transition.from.includes(current.status)) {
     return { status: 409, body: { error: "Deze actie kan niet op deze aanvraag worden uitgevoerd." } };
   }
@@ -130,46 +118,46 @@ export async function moderatePartyRequest(input: {
   const timestamp = input.action === "played" ? "played_at"
     : input.action === "queue" || autoQueue ? "queued_at"
     : input.action === "approve" ? "approved_at" : null;
-  await updateRequestStatus(input.db, input.eventId, input.requestId, nextStatus, timestamp);
+  await input.repository.updateRequestStatus(input.eventId, input.requestId, nextStatus, timestamp);
   return { status: 200, body: { ok: true, status: nextStatus } };
 }
 
 export async function queueApprovedPartyRequest(input: {
-  db: GuestRequestDatabase;
+  repository: GuestRequestRepository;
   eventId: string;
   requestId: string;
 }): Promise<Result> {
-  const row = await findEventRequestStatus(input.db, input.eventId, input.requestId);
+  const row = await input.repository.findEventRequestStatus(input.eventId, input.requestId);
   if (!row || row.status !== "approved") {
     return { status: 409, body: { error: "Alleen goedgekeurde nummers kunnen naar de PartyQueue-wachtrij." } };
   }
-  const changed = await moveApprovedRequestToQueue(input.db, input.eventId, input.requestId);
+  const changed = await input.repository.moveApprovedRequestToQueue(input.eventId, input.requestId);
   if (!changed) return { status: 409, body: { error: "Alleen goedgekeurde nummers kunnen naar de PartyQueue-wachtrij." } };
   return { status: 200, body: { ok: true, status: "queued" } };
 }
 
 export async function addDjTrackToPartyQueue(input: {
-  db: GuestRequestDatabase;
+  repository: GuestRequestRepository;
   eventId: string;
   trackId: string;
   createId(): string;
   trackGateway: GuestRequestTrackGateway;
 }): Promise<Result> {
   try {
-    const duplicate = await findActiveTrackRequest(input.db, input.eventId, input.trackId);
+    const duplicate = await input.repository.findActiveTrackRequest(input.eventId, input.trackId);
     if (duplicate) return { status: 200, body: { ok: true, alreadyQueued: true, status: duplicate.status } };
     const track = await input.trackGateway.getTrack(input.trackId);
     if (!track) return { status: 502, body: { error: "Spotify kon dit nummer niet meer ophalen." } };
-    const guestId = await createDjQueueGuest(input.db, input.eventId);
+    const guestId = await input.repository.createDjQueueGuest(input.eventId);
     const requestId = input.createId();
     const artists = track.artists.map(artist => artist.name);
-    await insertTrackRequest(input.db, {
+    await input.repository.insertTrackRequest({
       id: requestId, event_id: input.eventId, guest_id: guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
       album_image_url: track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || null,
       duration_ms: track.duration_ms, status: "queued",
     });
-    await appendRequestToQueueOrder(input.db, requestId);
+    await input.repository.appendRequestToQueueOrder(requestId);
     return {
       status: 201,
       body: { ok: true, request: { id: requestId, name: track.name, artist: artists.join(", "), status: "queued" } },

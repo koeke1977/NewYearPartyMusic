@@ -4,6 +4,7 @@ import { createSessionToken } from "../../modules/identity/session-token";
 import { joinPartyGuest, submitGuestTrackRequest, addDjTrackToPartyQueue, type GuestRequestTrack } from "../../modules/requests/application/guest-request-lifecycle";
 import { searchGuestSpotifyTracks, searchDjSpotifyTracks } from "../../modules/music/application/search-spotify-tracks";
 import { getSpotifyTrack, searchSpotifyTracks } from "../../integrations/spotify/catalog-api";
+import { createGuestRequestRepository } from "../../modules/requests/infrastructure/guest-request-d1-repository";
 
 async function getGuestRequestTrack(env: Env, trackId: string): Promise<GuestRequestTrack | null> {
   const response = await getSpotifyTrack(env, trackId);
@@ -31,7 +32,7 @@ async function getGuestRequestTrack(env: Env, trackId: string): Promise<GuestReq
 
 export function joinGuestFromEnvironment(env: Env, nickname: string, eventCode: string) {
   return joinPartyGuest({
-    db: env.DB, eventId: env.EVENT_ID, nickname, eventCode,
+    repository: createGuestRequestRepository(env.DB), eventId: env.EVENT_ID, nickname, eventCode,
     expectedCodeHash: env.EVENT_ACCESS_CODE_HASH, sessionSecret: env.SESSION_SECRET,
     hashCode: sha256, createToken: createSessionToken,
     createId: () => crypto.randomUUID(), nowSeconds: () => Math.floor(Date.now() / 1000),
