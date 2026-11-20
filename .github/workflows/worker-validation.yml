@@ -29,5 +29,8 @@ jobs:
       - name: TypeScript validation
         run: npm run typecheck
 
+      - name: Security characterization tests
+        run: npm test
+
       - name: Cloudflare Worker dry run
         run: npx wrangler deploy --dry-run
