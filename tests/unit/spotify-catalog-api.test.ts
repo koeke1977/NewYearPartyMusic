@@ -93,4 +93,36 @@ describe("Spotify catalogue API adapter", () => {
     await expect(searchSpotifyCatalog(env, "song", 8)).rejects.toThrow("Spotify gaf een onvolledig trackantwoord terug.");
   });
 
+
+  it("normalizes an individual Spotify track into the shared catalogue DTO", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "catalogue-token", expires_in: 3600 }), { status: 200 }))
+      .mockResolvedValueOnce(Response.json({
+        id: "track-1", uri: "spotify:track:track-1", name: "Song", duration_ms: 180000,
+        artists: [{ name: "Artist" }],
+        album: { images: [{ url: "https://img.example/small.jpg" }, { url: "https://img.example/large.jpg" }] },
+      }));
+    const { getSpotifyCatalogTrack } = await import("../../apps/worker/src/integrations/spotify/catalog-api");
+    await expect(getSpotifyCatalogTrack(env, "track-1")).resolves.toEqual({
+      id: "track-1", uri: "spotify:track:track-1", name: "Song",
+      artists: ["Artist"], albumImageUrl: "https://img.example/large.jpg", durationMs: 180000,
+    });
+  });
+
+  it("returns null when the selected Spotify track is no longer available", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "catalogue-token", expires_in: 3600 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    const { getSpotifyCatalogTrack } = await import("../../apps/worker/src/integrations/spotify/catalog-api");
+    await expect(getSpotifyCatalogTrack(env, "missing-track")).resolves.toBeNull();
+  });
+
+  it("fails closed when an individual Spotify track payload is malformed", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "catalogue-token", expires_in: 3600 }), { status: 200 }))
+      .mockResolvedValueOnce(Response.json({ id: "broken" }));
+    const { getSpotifyCatalogTrack } = await import("../../apps/worker/src/integrations/spotify/catalog-api");
+    await expect(getSpotifyCatalogTrack(env, "broken")).rejects.toThrow("Spotify gaf een onvolledig trackantwoord terug.");
+  });
+
 });
