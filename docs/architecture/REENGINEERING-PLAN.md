@@ -254,3 +254,26 @@ A phase is complete only when:
 5. ADRs for non-obvious architecture decisions.
 
 The implementation agent must not claim the app is architecturally complete merely because files have been moved. Verify the result with tests and dependency checks.
+## Follow-up boundary audit — 2026-11-20
+
+The route/use-case/integration split is materially improved, but it is not yet a fully dependency-inverted architecture. The current implementation audit identified these remaining items:
+
+- `modules/requests/application/guest-request-lifecycle.ts` still imports a Spotify response type from the integration layer and consumes Fetch `Response` values in application workflows. The next safe step is to define application-owned track/provider result contracts and map provider responses in the route/composition adapter, with compatibility tests for Spotify failure and malformed payloads.
+- `modules/requests/application/*`, `modules/ai/application/*` and playback use cases still receive D1 bindings or concrete infrastructure functions in several paths. Repository ports and composition wiring are not yet consistently enforced across all features.
+- `modules/playback/application/get-dj-spotify-playback-status.ts` coordinates external HTTP response parsing and side-effecting playback automation. This remains a deliberate compatibility seam pending a typed Spotify gateway contract and characterization of the 204/no-device and fallback paths.
+- `apps/web/modules/dj-ai-assistant.js` owns prompt submission, intent-specific orchestration, proposal confirmation, suggestion selection, DOM rendering and sequential queue writes. It needs a controller/use-case boundary and smaller view modules; preserve the explicit DJ confirmation before queue reorder and the existing per-track failure reporting.
+- `apps/web/modules/dj-spotify-console.js` combines Spotify UI rendering, polling response mapping, control event binding and volume-write coordination. State sequencing is already isolated in playback modules, but presentation and controller responsibilities remain mixed.
+
+### Completed in this audit pass
+
+- Moved the Spotify playback workflow adapter out of `routes/` into `platform/composition/`, where Cloudflare bindings and concrete Spotify/repository adapters are wired to application use cases. The Hono route now imports this composition adapter instead of owning a workflow-named module under the HTTP route directory.
+- The route remains a transport adapter; no endpoint, response payload, Spotify command, queue policy, D1 query, or OAuth behavior was intentionally changed.
+
+### Remaining acceptance work
+
+- Introduce application-owned provider DTOs and repository ports before removing concrete D1/Fetch dependencies.
+- Split DJ AI and Spotify console browser controllers from pure DOM views, with interaction tests for cancellation, reorder confirmation, stale polling and partial Spotify failures.
+- Add automated dependency-boundary checks once the ports are in place; avoid brittle path-only rules that would merely bless current violations.
+- Run the complete Worker and browser regression workflows on the final head before considering this PR ready for review.
+
+This audit is intentionally explicit about remaining mixed boundaries. Green CI verifies the current behavior and type/test suite; it does not by itself certify that all target architecture rules have been achieved.

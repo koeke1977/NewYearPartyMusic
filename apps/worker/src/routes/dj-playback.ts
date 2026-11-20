@@ -6,7 +6,7 @@ import { getDjSpotifyPlaybackStatus } from "../modules/playback/application/get-
 import { executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume } from "../modules/playback/application/dj-playback-controls";
 import { readSpotifyFallbackError, setSpotifyManualPause } from "../modules/playback/infrastructure/playback-policy-repository";
 import { queueApprovedPartyRequest } from "../modules/requests/application/guest-request-lifecycle";
-import { maybeAdvancePartyQueue, maybeStartSpotifyFallback, startNextPartyQueueRequest } from "./dj-playback-workflows";
+import { maybeAdvancePartyQueue, maybeStartSpotifyFallback, startNextPartyQueueRequest } from "../platform/composition/dj-playback-workflows";
 import { requireDJSession } from "./dj-auth";
 export const djPlaybackRoutes = new Hono<{ Bindings: Env }>();
 djPlaybackRoutes.use("/api/dj/*", requireDJSession());
