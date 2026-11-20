@@ -26,10 +26,10 @@ describe("AI daily Neuron budget", () => {
   });
 
   it("loads today's usage and blocks a call that would exceed the budget", async () => {
-    const { db, first } = fakeDb("7400");
+    const { db, first } = fakeDb("7497");
     const budget = await createDailyAssistantNeuronBudget(db, new Date("2026-12-31T12:00:00.000Z"));
     expect(first).toHaveBeenCalledWith();
-    expect(budget.currentEstimatedNeurons()).toBe(7400);
+    expect(budget.currentEstimatedNeurons()).toBe(7497);
     expect(budget.canAfford(1000, 1400)).toBe(false);
   });
 
