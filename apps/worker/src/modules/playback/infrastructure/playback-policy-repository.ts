@@ -74,7 +74,7 @@ export async function setSpotifyFallbackActive(db: PlaybackPolicyDatabase): Prom
 export async function readSpotifyFallbackError(db: PlaybackPolicyDatabase): Promise<string | null> {
   const row = await db.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'")
     .first<{ value: string }>();
-  return row?.value ?? null;
+  return row?.value || null;
 }
 
 export async function setSpotifyManualPause(db: PlaybackPolicyDatabase, paused: boolean): Promise<void> {
