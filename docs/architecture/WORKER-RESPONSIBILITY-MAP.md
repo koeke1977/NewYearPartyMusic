@@ -28,7 +28,8 @@ The route handlers are substantially thinner than the original Worker entrypoint
 | Guest and DJ request lifecycle | `modules/requests/application/guest-request-lifecycle.ts` | Join, submit, add, moderate and queue-approved workflows |
 | DJ queue management | `modules/requests/application/dj-queue-management.ts` | Overview composition, queue ordering and setting validation |
 | Request retention | `modules/requests/application/cleanup-completed-requests.ts` | 30-day completed/terminal request cleanup policy |
-| Spotify catalogue search | `modules/music/application/search-spotify-tracks.ts` | Query validation, application DTOs and guest/DJ search behaviour through `SpotifyCatalogSearchGateway` |
+| Spotify catalogue search | `modules/music/application/search-spotify-tracks.ts` | Query validation and guest/DJ search behaviour through `SpotifyCatalogSearchGateway` |
+| Shared catalogue track | `modules/music/domain/catalog-track.ts` | Provider-independent normalized track DTO shared by music and request workflows |
 | Queue dispatch | `modules/queue/application/dispatch-next-track.ts` | Authoritative NEXT workflow and lease/side-effect sequencing |
 | Playback automation | `modules/playback/application/playback-automation.ts` | Queue advancement and fallback eligibility/retry policy |
 | Playback status | `modules/playback/application/get-dj-spotify-playback-status.ts` | Status result orchestration while preserving existing polling side effects |
@@ -42,12 +43,13 @@ The route handlers are substantially thinner than the original Worker entrypoint
 - `modules/identity/session-token.ts`: pure signed session-token policy; consumes an injected cryptographic port.
 - `platform/composition/session-token.ts`: binds session-token policy to the platform HMAC/base64url primitives.
 - `modules/requests/infrastructure/guest-request-d1-repository.ts`: D1 implementation of the guest/request repository port.
+- `modules/requests/application/guest-request-lifecycle.ts`: consumes the shared normalized `CatalogTrack` DTO and a typed track-lookup port; it does not parse Spotify wire data.
 - `modules/requests/infrastructure/dj-queue-d1-repository.ts`: DJ overview, saved queue order and settings persistence.
 - `modules/requests/infrastructure/request-retention-repository.ts`: completed-request retention persistence.
 - `modules/queue/infrastructure/queue-dispatch-d1-repository.ts`: D1 lease, ordered queue reads, conditional played transition and playback-state writes.
 - `modules/playback/infrastructure/playback-policy-repository.ts`: fallback policy state, retry/lease state and manual-pause persistence.
 - `modules/ai/infrastructure/assistant-context-repository.ts`, `assistant-settings-repository.ts` and `neuron-budget.ts`: bounded context reads, preference/cache/cooldown persistence and daily usage tracking.
-- `integrations/spotify/catalog-token.ts`, `catalog-api.ts`: public catalogue client-credentials flow, Spotify wire parsing and typed catalogue gateway implementation.
+- `integrations/spotify/catalog-token.ts`, `catalog-api.ts`: public catalogue client-credentials flow, Spotify search/single-track wire parsing and typed catalogue gateway implementations.
 - `integrations/spotify/playback-control-gateway.ts`: Spotify device, volume and transport HTTP response normalization into the application-owned playback-control port.
 - `integrations/spotify/user-auth-service.ts` and `user-auth-repository.ts`: DJ OAuth token exchange, encryption lifecycle, refresh rotation, authenticated API calls and token persistence.
 - `integrations/spotify/playback-api.ts`: Spotify playback endpoint paths, methods and payloads.
@@ -115,3 +117,11 @@ The screenshot artifact `partyqueue-ui-baseline` was uploaded successfully. This
 - Preserved guest/DJ search payloads, query limits, rate-limit responses, device JSON field names, volume validation, transport command behaviour and bounded error detail.
 - Added use-case and integration tests for success, provider failures, malformed catalogue payloads, 204 playback success and error-detail bounds.
 - Current-head CI is running; update this section with the exact result after it completes.
+
+
+### Follow-up: normalized individual Spotify track lookup — 2026-11-20
+
+- Added `modules/music/domain/catalog-track.ts` as the provider-independent track DTO shared by catalogue search and request creation.
+- The Spotify integration now normalizes both catalogue search results and individual track lookups, including required-field validation and album-image selection.
+- Guest request and DJ-added-track workflows receive the same typed DTO. `platform/composition/guest-workflows.ts` no longer parses Spotify JSON or passes Fetch `Response` objects into application workflows.
+- Preserved not-found behaviour, error mapping, artist order, album-image selection and request persistence payloads.
