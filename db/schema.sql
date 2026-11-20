@@ -3,7 +3,6 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  event_code_hash TEXT NOT NULL,
   starts_at TEXT,
   ends_at TEXT,
   is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
@@ -49,8 +48,8 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR IGNORE INTO events (id, name, event_code_hash, starts_at, ends_at)
-VALUES ('NYE2026', 'New Year''s Eve 2026', 'REPLACE_WITH_HASHED_EVENT_CODE', '2026-12-31T18:00:00+01:00', '2027-01-01T06:00:00+01:00');
+INSERT OR IGNORE INTO events (id, name, starts_at, ends_at)
+VALUES ('NYE2026', 'New Year''s Eve 2026', '2026-12-31T18:00:00+01:00', '2027-01-01T06:00:00+01:00');
 
 INSERT OR IGNORE INTO settings (key, value) VALUES
   ('auto_approve', 'true'),
