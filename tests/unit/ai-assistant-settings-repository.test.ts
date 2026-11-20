@@ -12,8 +12,10 @@ function fakeDb(options: {
 } = {}) {
   const run = vi.fn().mockResolvedValue({ meta: { changes: options.changes ?? 1 } });
   const first = vi.fn().mockResolvedValue(options.first ?? null);
-  const bind = vi.fn().mockReturnValue({ first, run });
-  const prepare = vi.fn().mockReturnValue({ bind });
+  const statement = { bind: vi.fn(), first, run };
+  statement.bind = vi.fn().mockReturnValue(statement);
+  const prepare = vi.fn().mockReturnValue(statement);
+  const bind = statement.bind;
   return { db: { prepare } as never, prepare, bind, first, run };
 }
 
