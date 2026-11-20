@@ -1,4 +1,4 @@
-// DOM-only rendering for the DJ AI assistant. API calls and queue policy stay in the controller.
+// DOM-only rendering for the DJ AI assistant. API calls and Spotify search stay in the controller.
 export function createDjAiAssistantView({ documentRef = document } = {}) {
   function node(tag, className, text) {
     const element = documentRef.createElement(tag);
@@ -12,55 +12,10 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
   }
 
   function renderAdvice(output, answer, cached = false) {
-    output.textContent = (cached ? "↻ Eerder advies (wachtrij ongewijzigd)\n\n" : "") + answer;
-  }
-
-  function renderQueueProposal(output, { answer, queueLength, onConfirm, onCancel }) {
-    output.replaceChildren(node("p", "", answer));
-    const panel = node("div", "dj-ai-confirm-panel");
-    panel.append(node(
-      "p",
-      "dj-ai-results-hint",
-      "Alle " + queueLength + " nummers zijn herkend. Wil je deze nieuwe volgorde toepassen op UP NEXT?",
-    ));
-    const confirmButton = node("button", "dj-ai-add", "✓ JA, PAS VOLGORDE TOE");
-    confirmButton.type = "button";
-    const cancelButton = node("button", "dj-ai-cancel", "ANNULEREN");
-    cancelButton.type = "button";
-
-    confirmButton.addEventListener("click", async () => {
-      confirmButton.disabled = true;
-      cancelButton.disabled = true;
-      confirmButton.textContent = "VOLGORDE OPSLAAN…";
-      try {
-        await onConfirm();
-        output.replaceChildren(
-          node("p", "", answer),
-          node("p", "dj-ai-results-hint", "✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen."),
-        );
-      } catch (error) {
-        confirmButton.disabled = false;
-        cancelButton.disabled = false;
-        confirmButton.textContent = "✓ JA, PAS VOLGORDE TOE";
-        output.append(node("p", "dj-ai-results-hint", "Opslaan mislukt: " + error.message));
-      }
-    });
-
-    cancelButton.addEventListener("click", () => {
-      onCancel?.();
-      output.replaceChildren(
-        node("p", "", answer),
-        node("p", "dj-ai-results-hint", "Voorstel geannuleerd. Je huidige wachtrij blijft ongewijzigd."),
-      );
-    });
-    panel.append(confirmButton, cancelButton);
-    output.append(panel);
-  }
-
-  function renderIncompleteQueueProposal(output, answer, matchedCount, totalCount, unmatchedLines) {
-    output.textContent = answer + "\n\n⚠️ Ik kon slechts " + matchedCount + " van de " + totalCount
-      + " nummers eenduidig koppelen. Er is niets gewijzigd. Niet herkend: "
-      + (unmatchedLines.length ? unmatchedLines.join(" | ") : "controleer of de AI alle wachtrijtracks heeft opgenomen.");
+    output.replaceChildren(
+      node("p", "", (cached ? "↻ Eerder advies (wachtrij ongewijzigd)\n\n" : "") + answer),
+      node("p", "dj-ai-results-hint", "AI gebruikt geen Spotify-trackdata of live wachtrij. Trackvoorstellen zijn algemene, niet-geverifieerde ideeën."),
+    );
   }
 
   function renderTrackSuggestions(output, { answer, mode, results, onAddSelected }) {
@@ -81,7 +36,8 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
       groupBox.append(node("strong", "dj-ai-query", group.query));
       if (!group.tracks?.length) groupBox.append(node("span", "dj-ai-no-match", "Geen Spotify-match gevonden."));
       (group.tracks || []).forEach((track, trackIndex) => {
-        const option = node("label", "dj-ai-track");
+        const option = node("div", "dj-ai-track");
+        const pickLabel = node("label", "dj-ai-track-pick");
         const pick = documentRef.createElement("input");
         pick.type = "radio";
         pick.name = "dj-ai-pick-" + groupIndex;
@@ -96,7 +52,12 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
         }
         const details = node("div", "dj-ai-track-details");
         details.append(node("strong", "", track.name), node("span", "", track.artists.join(", ")));
-        option.append(pick, details);
+        pickLabel.append(pick, details);
+        const spotifyLink = node("a", "dj-ai-track-link", "OPEN IN SPOTIFY ↗");
+        spotifyLink.href = "https://open.spotify.com/track/" + encodeURIComponent(track.id);
+        spotifyLink.target = "_blank";
+        spotifyLink.rel = "noopener noreferrer";
+        option.append(pickLabel, spotifyLink);
         groupBox.append(option);
       });
       output.append(groupBox);
@@ -127,7 +88,7 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
   function renderNoSuggestions(output, answer) {
     output.replaceChildren(
       node("p", "", answer),
-      node("p", "dj-ai-results-hint", "Ik kon geen genummerde tracks uit het antwoord halen. Vraag de AI om een lijst met Titel — Artiest."),
+      node("p", "dj-ai-results-hint", "Dit zijn algemene AI-suggesties. Vraag om een genummerde lijst met Titel — Artiest om ze daarna afzonderlijk in Spotify op te zoeken."),
     );
   }
 
@@ -143,9 +104,7 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
     appendMemoryUpdated,
     renderAdvice,
     renderError,
-    renderIncompleteQueueProposal,
     renderNoSuggestions,
-    renderQueueProposal,
     renderTrackSuggestions,
     renderWorking,
   };
