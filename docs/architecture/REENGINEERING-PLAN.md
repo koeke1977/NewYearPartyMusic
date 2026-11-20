@@ -8,6 +8,24 @@
 - Scope: architecture audit and safe migration foundation
 - Production Worker and D1 are explicitly out of scope for direct modification during this phase.
 
+## Current implementation progress
+
+The first security/platform extraction has been implemented on `refactor/architecture-foundation`:
+
+- `apps/worker/src/platform/env.ts`: Worker binding contract.
+- `apps/worker/src/platform/security/crypto.ts`: SHA-256, HMAC signing, base64url, constant-time comparison and AES-GCM encryption/decryption.
+- `apps/worker/src/modules/identity/session-token.ts`: signed bearer-token creation and validation.
+- `apps/worker/src/index.ts`: now consumes these modules instead of owning those implementations.
+
+Compatibility tests verify that session tokens from the old implementation remain accepted and that Spotify OAuth tokens encrypted by either the old or new implementation remain decryptable. Tests also cover tampering, expiry, wrong secrets and malformed tokens.
+
+The GitHub Actions validation run has passed:
+- TypeScript strict typecheck.
+- Security compatibility tests.
+- Cloudflare Worker bundle dry-run.
+
+This is the first vertical slice only. The remaining Worker routes, D1 access, Spotify integration, queue/playback orchestration and AI endpoint are still in the original entrypoint and remain scheduled for later extraction. No production deployment or D1 mutation was performed.
+
 ## Executive summary
 
 The current application is a Cloudflare Workers + Hono + D1 single-event Spotify request/DJ application. Its functional scope has grown beyond the original repository documentation. The largest architectural risks are concentrated entrypoints and mixed responsibilities:
