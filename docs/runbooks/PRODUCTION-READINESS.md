@@ -61,6 +61,26 @@ Production Workers Observability is enabled:
 
 Do not log access codes, session tokens, Spotify access/refresh tokens, OAuth authorization codes, or request bodies containing personal data. Keep log queries and exports scoped to operational diagnosis. Review Cloudflare retention and account usage before increasing sampling or exporting logs.
 
+## Data retention and recovery
+
+The production D1 database reports `version: production`, so it supports Cloudflare D1 Time Travel. Time Travel is automatic and does not need to be enabled; it provides point-in-time recovery. The available retention depends on the Workers plan: 7 days on Workers Free or 30 days on Workers Paid. Confirm the actual Workers plan in the Cloudflare account before relying on the longer window.
+
+Application retention:
+- Completed/declined/cancelled request rows older than 30 days are deleted by the daily scheduled cleanup.
+- Pending, approved and queued requests are deliberately excluded from that cleanup.
+- Authentication attempt buckets older than one day are deleted by the same daily cleanup.
+- No separate R2 export/archive is currently configured.
+
+Recovery procedure (D1 data recovery is separate from Worker code rollback):
+1. Identify the incident time and confirm the Workers plan's Time Travel retention window.
+2. Inspect the intended restore point with `npx wrangler d1 time-travel info partyqueue-production-db --env production --timestamp="<UTC timestamp>"`.
+3. Record the current bookmark and the restore bookmark. Export the current database first if preserving post-incident data is important.
+4. Have the release owner explicitly approve the restore. A Time Travel restore overwrites the live database and cancels in-flight queries.
+5. Restore only after confirming the target timestamp/bookmark: `npx wrangler d1 time-travel restore partyqueue-production-db --env production --bookmark="<verified bookmark>"`.
+6. Re-run the production health, guest, DJ and Spotify checks. If the restore itself must be undone, use the previous bookmark returned by Cloudflare.
+
+Never run a restore as a routine rollback or without an explicitly approved incident decision. Cloudflare D1 Time Travel documentation: https://developers.cloudflare.com/d1/reference/time-travel/
+
 ## Build, validation and deployment
 
 GitHub pull-request validation runs:
