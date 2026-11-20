@@ -365,9 +365,30 @@ async function askDJAI(prompt,mode="advice"){
       const overview=await api("/api/dj/overview");
       const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
       const lines=[...answer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)].map(m=>m[1].replace(/\*+/g,"").trim());
-      const norm=s=>s.toLocaleLowerCase("nl").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g," ").trim();
-      const byName=new Map(queued.map(track=>[norm(track.track_name+" — "+track.artist_name),track.id]));
-      const ids=lines.map(line=>byName.get(norm(line))).filter(Boolean);
+      const norm=s=>s.toLocaleLowerCase("nl").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
+      const parseLine=line=>{
+        const em=line.lastIndexOf("—")>=0?line.lastIndexOf("—"):line.lastIndexOf("–");
+        const split=em>=0?em:line.lastIndexOf(" - ");
+        if(split<0)return null;
+        let title=line.slice(0,split).trim(),artist=line.slice(split+(em>=0?1:3)).trim();
+        title=title.replace(/\s+-\s+(?:from\b|edit\b|original version\b).*$/i,"").replace(/\s*\([^)]*\)\s*$/,"").trim();
+        return title&&artist?{title:norm(title),artist:norm(artist)}:null;
+      };
+      const unused=new Set(queued.map(track=>track.id));
+      const ids=lines.map(line=>{
+        const parsed=parseLine(line);if(!parsed)return null;
+        let best=null,bestScore=0;
+        for(const track of queued){
+          if(!unused.has(track.id))continue;
+          const title=norm(track.track_name),artist=norm(track.artist_name);
+          const titleMatch=title===parsed.title||title.startsWith(parsed.title+" ")||parsed.title.startsWith(title+" ");
+          const artistMatch=artist===parsed.artist||artist.includes(parsed.artist)||parsed.artist.includes(artist);
+          const score=(title===parsed.title?4:titleMatch?2:0)+(artistMatch?3:0);
+          if(titleMatch&&artistMatch&&score>bestScore){best=track;bestScore=score;}
+        }
+        if(best){unused.delete(best.id);return best.id;}
+        return null;
+      }).filter(Boolean);
       if(queued.length&&ids.length===queued.length&&new Set(ids).size===queued.length){
         if(!window.confirm("DJ#DATUUR heeft een nieuwe volgorde voorgesteld. Wil je deze volgorde toepassen op de echte PartyQueue-wachtrij?")) {
           output.textContent=answer+"\n\nVoorstel niet toegepast. Je huidige wachtrij blijft ongewijzigd.";
@@ -377,7 +398,7 @@ async function askDJAI(prompt,mode="advice"){
         output.textContent=answer+"\n\n✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen.";
         await refresh();
       }else{
-        output.textContent=answer+"\n\n⚠️ Ik heb geen volledige, eenduidige volgorde kunnen herkennen. Er is niets gewijzigd. Pas de volgorde eventueel handmatig aan.";
+        output.textContent=answer+"\n\n⚠️ Ik kon slechts "+ids.length+" van de "+queued.length+" nummers eenduidig koppelen. Er is niets gewijzigd. Controleer of de AI alle titels en artiesten correct heeft overgenomen.";
       }
     }else if(mode==="starter"||mode==="fill"||mode==="import"){
       const normalizedAnswer=answer.replace(/\\n/g,"\n").replace(/\\r/g,"");
