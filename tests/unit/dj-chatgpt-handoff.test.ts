@@ -21,7 +21,7 @@ describe("DJ ChatGPT handoff prompt", () => {
   it("handles empty aggregate context without inventing a queue state", () => {
     const prompt = buildDjChatGptPrompt({ requestCounts: {} });
     expect(prompt).toContain("AANTALLEN AANVRAGEN PER STATUS: geen aanvragen");
-    expect(prompt).toContain("live wachtrij en playbackstatus zijn bewust niet meegestuurd");
+    expect(prompt).toContain("actuele wachtrij en playbackstatus zijn bewust niet meegestuurd");
   });
 });
 
