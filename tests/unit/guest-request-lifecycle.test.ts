@@ -49,8 +49,8 @@ describe("guest request lifecycle", () => {
       hashCode:async value => value==="party-code"?"hash":"wrong",
       createToken,createId:()=>"guest-new",nowSeconds:()=>1000,
     });
-    expect(result).toEqual({status:201,body:{
-      ok:true,guest:{id:"guest-new",nickname:"Koen"},sessionToken:"signed-session",expiresAt:44200,
+    expect(result).toEqual({ok:true,value:{
+      guest:{id:"guest-new",nickname:"Koen"},sessionToken:"signed-session",expiresAt:44200,
     }});
     expect(calls.some(call=>call.sql.startsWith("INSERT INTO guests"))).toBe(true);
     expect(createToken).toHaveBeenCalledWith({sub:"guest-new",eventId:"event-1",nickname:"Koen",exp:44200},"secret");
@@ -73,7 +73,7 @@ describe("guest request lifecycle", () => {
       expectedCodeHash:"hash",sessionSecret:"secret",hashCode:async()=>"nope",
       createToken:async()=>"token",createId:()=>"guest",nowSeconds:()=>100,
     });
-    expect(result).toMatchObject({status:401});
+    expect(result).toMatchObject({ok:false,error:{code:"invalid_event_code"}});
     expect(calls).toHaveLength(0);
   });
 
@@ -82,34 +82,34 @@ describe("guest request lifecycle", () => {
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(missing.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
-    })).toMatchObject({status:401});
+    })).toMatchObject({ok:false,error:{code:"guest_not_found"}});
 
     const paused=fakeDb({settings:[{key:"requests_paused",value:"true"}]});
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(paused.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
-    })).toMatchObject({status:403});
+    })).toMatchObject({ok:false,error:{code:"requests_paused"}});
 
     const openLimited=fakeDb({openCount:2,settings:[{key:"max_open_requests_per_guest",value:"2"}]});
     const openLimitGateway=vi.fn();
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(openLimited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:openLimitGateway},
-    })).toMatchObject({status:429,body:{error:"Je hebt het maximum van 2 openstaande aanvragen bereikt."}});
+    })).toMatchObject({ok:false,error:{code:"open_request_limit",message:"Je hebt het maximum van 2 openstaande aanvragen bereikt."}});
     expect(openLimitGateway).not.toHaveBeenCalled();
 
     const limited=fakeDb({count:5,settings:[{key:"max_requests_per_30_minutes",value:"5"}]});
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(limited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
-    })).toMatchObject({status:429});
+    })).toMatchObject({ok:false,error:{code:"request_rate_limit"}});
     expect(limited.calls.some(call=>call.sql.includes("datetime('now','-30 minutes')"))).toBe(true);
 
     const duplicate=fakeDb({duplicate:{id:"existing"}});
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(duplicate.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
-    })).toMatchObject({status:409});
+    })).toMatchObject({ok:false,error:{code:"duplicate_track"}});
   });
 
   it("verifies the Spotify track and applies auto-approve/auto-queue policy", async () => {
@@ -120,8 +120,8 @@ describe("guest request lifecycle", () => {
       repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request-new",trackGateway:{getTrack:vi.fn(async()=>spotifyTrack)},
     });
-    expect(result).toEqual({status:201,body:{
-      ok:true,request:{id:"request-new",name:"Test Song",artists:["Artist A","Artist B"],status:"queued"},
+    expect(result).toEqual({ok:true,value:{
+      request:{id:"request-new",name:"Test Song",artists:["Artist A","Artist B"],status:"queued"},
     }});
     const insert=calls.find(call=>call.sql.includes("INTO requests"));
     expect(insert?.sql).toContain("INSERT OR IGNORE INTO requests");
@@ -140,7 +140,7 @@ describe("guest request lifecycle", () => {
       repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
     });
-    expect(result).toMatchObject({status:429,body:{error:"Je hebt het maximum van 2 openstaande aanvragen bereikt."}});
+    expect(result).toMatchObject({ok:false,error:{code:"open_request_limit",message:"Je hebt het maximum van 2 openstaande aanvragen bereikt."}});
   });
 
   it("enforces the rolling 30-minute limit atomically when requests race", async () => {
@@ -149,7 +149,7 @@ describe("guest request lifecycle", () => {
       repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
     });
-    expect(result).toMatchObject({status:429,body:{error:"Je maximum van 5 aanvragen per 30 minuten is bereikt."}});
+    expect(result).toMatchObject({ok:false,error:{code:"request_rate_limit",message:"Je maximum van 5 aanvragen per 30 minuten is bereikt."}});
   });
 
   it("rejects a duplicate when another request wins the concurrent insert race", async () => {
@@ -158,7 +158,7 @@ describe("guest request lifecycle", () => {
       repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
     });
-    expect(result).toMatchObject({status:409,body:{error:"Dit nummer staat al in de wachtrij."}});
+    expect(result).toMatchObject({ok:false,error:{code:"duplicate_track",message:"Dit nummer staat al in de wachtrij."}});
     expect(calls.some(call=>call.sql.includes("INTO requests"))).toBe(true);
   });
 
@@ -168,7 +168,7 @@ describe("guest request lifecycle", () => {
       repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:async()=>null},
     });
-    expect(result).toMatchObject({status:400});
+    expect(result).toMatchObject({ok:false,error:{code:"track_unavailable"}});
     expect(calls.some(call=>call.sql.includes("INTO requests"))).toBe(false);
   });
 });
