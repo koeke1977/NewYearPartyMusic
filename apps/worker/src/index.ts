@@ -14,6 +14,7 @@ import { addDjTrackToPartyQueue, joinPartyGuest, moderatePartyRequest, queueAppr
 import { getDjOverview, reorderDjQueue, updateDjSetting } from "./modules/requests/application/dj-queue-management";
 import { cleanupCompletedRequests } from "./modules/requests/application/cleanup-completed-requests";
 import { readSpotifyFallbackError, setSpotifyFallbackActive, setSpotifyManualPause } from "./modules/playback/infrastructure/playback-policy-repository";
+import { getDjSpotifyPlaybackStatus } from "./modules/playback/application/get-dj-spotify-playback-status";
 
 
 
@@ -239,38 +240,19 @@ async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | nul
   }, currentTrackUri, playing);
 }
 
-app.get("/api/dj/spotify/status",async(c)=>{
-  if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
-  try{
-    const response=await getCurrentPlayback(spotifyFetch.bind(null, c.env));
-    if(response.status===204){
-      const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0,0);
-      const autoAdvance=await maybeAdvancePartyQueue(c.env,false);
-      const fallbackError=await readSpotifyFallbackError(c.env.DB);
-      return c.json({connected:true,playing:false,device:null,track:null,nextTrack:null,fallbackActive,autoAdvanced:autoAdvance.advanced,autoAdvanceError:autoAdvance.error||null,fallbackError:fallbackError?.value||null});
-    }
-    if(!response.ok) return c.json({error:"Spotify playbackstatus niet beschikbaar (HTTP "+response.status+")."},502);
-    const data=await response.json() as any;
-    const item=data.item;
-    const playing=!!data.is_playing;
-    // If playback was resumed directly in Spotify, clear a stale pause flag left by the DJ console.
-    if(playing){
-      await setSpotifyManualPause(c.env.DB, false);
-    }
-    const autoAdvance=await maybeAdvancePartyQueue(c.env,playing);
-    const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0,item?.duration_ms||0);
-    const fallbackError=await readSpotifyFallbackError(c.env.DB);
-    let nextTrack=null;
-    if(fallbackActive){
-      const queueResponse=await getPlaybackQueue(spotifyFetch.bind(null, c.env));
-      if(queueResponse.ok){
-        const queueData=await queueResponse.json() as any;
-        const upcoming=queueData.queue?.[0];
-        if(upcoming) nextTrack={id:upcoming.id,uri:upcoming.uri,name:upcoming.name,artists:(upcoming.artists||[]).map((a:any)=>a.name),image:upcoming.album?.images?.[0]?.url||null,durationMs:upcoming.duration_ms};
-      }
-    }
-    return c.json({connected:true,playing,progressMs:data.progress_ms||0,fallbackActive,autoAdvanced:autoAdvance.advanced,autoAdvanceError:autoAdvance.error||null,nextTrack,fallbackError:fallbackError?.value||null,device:data.device?{id:data.device.id,name:data.device.name,type:data.device.type,active:data.device.is_active,volume:data.device.volume_percent}:null,track:item?{id:item.id,uri:item.uri,name:item.name,artists:(item.artists||[]).map((a:any)=>a.name),image:item.album?.images?.[0]?.url||null,durationMs:item.duration_ms}:null});
-  }catch(e){return c.json({connected:false,error:e instanceof Error?e.message:"Spotify niet verbonden."},503);}
+app.get("/api/dj/spotify/status", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
+  const spotify = spotifyFetch.bind(null, c.env);
+  const result = await getDjSpotifyPlaybackStatus({
+    getCurrentPlayback: () => getCurrentPlayback(spotify),
+    getPlaybackQueue: () => getPlaybackQueue(spotify),
+    maybeAdvance: (playing) => maybeAdvancePartyQueue(c.env, playing),
+    maybeStartFallback: (trackUri, playing, progressMs, durationMs) =>
+      maybeStartSpotifyFallback(c.env, trackUri, playing, progressMs, durationMs),
+    readFallbackError: () => readSpotifyFallbackError(c.env.DB),
+    clearManualPause: () => setSpotifyManualPause(c.env.DB, false),
+  });
+  return c.json(result.body, result.status);
 });
 app.get("/api/dj/spotify/devices",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
