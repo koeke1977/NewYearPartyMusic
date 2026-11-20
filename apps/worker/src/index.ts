@@ -9,12 +9,13 @@ import { exchangeSpotifyAuthorizationCode, spotifyFetch } from "./integrations/s
 import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
 import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
-import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist, playTrack, sendPlaybackCommand, setPlaybackShuffle, setPlaybackVolume } from "./integrations/spotify/playback-api";
+import { getCurrentPlayback, getPlaybackQueue, playPlaylist, playTrack, setPlaybackShuffle } from "./integrations/spotify/playback-api";
 import { addDjTrackToPartyQueue, joinPartyGuest, moderatePartyRequest, queueApprovedPartyRequest, submitGuestTrackRequest } from "./modules/requests/application/guest-request-lifecycle";
 import { getDjOverview, reorderDjQueue, updateDjSetting } from "./modules/requests/application/dj-queue-management";
 import { cleanupCompletedRequests } from "./modules/requests/application/cleanup-completed-requests";
 import { readSpotifyFallbackError, setSpotifyFallbackActive, setSpotifyManualPause } from "./modules/playback/infrastructure/playback-policy-repository";
 import { getDjSpotifyPlaybackStatus } from "./modules/playback/application/get-dj-spotify-playback-status";
+import { executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume } from "./modules/playback/application/dj-playback-controls";
 
 
 
@@ -254,10 +255,12 @@ app.get("/api/dj/spotify/status", async (c) => {
   });
   return c.json(result.body, result.status);
 });
-app.get("/api/dj/spotify/devices",async(c)=>{
-  if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
-  try{const r=await getPlaybackDevices(spotifyFetch.bind(null, c.env));if(!r.ok)return c.json({error:"Spotify-apparaten ophalen mislukt (HTTP "+r.status+")."},502);return c.json(await r.json());}
-  catch(e){return c.json({error:e instanceof Error?e.message:"Spotify niet beschikbaar."},503);}
+app.get("/api/dj/spotify/devices", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
+  const result = await listDjSpotifyDevices({
+    getDevices: () => getPlaybackDevices(spotifyFetch.bind(null, c.env)),
+  });
+  return c.json(result.body, result.status);
 });
 app.post("/api/dj/spotify/next-request",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
@@ -266,33 +269,24 @@ app.post("/api/dj/spotify/next-request",async(c)=>{
   if(!result.ok)return c.json({error:result.error||"Volgende aanvraag starten is mislukt."},409);
   return c.json({ok:true,track:result.track,requestId:result.requestId});
 });
-app.put("/api/dj/spotify/volume",async(c)=>{
-  if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
-  let body:{volume?:unknown};
-  try{body=await c.req.json();}catch{return c.json({error:"Ongeldige aanvraag."},400);}
-  if(typeof body.volume!=="number"||!Number.isInteger(body.volume)||body.volume<0||body.volume>100)return c.json({error:"Volume moet een geheel getal tussen 0 en 100 zijn."},400);
-  try{
-    const response=await setPlaybackVolume(spotifyFetch.bind(null, c.env),body.volume);
-    if(!response.ok&&response.status!==204)return c.json({error:"Spotify kon het volume niet aanpassen (HTTP "+response.status+"). Controleer of een actief Spotify-apparaat beschikbaar is."},502);
-    return c.json({ok:true,volume:body.volume});
-  }catch(error){return c.json({error:error instanceof Error?error.message:"Spotify-volume aanpassen is mislukt."},503);}
+app.put("/api/dj/spotify/volume", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
+  let body: { volume?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
+  const result = await setDjSpotifyVolume({
+    volume: body.volume,
+    setVolume: (volume) => setPlaybackVolume(spotifyFetch.bind(null, c.env), volume),
+  });
+  return c.json(result.body, result.status);
 });
-app.post("/api/dj/spotify/:action",async(c)=>{
-  if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
-  const action=c.req.param("action");
-  const allowedActions = ["play","pause","next","previous"] as const;
-  if (!(allowedActions as readonly string[]).includes(action)) return c.json({error:"Onbekend Spotify-commando."},400);
-  try{
-    const r=await sendPlaybackCommand(spotifyFetch.bind(null, c.env),action as "play"|"pause"|"next"|"previous");
-    if(!r.ok&&r.status!==204){
-      const detail=(await r.text()).slice(0,400);
-      return c.json({error:"Spotify-commando geweigerd (HTTP "+r.status+"). "+detail},502);
-    }
-    if(action==="pause") await setSpotifyManualPause(c.env.DB, true);
-    if(action==="play") await setSpotifyManualPause(c.env.DB, false);
-    return c.json({ok:true});
-  }
-  catch(e){return c.json({error:e instanceof Error?e.message:"Spotify-commando mislukt."},503);}
+app.post("/api/dj/spotify/:action", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
+  const result = await executeDjSpotifyCommand({
+    action: c.req.param("action"),
+    sendCommand: (action) => sendPlaybackCommand(spotifyFetch.bind(null, c.env), action),
+    setManualPause: (paused) => setSpotifyManualPause(c.env.DB, paused),
+  });
+  return c.json(result.body, result.status);
 });
 app.post("/api/dj/spotify/queue/:id",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
