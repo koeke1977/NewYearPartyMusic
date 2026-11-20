@@ -316,9 +316,16 @@ app.post("/api/dj/ai/assistant", async (c) => {
       first?.response || first?.result?.response ||
       first?.choices?.[0]?.message?.content || first?.output_text || "";
     let spotifyMatches:Array<{query:string;tracks:any[]}> = [];
-    const calls = Array.isArray(first?.tool_calls) ? first.tool_calls :
-      Array.isArray(first?.result?.tool_calls) ? first.result.tool_calls : [];
-    const searchCall = calls.find((call:any)=>call?.name==="searchSpotifyTracks");
+    const calls = [
+      ...(Array.isArray(first?.tool_calls) ? first.tool_calls : []),
+      ...(Array.isArray(first?.result?.tool_calls) ? first.result.tool_calls : []),
+      ...(Array.isArray(first?.choices?.[0]?.message?.tool_calls) ? first.choices[0].message.tool_calls : []),
+      ...(Array.isArray(first?.result?.choices?.[0]?.message?.tool_calls) ? first.result.choices[0].message.tool_calls : [])
+    ];
+    const searchCall = calls.map((call:any)=>({
+      name:call?.name||call?.function?.name,
+      arguments:call?.arguments??call?.function?.arguments
+    })).find((call:any)=>call.name==="searchSpotifyTracks");
 
     if (searchCall) {
       let args:any = searchCall.arguments || {};
