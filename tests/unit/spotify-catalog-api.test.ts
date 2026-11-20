@@ -47,4 +47,50 @@ describe("Spotify catalogue API adapter", () => {
     expect(String(fetchMock.mock.calls[1][0])).toBe("https://api.spotify.com/v1/tracks/0123456789012345678901");
     expect(fetchMock.mock.calls[1][1]?.headers).toEqual({ Authorization: "Bearer catalogue-token" });
   });
+
+  it("normalizes Spotify wire tracks into the application catalogue DTO", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "catalogue-token", expires_in: 3600 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        tracks: { items: [{
+          id: "track-1", uri: "spotify:track:track-1", name: "Song", duration_ms: 180000,
+          artists: [{ name: "Artist" }],
+          album: { images: [{ url: "https://img.example/small.jpg" }, { url: "https://img.example/large.jpg" }] },
+        }] },
+      }), { status: 200 }));
+    const { searchSpotifyCatalog } = await import("../../apps/worker/src/integrations/spotify/catalog-api");
+
+    await expect(searchSpotifyCatalog(env, "song", 8)).resolves.toEqual({
+      kind: "available",
+      tracks: [{
+        id: "track-1", uri: "spotify:track:track-1", name: "Song",
+        artists: ["Artist"], albumImageUrl: "https://img.example/large.jpg", durationMs: 180000,
+      }],
+    });
+  });
+
+  it("maps Spotify rate limits and provider errors to typed catalogue results", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "catalogue-token", expires_in: 3600 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 429 }));
+    const { searchSpotifyCatalog } = await import("../../apps/worker/src/integrations/spotify/catalog-api");
+    await expect(searchSpotifyCatalog(env, "song", 8)).resolves.toEqual({ kind: "rate-limited" });
+  });
+
+  it("returns typed unavailable results for other Spotify HTTP errors", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "catalogue-token", expires_in: 3600 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+    const { searchSpotifyCatalog } = await import("../../apps/worker/src/integrations/spotify/catalog-api");
+    await expect(searchSpotifyCatalog(env, "song", 8)).resolves.toEqual({ kind: "unavailable", status: 503 });
+  });
+
+  it("rejects malformed Spotify track payloads at the integration boundary", async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(new Response(JSON.stringify({ access_token: "catalogue-token", expires_in: 3600 }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ tracks: { items: [{ id: "broken" }] } }), { status: 200 }));
+    const { searchSpotifyCatalog } = await import("../../apps/worker/src/integrations/spotify/catalog-api");
+    await expect(searchSpotifyCatalog(env, "song", 8)).rejects.toThrow("Spotify gaf een onvolledig trackantwoord terug.");
+  });
+
 });
