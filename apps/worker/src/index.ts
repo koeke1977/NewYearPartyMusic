@@ -280,12 +280,14 @@ app.post("/api/dj/ai/music/search", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   let body: { queries?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  if (!Array.isArray(body.queries) || body.queries.length > 20 || !body.queries.every(q => typeof q === "string" && q.trim().length > 2 && q.length <= 140)) {
-    return c.json({ error: "Geef maximaal 20 geldige trackzoekopdrachten door." }, 400);
+  if (!Array.isArray(body.queries) || body.queries.length > 20 || !body.queries.every(q => typeof q === "string")) {
+    return c.json({ error: "Geef maximaal 20 trackzoekopdrachten door." }, 400);
   }
+  const queries = (body.queries as string[]).map(q => q.replace(/\\s+/g," ").trim().slice(0,140)).filter(q => q.length > 2);
+  if (!queries.length) return c.json({ error: "Ik kon geen bruikbare titels en artiesten uit de lijst halen." }, 400);
   try {
     const token = await getSpotifyToken(c.env);
-    const results = await Promise.all((body.queries as string[]).map(async query => {
+    const results = await Promise.all(queries.map(async query => {
       const url = new URL("https://api.spotify.com/v1/search");
       url.searchParams.set("q", query);
       url.searchParams.set("type", "track");
