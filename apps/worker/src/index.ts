@@ -5,6 +5,7 @@ import { createSessionToken, readSession, type Session } from "./modules/identit
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
 import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
+import { buildEventMoment } from "./modules/ai/context/event-moment";
 
 
 const app = new Hono<{ Bindings: Env }>();
@@ -144,30 +145,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   const queued = tracks.filter(t=>t.status==="queued").sort((a,b)=>(orderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(orderIndex.get(b.id)??Number.MAX_SAFE_INTEGER)||String(a.queued_at||a.requested_at).localeCompare(String(b.queued_at||b.requested_at)));
   const recent = playedRows.results || [];
   const current = recent[0];
-  const brusselsParts = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
-  }).formatToParts(new Date());
-  const localPart = (type: string) => brusselsParts.find(part => part.type === type)?.value || "";
-  const localDate = localPart("year")+"-"+localPart("month")+"-"+localPart("day");
-  const localHour = Number(localPart("hour"));
-  const localMinute = Number(localPart("minute"));
-  const isNewYearsEve = localDate === "2026-12-31";
-  const isAfterMidnight = localDate === "2027-01-01" && localHour < 3;
-  const roundedLocalMinute = Math.floor(localMinute/15)*15;
-  const minutesToMidnight = isNewYearsEve ? Math.ceil((1440-(localHour*60+roundedLocalMinute))/15)*15 : null;
-  const minutesAfterMidnight = isAfterMidnight ? Math.floor((localHour*60+roundedLocalMinute)/15)*15 : null;
-  const eventMoment = {
-    belgianLocalTime: localDate+" "+localPart("hour")+":"+String(roundedLocalMinute).padStart(2,"0")+" (rounded to 15 min)",
-    isNewYearsEve2026: isNewYearsEve,
-    minutesToMidnight,
-    minutesAfterMidnight,
-    phase: isAfterMidnight ? "after_midnight" : !isNewYearsEve ? "rehearsal_or_non_event_day" :
-      minutesToMidnight! > 240 ? "early_evening" :
-      minutesToMidnight! > 90 ? "building_toward_midnight" :
-      minutesToMidnight! > 15 ? "countdown_peak_window_approaching" :
-      "midnight_peak"
-  };
+  const eventMoment = buildEventMoment();
   let djPreferences: string[] = [];
   let djHistory: Array<{at:string;tracks:string[]}> = [];
   try { djPreferences = JSON.parse(profileSetting?.value || "[]"); } catch { djPreferences = []; }
