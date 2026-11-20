@@ -12,7 +12,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Signed bearer-token creation and validation | `modules/identity/session-token.ts` | `modules/identity/` |
 | Spotify client-credentials token cache | `integrations/spotify/catalog-token.ts` | `integrations/spotify/catalog-token.ts` |
 | Spotify track response shape | `integrations/spotify/types.ts` | `integrations/spotify/types.ts` |
-| Encrypted Spotify user-token persistence, refresh lease and invalidation | `integrations/spotify/user-auth-repository.ts` | `integrations/spotify/user-auth-repository.ts` |
+| Encrypted Spotify user-token persistence, refresh lease and invalidation | `integrations/spotify/user-auth-repository.ts` | `integrations/spotify/user-auth-repository.ts` |\n| Queue dispatch D1 lease, ordered queue read, conditional played transition and playback-state writes | `modules/queue/infrastructure/queue-dispatch-repository.ts` | `modules/queue/infrastructure/queue-dispatch-repository.ts` |\n| Cohesive lock-protected PartyQueue dispatch workflow | `modules/queue/application/dispatch-next-track.ts` | `modules/queue/application/dispatch-next-track.ts` |
 
 ## Remaining entrypoint responsibilities
 
@@ -36,7 +36,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | `POST /api/dj/spotify/connect` | DJ auth, OAuth state creation, redirect and cookie | Spotify OAuth start use case + route adapter |
 | `GET /auth/spotify/callback` | State cookie validation, code exchange, token persistence, redirect | Spotify OAuth callback use case + route adapter |
 | `startSpotifyFallback` | Spotify playback commands and fallback setting write | Playback service |
-| `startNextPartyQueueRequest` | D1 lock, queue ordering, Spotify play command, request state update and fallback state | Dispatch-next-track use case + Queue repository + Spotify playback gateway |
+| `startNextPartyQueueRequest` | Thin adapter supplying the Spotify playback operation | `modules/queue/application/dispatch-next-track.ts` + `modules/queue/infrastructure/queue-dispatch-repository.ts` |
 | `maybeAdvancePartyQueue` | Playback completion policy, manual pause, queue availability and dispatch | Queue advancement policy / application service |
 | `maybeStartSpotifyFallback` | Fallback eligibility, retry policy, D1 lock/state, Spotify fallback playback | Playback fallback policy / application service |
 | `GET /api/dj/spotify/status` | Spotify state read plus queue advancement and fallback side effects | Get-playback-state use case coordinating queue/playback services |
