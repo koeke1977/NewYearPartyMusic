@@ -5,8 +5,8 @@
 - Repository: `koeke1977/NewYearPartyMusic`
 - Baseline main SHA: `753464e6c57531a4e5ba187afd86815490adb7a8`
 - Working branch: `refactor/architecture-foundation`
-- Scope: architecture audit and safe migration foundation
-- Production Worker and D1 are explicitly out of scope for direct modification during this phase.
+- Scope: architecture reengineering of the current test application
+- The deployed Cloudflare Worker and D1 are test resources only. The application has not been used for a real event or real production users; current database rows and Spotify OAuth state are test data and may be reset or recreated when that is the best engineering choice.
 
 ## Current implementation progress
 
@@ -44,16 +44,13 @@ The following measurements describe the **original pre-extraction baseline**, no
 
 The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The current remaining risks are dependency inversion and composition consistency in some Worker features, plus limited controller/view mixing in two DJ frontend modules.
 
-## Production safety findings
+## Environment assumptions
 
-Cloudflare account connection confirmed. Existing production resources observed:
+The current Cloudflare Worker, D1 database and Spotify OAuth connection are used exclusively for development and testing. PartyQueue has not yet served a real event or real production users. The existing D1 rows and OAuth state are test data, not business-critical production records.
 
-- Worker: `partyqueue` (recently modified 2026-11-20)
-- D1 database: `partyqueue-db`
-- D1 database ID: `d627ba29-4d77-4ddd-a115-19022685f5c1`
-- Production D1 row counts: `events` 1, `guests` 15, `requests` 222, `settings` 13, `spotify_auth` 1.
+Engineering decisions must therefore optimize for a clean, correct architecture rather than preserving accidental test state. It is acceptable to reset or recreate the test D1 database, regenerate test credentials, reconnect the test Spotify account or redeploy the test Worker when useful. Do not add compatibility layers solely to preserve disposable test data.
 
-**Critical:** this is live application data, including Spotify authentication state. Never drop/recreate tables, reset settings, replace OAuth data, or deploy a changed Worker as part of an unverified refactor. No production resources were modified during this audit.
+Keep normal security and quality controls: never commit secrets, keep Spotify credentials server-side, test migrations before applying them, and preserve authorization and AI/DJ permission boundaries. A future real public event release is a separate operational decision; it must not block current architecture work.
 
 ## Target architecture
 
@@ -166,11 +163,11 @@ Use deterministic code for limits, duplicate detection, eligibility, permissions
 ## First migration sequence
 
 ### Phase 0 — baseline and safety (this branch)
-- Record current main SHA and production resources.
+- Record the current branch baseline and identify the disposable Cloudflare test resources.
 - Add this architectural plan.
 - Capture current route/API behaviour and data schema.
 - Establish tests and validation scripts before moving code.
-- Do not touch production D1 data, secrets, bindings or Worker deployment.
+- Treat the current Worker, D1 and Spotify connection as test resources that may be reset or reconfigured as required.
 
 ### Phase 1 — characterization tests and contracts
 - Add a Workers-compatible test runner (evaluate Vitest with the Cloudflare Workers pool against current compatibility).
@@ -202,9 +199,9 @@ Current branch status: token/base/shared/guest layers exist; DJ-only styles are 
 ### Phase 5 — hardening and deployment
 - Typecheck, lint, unit, integration and browser tests.
 - Compare API contract snapshots against the baseline.
-- Validate D1 migrations against a disposable local database and a production-like clone.
+- Validate D1 migrations against a disposable local/test database.
 - Prepare backup/export and rollback instructions.
-- Deploy only through a separately reviewed release PR after explicit production approval.
+- Validate deployment configuration for the test environment; a future real public event release is handled separately.
 
 ## Required engineering controls
 
@@ -234,7 +231,7 @@ A phase is complete only when:
 - Tests cover happy paths, invalid input, provider failures and concurrency edges.
 - Typecheck, lint and tests pass.
 - Documentation reflects actual code.
-- Production data and secrets remain unchanged unless an approved migration explicitly requires otherwise.
+- Test data and test credentials may be recreated; secrets must still never be committed or exposed.
 
 ## Out of scope unless separately approved
 
@@ -243,7 +240,7 @@ A phase is complete only when:
 - Microservices.
 - Changing the user experience or visual language.
 - Multi-event administration.
-- Production database reset, destructive schema change, token reset or deployment.
+- Real public event launch or external customer rollout.
 
 ## Required next deliverables
 
@@ -295,7 +292,7 @@ This audit is intentionally explicit about remaining mixed boundaries. Green CI 
 - Extracted modules/dj-ai-actions.js: sequential suggestion additions, duplicate handling, per-track failures and complete queue-permutation validation now live outside the AI DOM controller. Reordering still requires explicit DJ confirmation.
 - Extracted modules/dj-spotify-console-view.js: DOM-only Spotify console rendering now owns status, device, track, volume, progress, transport-button, fallback-preview and offline presentation. The console controller retains API calls, stale-response coordination, volume-write sequencing and event binding.
 - Added focused unit coverage for the AI action workflows and the typed Spotify gateway. The existing console controller tests exercise the extracted view through its public integration.
-- No production Worker, Spotify playback, secrets or Cloudflare D1 data were touched. The architecture allows disposable/local D1 reconstruction during future migration work; production resources remain behind a separately approved release step.
+- The current Cloudflare Worker and D1 are test-only. Test data, test OAuth state and test resources may be reset or recreated when needed; this is not a live production system.
 
 
 ### Follow-up: queue dispatch persistence port — 2026-11-20
