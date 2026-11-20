@@ -1,6 +1,6 @@
 import type { Env } from "../env";
 import { sha256 } from "../security/crypto";
-import { createSessionToken } from "../../modules/identity/session-token";
+import { createSessionToken } from "./session-token";
 import { loginDj } from "../../modules/identity/dj-session";
 
 /** Composes DJ login policy with the platform hashing and signed-token adapters. */
