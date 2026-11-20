@@ -11,7 +11,6 @@ const context: DJAssistantContext = {
     phase: "building_toward_midnight",
   },
   djPreferences: ["stijlwissels zijn welkom", "disco en 90s"],
-  requestMix: { queued: 2, played: 1 },
 };
 
 describe("DJ assistant prompt", () => {
@@ -22,15 +21,16 @@ describe("DJ assistant prompt", () => {
     expect(system).toContain("smooth bridges when useful, but they are optional");
   });
 
-  it("states the Spotify content boundary and does not offer queue reordering", () => {
+  it("states the strict Spotify and usage-metric boundary", () => {
     const { system, user } = buildDJAssistantPrompt(context, "Wat past hierna?");
-    expect(system).toContain("you receive no Spotify catalogue, track metadata");
+    expect(system).toContain("no Spotify catalogue, track metadata, cover art, playback state, live queue, request data, request counts or usage metrics");
     expect(system).toContain("Do not generate a numbered queue order");
     expect(system).toContain("unverified suggestions");
     expect(user).toContain("PARTYQUEUE NON-SPOTIFY CONTEXT:");
     expect(user).toContain("New Year's Eve 2026");
     expect(user).toContain("building_toward_midnight");
     expect(user).toContain("stijlwissels zijn welkom");
+    expect(user).not.toContain("requestMix");
     expect(user).not.toContain("Track C");
     expect(user).not.toContain("Artist C");
   });
