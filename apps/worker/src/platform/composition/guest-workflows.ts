@@ -1,6 +1,6 @@
 import type { Env } from "../env";
 import { sha256 } from "../security/crypto";
-import { createSessionToken } from "../../modules/identity/session-token";
+import { createSessionToken } from "./session-token";
 import { joinPartyGuest, submitGuestTrackRequest, addDjTrackToPartyQueue, type GuestRequestTrack } from "../../modules/requests/application/guest-request-lifecycle";
 import { searchGuestSpotifyTracks, searchDjSpotifyTracks } from "../../modules/music/application/search-spotify-tracks";
 import { getSpotifyTrack, searchSpotifyTracks } from "../../integrations/spotify/catalog-api";
