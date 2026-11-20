@@ -278,7 +278,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
       if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
       const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/google/gemma-4-26b-a4b-it",{
         messages:[{role:"system",content:system},{role:"user",content:user}],
-        max_tokens:850,
+        max_tokens:1400,
         temperature:0.4,
         chat_template_kwargs:{enable_thinking:false}
       });
@@ -294,7 +294,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
         throw new Error("Cloudflare AI gaf geen antwoordtekst terug. Probeer het opnieuw.");
       }
     }
-    const finalAnswer = String(answer).slice(0,1800);
+    const finalAnswer = String(answer).slice(0,8000);
     await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer})).run();
     return c.json({ ok:true,provider,answer:finalAnswer,cached:false });
   } catch(error) {
