@@ -5,7 +5,7 @@ import { createSessionToken, readSession } from "./modules/identity/session-toke
 import { loginDj, readDjSession } from "./modules/identity/dj-session";
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import { spotifyFetch } from "./integrations/spotify/user-auth-service";
-import { completeSpotifyAuthorization, createSpotifyAuthorizationUrl } from "./modules/identity/spotify-oauth";
+import { completeSpotifyAuthorization, createSpotifyAuthorizationUrl, spotifyOAuthRedirectUri } from "./modules/identity/spotify-oauth";
 import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
 import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
@@ -165,7 +165,7 @@ app.get("/auth/spotify/callback", async (c) => {
   if (!state || !expected || !constantTimeEqual(state,expected)) return c.text("Spotify-koppeling geweigerd: ongeldige OAuth-state.",400);
   const clearCookie="pq_spotify_state=; HttpOnly; Secure; SameSite=Lax; Path=/auth/spotify/callback; Max-Age=0";
   if (error || !code) return new Response(null,{status:302,headers:{Location:"/dj.html?spotify=denied","Set-Cookie":clearCookie}});
-  const { redirectUri } = createSpotifyAuthorizationUrl(c.env, "callback");
+  const redirectUri = spotifyOAuthRedirectUri(c.env);
   const response=await completeSpotifyAuthorization(c.env,code,redirectUri);
   if(!response.ok) return new Response("Spotify-tokenuitwisseling mislukt (HTTP "+response.status+").",{status:502});
   return new Response(null,{status:302,headers:{Location:"/dj.html?spotify=connected","Set-Cookie":clearCookie}});
