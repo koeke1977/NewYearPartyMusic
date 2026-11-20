@@ -648,3 +648,7 @@ footer .site-credit{margin:0}
 .dj-ai-add.is-added{background:#00d982;color:#061009}
 .dj-ai-add:disabled{opacity:.65;cursor:wait}
 @media(max-width:560px){.dj-ai-track{align-items:flex-start;flex-wrap:wrap}.dj-ai-add{margin-left:51px}}
+
+/* ChatGPT handoff uses the DJ session context but opens the user's own ChatGPT account. */
+.dj-ai-chatgpt{display:block;width:100%;margin:0 0 10px;text-align:center;background:rgba(0,0,0,.18);border-color:rgba(255,255,255,.16);color:#e5eee7}
+.dj-ai-chatgpt:hover:not(:disabled){border-color:#00e88a;background:rgba(0,232,138,.08)}
