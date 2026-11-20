@@ -103,7 +103,7 @@ describe("DJ queue management", () => {
 
   it("rechecks the queued set before persisting if a request changes during the reads", async () => {
     const { db, calls } = fakeDb({ queuedIds: ["a", "b"], tracks: [{ id: "a", track_name: "A", artist_name: "X" }] });
-    const result = await reorderDjQueue({ db, eventId: "event-1", order: ["a", "b"] });
+    const result = await reorderDjQueue({ repository: createDjQueueRepository(db), eventId: "event-1", order: ["a", "b"] });
     expect(result.status).toBe(409);
     expect(calls.some(call => call.sql.startsWith("INSERT INTO settings"))).toBe(false);
   });
@@ -112,7 +112,7 @@ describe("DJ queue management", () => {
     const { db, calls } = fakeDb();
     expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "spotify_client_secret", enabled: true })).toMatchObject({ status: 400 });
     expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "auto_queue", enabled: "true" })).toMatchObject({ status: 400 });
-    expect(await updateDjSetting({ db, key: "auto_queue", enabled: false })).toEqual({ status: 200, body: { ok: true, enabled: false } });
+    expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "auto_queue", enabled: false })).toEqual({ status: 200, body: { ok: true, enabled: false } });
     const write = calls.find(call => call.sql.startsWith("INSERT INTO settings"));
     expect(write?.values).toEqual(["auto_queue", "false"]);
   });
