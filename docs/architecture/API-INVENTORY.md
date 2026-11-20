@@ -16,10 +16,10 @@ This inventory records the existing Hono HTTP contracts, access rules and side e
 |---|---|---|---|
 | GET | `/api/health` | Public | Returns health, app/event identifiers, environment and timestamp. |
 | GET | `/api/config` | Public | Returns public event configuration and guest access mode. |
-| POST | `/api/guests/join` | Public + event code | Validates event code hash and active event, inserts guest, issues 12-hour signed guest token. |
+| POST | `/api/guests/join` | Public + event code | Applies an atomic D1 per-IP attempt bucket (120 per 15 minutes), validates event code hash and active event, inserts guest, issues 12-hour signed guest token. |
 | GET | `/api/spotify/search` | Guest bearer | Searches Spotify tracks; returns normalized track metadata and Spotify attribution. |
 | POST | `/api/requests` | Guest bearer | Validates event-scoped guest, pause state, configured maximum of open requests per guest (default 2), configured request rate over 30 minutes (default 5), and active duplicates; verifies track against Spotify and inserts with configured initial status. |
-| POST | `/api/dj/login` | Public + DJ code | Validates DJ code hash and issues an 8-hour signed DJ token. |
+| POST | `/api/dj/login` | Public + DJ code | Applies an atomic D1 per-IP attempt bucket (10 per 15 minutes), validates DJ code hash and issues an 8-hour signed DJ token. |
 | POST | `/api/dj/ai/assistant` | DJ bearer | Builds live party context, persists explicit DJ preferences, reads recent set history, calls Cloudflare Workers AI, optionally searches Spotify via tool call, caches answer and returns proposal/advice. |
 | POST | `/api/dj/ai/music/search` | DJ bearer | Searches Spotify for up to 20 supplied queries; returns up to 3 matches per query. |
 | POST | `/api/dj/ai/music/add` | DJ bearer | Verifies a Spotify track, creates/uses the DJ guest, inserts it as queued and updates saved queue order. |
@@ -63,7 +63,7 @@ During extraction, preserve:
 8. Spotify OAuth state cookie validation and token refresh concurrency.
 9. AI preference persistence, answer caching, rate limiting, Spotify search tool calls and proposal-only behaviour.
 10. Scheduled cleanup: completed/terminal requests older than 30 days only; pending, approved and queued requests remain untouched.
-11. Public credential-guessing exposure: `/api/guests/join` and `/api/dj/login` validate event/DJ codes but currently have no application-level attempt throttle or configured Cloudflare rate-limiting binding. Before public go-live, add edge rate limits for both endpoints (and verify expected behaviour under bursts); do not treat the guest request quota as protection for these separate login endpoints.
+11. Public credential-guessing protection: `/api/guests/join` and `/api/dj/login` use atomic D1 upsert buckets keyed by HMAC of Cloudflare's trusted client-IP header and endpoint scope. Guest join is capped at 120 attempts and DJ login at 10 attempts per 15-minute window; only hashes are stored and the scheduled job prunes expired buckets. Cloudflare's single custom rate-limit rule slot is already used by leaked-credential protection, so this application-level control provides baseline protection without replacing that rule. Verify shared-NAT event-day behaviour before public launch.
 
 ## Current route ownership
 

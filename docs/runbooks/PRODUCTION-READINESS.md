@@ -13,7 +13,7 @@ PartyQueue has two deliberately isolated Cloudflare environments:
 | Origin | `https://spotify.electrafest.be` | `https://spotify.electrafest.be` |
 | Spotify OAuth | Test app/credentials | Dedicated production app/credentials required |
 
-The production D1 database has been provisioned in the EU jurisdiction. It is empty and has not received the schema yet. The production Worker has not been deployed. The hostname `spotify.electrafest.be` is currently attached to the test Worker; do not move it until the production Worker has passed smoke tests and the release owner approves the cutover.
+The production D1 database has been provisioned in the EU jurisdiction. Its initial schema is applied and verified, including the NYE2026 event row and default settings. The production Worker has not been deployed. The hostname `spotify.electrafest.be` is currently attached to the test Worker; do not move it until the production Worker has passed smoke tests and the release owner approves the cutover.
 
 ## Production configuration committed to Wrangler
 
@@ -31,12 +31,14 @@ The GitHub validation workflow checks both the test and production Wrangler conf
 - [x] Dedicated production D1 database created in EU jurisdiction.
 - [x] Isolated Wrangler production bindings/configuration committed on the release branch.
 - [x] Versioned initial schema migration prepared at `db/migrations/0001_initial_schema.sql` and bound to the production D1 environment.
-- [x] Applied and verified the initial schema on the empty production D1 database; the NYE2026 event row and four default settings are present.
-- [ ] On first Wrangler production release, run the configured D1 migration command once to initialize Wrangler's migration ledger. The initial migration is idempotent (`IF NOT EXISTS` / `INSERT OR IGNORE`), so this safely reconciles the already-applied schema.
+- [x] Applied and verified the initial schema on the production D1 database; the NYE2026 event row and four default settings are present.
+- [x] Added D1 migration `0002_auth_attempt_buckets.sql` for atomic per-IP authentication throttling; it is idempotent and ready for the production migration step.
+- [ ] On first Wrangler production release, apply the configured D1 migrations to initialize Wrangler's migration ledger and install `0002_auth_attempt_buckets.sql`. Migration `0001` is idempotent and safely reconciles the already-applied initial schema.
 - [ ] Set unique production secrets on `partyqueue-production`: `SESSION_SECRET`, `EVENT_ACCESS_CODE_HASH`, `DJ_ACCESS_CODE_HASH`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`.
 - [ ] Generate and securely distribute separate event and DJ access codes; store only their hashes in Worker secrets.
 - [ ] Create/configure the dedicated production Spotify app, register `https://spotify.electrafest.be/auth/spotify/callback`, and verify current Developer Mode eligibility, scopes, account restrictions and Premium playback entitlement.
-- [ ] Protect `POST /api/guests/join` and `POST /api/dj/login` against brute force. The current `electrafest.be` zone has one custom rate-limit rule slot, already occupied by the existing leaked-credential check; Cloudflare rejected adding more rules (`maximum number of rules ... 1`). That existing protection was left unchanged. Before launch, either upgrade the zone plan to allow separate endpoint rules or implement and test application-level attempt throttling for both endpoints.
+- [x] Implemented atomic D1-backed, per-IP attempt throttling for both public code endpoints. Guest join allows 120 attempts per 15 minutes per IP; DJ login allows 10 attempts per 15 minutes per IP. Only HMAC-hashed IP values are stored, and expired buckets are removed by the daily scheduled cleanup.
+- [ ] Verify the throttling thresholds under realistic event-day shared-Wi-Fi load. The zone's single custom rate-limit rule slot remains occupied by the existing leaked-credential check; it was left unchanged. The application-level guard avoids requiring a plan upgrade for baseline protection; separate edge rules remain recommended defence in depth.
 - [ ] Verify the production Durable Object migration, AI binding availability/limits, cron trigger, logs and traces.
 - [ ] Deploy `partyqueue-production` without attaching the public hostname; test its workers.dev URL with private test codes and a dedicated Spotify account.
 - [ ] Smoke-test guest join, catalogue search, request submission, DJ login, moderation, queue ordering, Spotify OAuth, playback, logout and scheduled cleanup.

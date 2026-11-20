@@ -6,6 +6,18 @@ import { sha256 } from "../../apps/worker/src/platform/security/crypto";
 import { readDjSession } from "../../apps/worker/src/modules/identity/dj-session";
 import { readSession } from "../../apps/worker/src/platform/composition/session-token";
 
+function blockedAttemptDb() {
+  return {
+    prepare() {
+      const statement = {
+        bind() { return statement; },
+        async first() { return null; },
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+}
+
 describe("DJ identity HTTP routes", () => {
   const create = () => {
     const app = new Hono<{ Bindings: Env }>();
@@ -35,6 +47,17 @@ describe("DJ identity HTTP routes", () => {
       headers: { "Content-Type": "application/json" },
     }, { ...env, DJ_ACCESS_CODE_HASH: "" });
     expect(response.status).toBe(503);
+  });
+
+  it("blocks DJ code attempts after the per-IP bucket is exhausted", async () => {
+    const { app, env } = create();
+    const response = await app.request("/api/dj/login", {
+      method: "POST",
+      body: JSON.stringify({ code: "wrong" }),
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.11" },
+    }, { ...env, APP_ENV: "production", DB: blockedAttemptDb() });
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("900");
   });
 
   it("rejects Spotify connect without a valid DJ session", async () => {

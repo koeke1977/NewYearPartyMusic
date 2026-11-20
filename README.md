@@ -46,7 +46,7 @@ For a disposable local D1 database only: `npm run db:local`.
 The production environment is not considered live merely because its D1 database and Wrangler configuration exist. Follow the complete checklist in `docs/runbooks/PRODUCTION-READINESS.md`.
 
 ## Security
-Never commit secrets, tokens, event codes, cookies or passwords. Spotify credentials and session secrets belong in Worker secrets, never browser code or committed Wrangler variables. Keep the production and test OAuth credentials and access codes separate.
+Public event-code and DJ-code endpoints use atomic D1 per-IP attempt buckets (guest join: 120/15 minutes; DJ login: 10/15 minutes). IP addresses are HMAC-hashed with the session secret before storage, and stale buckets are pruned daily. Never commit secrets, tokens, event codes, cookies or passwords. Spotify credentials and session secrets belong in Worker secrets, never browser code or committed Wrangler variables. Keep the production and test OAuth credentials and access codes separate.
 
 PartyQueue does not stream audio. Spotify playback is controlled through the Web API while audio is played by the official Spotify app/player. Verify current Spotify Developer Mode eligibility, scopes, account restrictions and Premium playback entitlement before a live event.
 

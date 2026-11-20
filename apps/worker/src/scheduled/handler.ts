@@ -1,4 +1,5 @@
 import type { Env } from "../platform/env";
+import { deleteExpiredAuthAttemptBuckets } from "../platform/infrastructure/auth-attempt-d1-repository";
 import { cleanupCompletedRequests } from "../modules/requests/application/cleanup-completed-requests";
 import { createRequestRetentionRepository } from "../modules/requests/infrastructure/request-retention-repository";
 
@@ -7,5 +8,8 @@ export function handleScheduled(
   env: Env,
   ctx: ExecutionContext,
 ): void {
-  ctx.waitUntil(cleanupCompletedRequests(createRequestRetentionRepository(env.DB)));
+  ctx.waitUntil(Promise.all([
+    cleanupCompletedRequests(createRequestRetentionRepository(env.DB)),
+    deleteExpiredAuthAttemptBuckets(env.DB),
+  ]));
 }

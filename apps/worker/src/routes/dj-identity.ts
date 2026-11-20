@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../platform/env";
 import { constantTimeEqual, toBase64Url } from "../platform/security/crypto";
+import { allowAuthAttempt } from "../platform/composition/auth-attempt-guard";
 import { createSpotifyAuthorizationUrl, spotifyOAuthRedirectUri } from "../modules/identity/spotify-oauth";
 import {
   completeSpotifyAuthorizationFromEnvironment,
@@ -11,6 +12,11 @@ import { requireDJ } from "./dj-auth";
 export const djIdentityRoutes = new Hono<{ Bindings: Env }>();
 
 djIdentityRoutes.post("/api/dj/login", async (c) => {
+  if (!await allowAuthAttempt(c.env, c.req.raw, "dj_login")) {
+    return c.json({ error: "Te veel DJ-loginpogingen. Probeer het over 15 minuten opnieuw." }, 429, {
+      "Retry-After": "900",
+    });
+  }
   let body: { code?: unknown };
   try {
     body = await c.req.json();
