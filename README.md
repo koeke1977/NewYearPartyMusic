@@ -1,12 +1,10 @@
 # PartyQueue — New Year's Eve 2026
 
-Private, QR-based music request and DJ playback application for a single event.
-
-**Environment status:** the current Cloudflare Worker, D1 database and Spotify OAuth connection are test-only. The app has not been used for a real event or real production users. Test data may be reset or recreated; do not let hypothetical production compatibility slow down engineering work.
+Private, QR-based music request and DJ playback application for New Year's Eve 2026.
 
 ## Product decisions
 - Single event: `NYE2026`
-- Intended public hostname: `spotify.electrafest.be`
+- Public hostname: `spotify.electrafest.be`
 - Guests join with an event code and nickname; no Spotify account is needed.
 - One host-owned Spotify Premium account controls playback.
 - Guests can search Spotify and request tracks; the DJ can moderate requests, manage queue order and control playback.
@@ -25,7 +23,7 @@ Private, QR-based music request and DJ playback application for a single event.
 - `apps/web/` — guest and DJ web interfaces
 - `db/schema.sql` — initial schema for a fresh database
 - `docs/architecture/` — architecture standards and responsibility maps
-- `docs/runbooks/PRODUCTION-READINESS.md` — test-environment operations and future public-release checklist
+- `docs/runbooks/PRODUCTION-READINESS.md` — environment separation and public-release checklist
 - `scripts/release-guard.mjs` — fail-closed deployment preflight
 
 ## Local development
@@ -39,24 +37,21 @@ npm run test:browser
 ```
 For a disposable local D1 database only: `npm run db:local`.
 
-## Validation and deployment safety
-Run `npm run deploy` to deploy the current test configuration when needed. Run `npm run release:preflight` only when checking the optional future production configuration; it is not a prerequisite for local development or test-environment work.
+## Deployment environments
+- `npm run deploy` deploys the disposable test Worker `partyqueue`.
+- `npm run deploy:production` is the separate guarded deployment path for `partyqueue-production`.
+- Production uses a dedicated EU D1 database and isolated Durable Object namespace. Production secrets and the Spotify OAuth app must be provisioned separately.
+- The public hostname remains attached to the test Worker until production smoke tests pass and the cutover is explicitly approved.
 
-`npm run deploy` deploys the current default Wrangler configuration, which is the disposable test environment. `npm run deploy:production` is the separate, fail-closed path for a future dedicated real-event environment and requires the production configuration and explicit release latch. Test data and test resources are disposable.
+The production environment is not considered live merely because its D1 database and Wrangler configuration exist. Follow the complete checklist in `docs/runbooks/PRODUCTION-READINESS.md`.
 
-The current D1 database is test-only and may be rebuilt when needed. Review `db/schema.sql` before applying it; it is a bootstrap schema, not a versioned migration set.
+## Security
+Never commit secrets, tokens, event codes, cookies or passwords. Spotify credentials and session secrets belong in Worker secrets, never browser code or committed Wrangler variables. Keep the production and test OAuth credentials and access codes separate.
 
-## Cloudflare and Spotify
-Current test-environment assumptions and the checklist for a future real public event are documented in [the environment runbook](docs/runbooks/PRODUCTION-READINESS.md).
-
-Never commit secrets, tokens, event codes, cookies or passwords. Spotify credentials and session secrets belong in Worker secrets, never browser code or committed Wrangler variables.
-
-PartyQueue does not stream audio. Spotify playback is controlled through the Web API while audio is played by the official Spotify app/player. Verify current Spotify Developer Mode eligibility, scopes, account restrictions and API availability before a live event.
-
-Intended OAuth callback URI: `https://spotify.electrafest.be/auth/spotify/callback`. Register this exact URI in the Spotify Developer Dashboard for the corresponding app/environment.
+PartyQueue does not stream audio. Spotify playback is controlled through the Web API while audio is played by the official Spotify app/player. Verify current Spotify Developer Mode eligibility, scopes, account restrictions and Premium playback entitlement before a live event.
 
 ## Current application capabilities
-- Guest join with event code, nickname and signed 12-hour session.
+- Guest join with event code and nickname and signed 12-hour session.
 - Spotify catalogue search and track requests with event-scoped guest validation.
 - Configurable open-request and 30-minute rate limits, duplicate protection and DJ moderation.
 - DJ login and event-scoped protected routes.

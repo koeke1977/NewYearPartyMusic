@@ -13,28 +13,31 @@ describe("production release guard", () => {
     expect(packageJson.scripts["deploy:production"]).toBe("node scripts/release-guard.mjs deploy");
   });
 
-  it("blocks preflight while the dedicated production environment is not configured", () => {
+  it("accepts the dedicated production configuration in static preflight without deploying", () => {
     const result = spawnSync(process.execPath, [guardPath, "preflight"], {
       cwd: process.cwd(),
       encoding: "utf8",
     });
 
-    expect(result.status).toBe(1);
-    expect(result.stderr).toContain("PartyQueue release preflight BLOCKED");
-    expect(result.stderr).toContain("Missing Wrangler production section");
-    expect(result.stderr).toContain("No Cloudflare command was run.");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Static production configuration checks passed.");
+    expect(result.stdout).toContain("Local-only check.");
+    expect(result.stderr).toBe("");
   });
 
-  it("never starts Wrangler deployment while production configuration is incomplete", () => {
+  it("never starts Wrangler deployment without the explicit production release latch", () => {
+    const env = { ...process.env };
+    delete env.PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY;
     const result = spawnSync(process.execPath, [guardPath, "deploy"], {
       cwd: process.cwd(),
       encoding: "utf8",
-      env: { ...process.env, PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY: "YES" },
+      env,
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("PartyQueue release preflight BLOCKED");
-    expect(result.stderr).toContain("No Cloudflare command was run.");
-    expect(result.stdout).not.toContain("Static production configuration checks passed.");
+    expect(result.stdout).toContain("Static production configuration checks passed.");
+    expect(result.stderr).toContain("Deployment blocked.");
+    expect(result.stderr).toContain("PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY=YES");
+    expect(result.stderr).not.toContain("CLOUDFLARE_API_TOKEN");
   });
 });

@@ -33,3 +33,55 @@ crons = ["0 3 * * *"]
 
 [ai]
 binding = "AI"
+
+# Dedicated real-event environment. Wrangler deploy --env production creates
+# partyqueue-production and uses only the resources declared below.
+[env.production]
+workers_dev = true
+
+[env.production.assets]
+directory = "./apps/web"
+binding = "ASSETS"
+run_worker_first = ["/api/*", "/auth/*"]
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "partyqueue-production-db"
+database_id = "0599c4f5-cd8c-4e8f-9557-54dd63690d29"
+migrations_dir = "./db/migrations"
+
+[env.production.durable_objects]
+bindings = [
+  { name = "QUEUE_ROOM", class_name = "QueueRoom" }
+]
+
+[[env.production.migrations]]
+tag = "v1"
+new_sqlite_classes = ["QueueRoom"]
+
+[env.production.vars]
+APP_ENV = "production"
+EVENT_ID = "NYE2026"
+EVENT_NAME = "New Year's Eve 2026"
+PUBLIC_ORIGIN = "https://spotify.electrafest.be"
+
+[env.production.triggers]
+crons = ["0 3 * * *"]
+
+[env.production.ai]
+binding = "AI"
+
+[env.production.observability]
+enabled = true
+head_sampling_rate = 1
+
+[env.production.observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[env.production.observability.traces]
+enabled = true
+head_sampling_rate = 0.1
+persist = true
