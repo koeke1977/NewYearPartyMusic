@@ -337,8 +337,8 @@ app.post("/api/dj/ai/music/add", async (c) => {
   const trackId = typeof body.trackId === "string" ? body.trackId.trim() : "";
   if (!/^[A-Za-z0-9]{22}$/.test(trackId)) return c.json({ error: "Ongeldig Spotify-track-ID." }, 400);
   try {
-    const duplicate = await c.env.DB.prepare("SELECT id FROM requests WHERE event_id=? AND spotify_track_id=? AND status IN ('pending','approved','queued') LIMIT 1").bind(c.env.EVENT_ID,trackId).first();
-    if (duplicate) return c.json({ error: "Dit nummer staat al in de actieve wachtrij." }, 409);
+    const duplicate = await c.env.DB.prepare("SELECT id,status FROM requests WHERE event_id=? AND spotify_track_id=? AND status IN ('pending','approved','queued') LIMIT 1").bind(c.env.EVENT_ID,trackId).first<{id:string;status:string}>();
+    if (duplicate) return c.json({ ok:true,alreadyQueued:true,status:duplicate.status });
     const token = await getSpotifyToken(c.env);
     const response = await fetch("https://api.spotify.com/v1/tracks/"+trackId,{headers:{Authorization:"Bearer "+token}});
     if (!response.ok) return c.json({error:"Spotify kon dit nummer niet meer ophalen."},502);
