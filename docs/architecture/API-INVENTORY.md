@@ -1,6 +1,6 @@
 # API inventory — current Worker
 
-This inventory is a characterization baseline for the current Hono Worker. It records existing routes and their current trust boundary before route extraction. It is not a redesigned API contract.
+This inventory records the existing Hono HTTP contracts, access rules and side effects after route extraction. It is a compatibility reference, not a redesigned API contract.
 
 ## Authentication model
 
