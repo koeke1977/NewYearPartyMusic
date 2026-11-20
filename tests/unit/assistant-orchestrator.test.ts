@@ -27,6 +27,15 @@ vi.mock("../../apps/worker/src/integrations/ai/spotify-catalog-search", () => ({
 
 import { runDJAssistantTurn } from "../../apps/worker/src/modules/ai/orchestration/assistant-orchestrator";
 
+function makeBudget(canAfford = true) {
+  return {
+    usageKey: "dj_ai_neurons_2026-12-31",
+    currentEstimatedNeurons: vi.fn(() => 0),
+    canAfford: vi.fn(() => canAfford),
+    record: vi.fn().mockResolvedValue(100),
+  };
+}
+
 describe("DJ assistant orchestration", () => {
   const ai = { run: vi.fn() };
   const env = {} as Env;
@@ -38,7 +47,7 @@ describe("DJ assistant orchestration", () => {
   it("runs a simple answer with one provider call and no Spotify tool", async () => {
     runCloudflareAI.mockResolvedValueOnce({ response: "Zeker, ga voor disco." });
 
-    await expect(runDJAssistantTurn(ai, env, "model", "system", "vraag")).resolves.toEqual({
+    await expect(runDJAssistantTurn(ai, env, "model", "system", "vraag", makeBudget())).resolves.toEqual({
       answer: "Zeker, ga voor disco.",
       spotifyMatches: [],
     });
@@ -55,7 +64,7 @@ describe("DJ assistant orchestration", () => {
       tracks: [{ id: "track-id", uri: "spotify:track:track-id", name: "Music Sounds Better With You", artists: ["Stardust"], durationMs: 240000, albumImageUrl: null }],
     }]);
 
-    const result = await runDJAssistantTurn(ai, env, "model", "system", "zoek een disco-track");
+    const result = await runDJAssistantTurn(ai, env, "model", "system", "zoek een disco-track", makeBudget());
 
     expect(result.answer).toContain("Stardust");
     expect(result.spotifyMatches).toHaveLength(1);
@@ -66,7 +75,7 @@ describe("DJ assistant orchestration", () => {
 
   it("does not call Spotify or a follow-up when the model returns no tool call", async () => {
     runCloudflareAI.mockResolvedValueOnce({ response: "Hou het energiek." });
-    await runDJAssistantTurn(ai, env, "model", "system", "advies");
+    await runDJAssistantTurn(ai, env, "model", "system", "advies", makeBudget());
     expect(runCloudflareAI).toHaveBeenCalledTimes(1);
     expect(searchSpotifyCatalogForAssistant).not.toHaveBeenCalled();
   });
@@ -74,8 +83,25 @@ describe("DJ assistant orchestration", () => {
   it("normalizes array content and bounds the final answer", async () => {
     extractCloudflareAssistantText.mockReturnValueOnce([{ text: "A" }, "B", { other: true }]);
     runCloudflareAI.mockResolvedValueOnce({ response: "ignored" });
-    const result = await runDJAssistantTurn(ai, env, "model", "system", "vraag");
+    const result = await runDJAssistantTurn(ai, env, "model", "system", "vraag", makeBudget());
     expect(result.answer).toBe("A\nB\n");
+  });
+
+  it("skips the follow-up model call when the remaining daily budget is insufficient", async () => {
+    runCloudflareAI
+      .mockResolvedValueOnce({ tool_calls: [{ name: "searchSpotifyTracks", arguments: { queries: ["Stardust"] } }] });
+    searchSpotifyCatalogForAssistant.mockResolvedValueOnce([{
+      query: "Stardust",
+      tracks: [{ id: "track-id", uri: "spotify:track:track-id", name: "Music Sounds Better With You", artists: ["Stardust"], durationMs: 240000, albumImageUrl: null }],
+    }]);
+    const budget = makeBudget(false);
+
+    const result = await runDJAssistantTurn(ai, env, "model", "system", "zoek een disco-track", budget);
+
+    expect(runCloudflareAI).toHaveBeenCalledTimes(1);
+    expect(budget.canAfford).toHaveBeenCalledTimes(1);
+    expect(result.answer).toContain("veilige AI-dagbudget");
+    expect(result.spotifyMatches).toHaveLength(1);
   });
 
   it("rejects empty model output", async () => {
