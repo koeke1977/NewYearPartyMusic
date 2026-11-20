@@ -12,6 +12,7 @@ import { createDjPlaybackCoordinator } from "./modules/dj-playback-coordinator.j
 import { buildDjChatGptPrompt } from "./modules/dj-chatgpt-handoff.js";
 import { resolveDjAiPrompt } from "./modules/dj-ai-intent.js";
 import { createDjOverviewModel } from "./modules/dj-overview-model.js";
+import { createDjQueueReorderController } from "./modules/dj-queue-reorder.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -22,7 +23,6 @@ const message=document.querySelector("#dj-message");
 let token=getSavedDjToken();
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
-let queueDragId=null;
 let queueReorderBusy=false;
 let latestDJOverview=null;
 const api=createDjApi(()=>token);
@@ -197,7 +197,7 @@ function render(data){
   document.querySelector("#request-count").textContent=requests.length+" REQUESTS";
   document.querySelector("#last-updated").textContent="SYNCED "+new Date().toLocaleTimeString();
   requestList.replaceChildren();
-  if(queueDragId)return;
+  if(queueReorder.isDragging())return;
   if(!liveRequests.length){requestList.append(el("p","dj-empty","No incoming requests. The dancefloor is waiting…"));return;}
   for(const r of liveRequests){
     const isQueued=r.status==="queued";
@@ -237,38 +237,7 @@ async function saveQueueOrder(order){
   }catch(e){message.textContent=e.message;await refresh();}
   finally{queueReorderBusy=false;}
 }
-requestList.addEventListener("dragstart",event=>{
-  const card=event.target.closest(".dj-request-queued");
-  if(!card)return;
-  queueDragId=card.dataset.requestId;
-  card.classList.add("is-dragging");
-  event.dataTransfer.effectAllowed="move";
-  event.dataTransfer.setData("text/plain",queueDragId);
-});
-requestList.addEventListener("dragover",event=>{
-  if(!queueDragId)return;
-  const target=event.target.closest(".dj-request-queued");
-  if(!target||target.dataset.requestId===queueDragId)return;
-  event.preventDefault();
-  event.dataTransfer.dropEffect="move";
-  requestList.querySelectorAll(".dj-request-queued").forEach(card=>card.classList.toggle("drop-before",card===target&&event.clientY<target.getBoundingClientRect().top+target.offsetHeight/2));
-  target.classList.toggle("drop-after",event.clientY>=target.getBoundingClientRect().top+target.offsetHeight/2);
-});
-requestList.addEventListener("drop",async event=>{
-  if(!queueDragId)return;
-  const target=event.target.closest(".dj-request-queued");
-  if(!target||target.dataset.requestId===queueDragId)return;
-  event.preventDefault();
-  const order=[...requestList.querySelectorAll(".dj-request-queued")].map(card=>card.dataset.requestId);
-  const from=order.indexOf(queueDragId),to=order.indexOf(target.dataset.requestId);
-  if(from>=0&&to>=0){const [moved]=order.splice(from,1);const insertAt=event.clientY<target.getBoundingClientRect().top+target.offsetHeight/2?to:to+1;order.splice(insertAt>from?insertAt-1:insertAt,0,moved);}
-  queueDragId=null;
-  await saveQueueOrder(order);
-});
-requestList.addEventListener("dragend",()=>{
-  queueDragId=null;
-  requestList.querySelectorAll(".dj-request-queued").forEach(card=>card.classList.remove("is-dragging","drop-before","drop-after"));
-});
+const queueReorder=createDjQueueReorderController(requestList,saveQueueOrder);
 async function refresh(){
   try{const data=await api("/api/dj/overview");render(data);}
   catch(e){if(e.message.toLowerCase().includes("sessie")){logout();return;}message.textContent=e.message;}
