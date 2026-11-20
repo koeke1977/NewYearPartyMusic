@@ -99,15 +99,16 @@ These are infrastructure composition adapters, not domain/application modules.
 
 ## Validation status
 
-GitHub Actions run [44769018405](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44769018405) passed on head `8247bc1d0d7651f31e805d8f01827237ddec103b`:
+GitHub Actions run [44774538622](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44774538622) passed on head `719c9d6058133ee826223fb0a3c23dadcf337fb0`:
 
 - TypeScript validation.
-- Security characterization tests.
+- Worker and browser architecture-boundary checks.
+- All unit and security tests, including typed Spotify adapters and schema checks.
 - Cloudflare Worker bundle dry-run.
 - Guest and DJ browser journeys.
-- Desktop/responsive screenshot baseline capture.
+- Desktop/responsive screenshot baseline capture and artifact upload.
 
-The screenshot artifact `partyqueue-ui-baseline` was uploaded successfully. This validates the current behaviour and tests; the architecture work below remains open. The current deployed Cloudflare resources are test-only, not a live production service.
+The current branch head has subsequent documentation-only commits. The current Cloudflare Worker, D1 and Spotify OAuth connection remain test-only and disposable; no real-event release or external deployment was performed.
 
 ## Follow-up: Spotify catalogue and playback-control ports — 2026-11-20
 
@@ -116,7 +117,7 @@ The screenshot artifact `partyqueue-ui-baseline` was uploaded successfully. This
 - Introduced `SpotifyPlaybackControlGateway` for device discovery, volume and transport commands. The playback application maps typed results to the existing API response contract; Spotify HTTP status/body parsing remains in the integration adapter.
 - Preserved guest/DJ search payloads, query limits, rate-limit responses, device JSON field names, volume validation, transport command behaviour and bounded error detail.
 - Added use-case and integration tests for success, provider failures, malformed catalogue payloads, 204 playback success and error-detail bounds.
-- Current-head CI is running; update this section with the exact result after it completes.
+- Full validation passed in run [44774538622](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44774538622).
 
 
 ### Follow-up: normalized individual Spotify track lookup — 2026-11-20
