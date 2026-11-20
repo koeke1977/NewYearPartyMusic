@@ -41,4 +41,34 @@ describe("executeDJAssistant", () => {
     expect(result.body.spotifyMatches).toEqual([]);
     expect(repository.claimRateLimit).not.toHaveBeenCalled();
   });
+  it("uses the local Claude subscription bridge before the Cloudflare neuron budget", async () => {
+    const repository = createRepository();
+    const complete = vi.fn(async () => "Maak er een disco-versus-rock moment van!");
+    const result = await executeDJAssistant({
+      eventId: "event-1", eventName: "Test Party",
+      prompt: "Verras me", repository, hash: async value => value,
+      localAI: { complete },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.provider).toBe("claude-code-local");
+    expect(result.body.answer).toBe("Maak er een disco-versus-rock moment van!");
+    expect(complete).toHaveBeenCalledOnce();
+    expect(repository.createNeuronBudget).not.toHaveBeenCalled();
+    expect(repository.writeAnswerCache).toHaveBeenCalledOnce();
+  });
+
+  it("does not fall back to a paid API when the local subscription reaches its limit", async () => {
+    const repository = createRepository();
+    const ai = { run: vi.fn() };
+    const result = await executeDJAssistant({
+      eventId: "event-1", eventName: "Test Party", ai,
+      prompt: "Verras me", repository, hash: async value => value,
+      localAI: { complete: async () => { throw new Error("weekly usage limit reached"); } },
+    });
+    expect(result.status).toBe(429);
+    expect(String(result.body.error)).toContain("betaalde API-kosten");
+    expect(ai.run).not.toHaveBeenCalled();
+    expect(repository.createNeuronBudget).not.toHaveBeenCalled();
+  });
+
 });
