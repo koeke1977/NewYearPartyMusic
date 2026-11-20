@@ -3,6 +3,7 @@ import type { Env } from "../platform/env";
 import { getDjOverview, reorderDjQueue, updateDjSetting } from "../modules/requests/application/dj-queue-management";
 import { moderatePartyRequest } from "../modules/requests/application/guest-request-lifecycle";
 import { requireDJSession } from "./dj-auth";
+import { createGuestRequestRepository } from "../modules/requests/infrastructure/guest-request-d1-repository";
 export const djRequestRoutes = new Hono<{ Bindings: Env }>();
 djRequestRoutes.use("/api/dj/*", requireDJSession("DJ-sessie verlopen. Meld opnieuw aan."));
 djRequestRoutes.get("/api/dj/overview", async (c) => {
@@ -16,7 +17,7 @@ djRequestRoutes.post("/api/dj/queue/reorder", async (c) => {
 });
 djRequestRoutes.post("/api/dj/requests/:id/:action", async (c) => {
   const result = await moderatePartyRequest({
-    db:c.env.DB,eventId:c.env.EVENT_ID,requestId:c.req.param("id"),action:c.req.param("action"),
+    repository:createGuestRequestRepository(c.env.DB),eventId:c.env.EVENT_ID,requestId:c.req.param("id"),action:c.req.param("action"),
   });
   return c.json(result.body,result.status as 200);
 });
