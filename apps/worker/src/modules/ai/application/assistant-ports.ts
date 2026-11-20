@@ -5,14 +5,8 @@ export type AssistantContextSnapshot = {
   djPreferences: string | null;
 };
 
-export type CachedSpotifyMatch = {
-  query: string;
-  tracks: Array<Record<string, unknown>>;
-};
-
 export type CachedAssistantAnswer = {
   answer: string;
-  spotifyMatches: CachedSpotifyMatch[];
 };
 
 export interface AssistantNeuronBudget {
@@ -24,7 +18,7 @@ export interface AssistantRepository {
   rememberPreference(eventId: string, prompt: string): Promise<boolean>;
   loadContext(eventId: string): Promise<AssistantContextSnapshot>;
   readAnswerCache(cacheKey: string): Promise<CachedAssistantAnswer | null>;
-  writeAnswerCache(cacheKey: string, answer: string, matches: CachedSpotifyMatch[]): Promise<void>;
+  writeAnswerCache(cacheKey: string, answer: string): Promise<void>;
   claimRateLimit(): Promise<boolean>;
   createNeuronBudget(): Promise<AssistantNeuronBudget>;
 }
