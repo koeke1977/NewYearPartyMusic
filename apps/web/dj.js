@@ -7,6 +7,7 @@ import { createDjPollingController } from "./modules/dj-polling.js";
 import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
 import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./modules/dj-playback-display.js";
 import { createLatestRequestController } from "./modules/dj-request-guard.js";
+import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackSummary } from "./modules/dj-playback-state.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -71,7 +72,7 @@ function setBoothDeck(side,track){
   }
 }
 function updateMasterVolumeDisplay(value){
-  const volume=Math.max(0,Math.min(100,Number(value)||0));
+  const volume=normalizeSpotifyVolume(value);
   const slider=document.querySelector("#master-volume");
   const label=document.querySelector("#master-volume-value");
   const leds=document.querySelector("#master-volume-leds");
@@ -111,9 +112,10 @@ function updateTrackProgress(progressMs,durationMs,playing){
   }
 }
 function syncPlaybackButtons(connected,playing){
+  const state=getSpotifyPlaybackControls(connected,playing);
   const play=document.querySelector('[data-spotify-command="play"]');
   const pause=document.querySelector('[data-spotify-command="pause"]');
-  [[play,!!connected&&!!playing],[pause,!!connected&&!playing]].forEach(([button,active])=>{
+  [[play,state.playSelected],[pause,state.pauseSelected]].forEach(([button,active])=>{
     if(!button)return;
     button.classList.toggle("is-selected",active);
     button.classList.toggle("is-idle",!active);
@@ -121,9 +123,9 @@ function syncPlaybackButtons(connected,playing){
   });
   const booth=document.querySelector("#partyqueue-booth");
   if(booth){
-    booth.classList.toggle("is-playing",!!connected&&!!playing);
+    booth.classList.toggle("is-playing",state.boothPlaying);
     const status=document.querySelector("#booth-play-state");
-    if(status)status.textContent=!connected?"OFFLINE":playing?"ON AIR":"PAUSED";
+    if(status)status.textContent=state.boothStatus;
   }
 }
 function render(data){
@@ -285,7 +287,8 @@ async function refreshSpotify(){
   try{
     const data=await api("/api/dj/spotify/status");
     if(!spotifyStatusRequests.isCurrent(requestId))return;
-    state.textContent=data.connected?"CONNECTED":"NOT CONNECTED";
+    const playbackSummary=getSpotifyPlaybackSummary(data);
+    state.textContent=playbackSummary.connection;
     const booth=document.querySelector("#partyqueue-booth");
     if(booth){
       booth.classList.toggle("is-playing",!!data.playing);
@@ -300,9 +303,10 @@ async function refreshSpotify(){
     document.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);
     syncPlaybackButtons(!!data.connected,!!data.playing);
     if(data.fallbackActive)document.querySelector("#booth-play-state").textContent="SPOTIFY MIX";
-    if(data.device){device.textContent="ACTIVE DEVICE · "+data.device.name+" ("+data.device.type+")";if(typeof data.device.volume==="number"){updateMasterVolumeDisplay(data.device.volume);document.querySelector("#master-volume-status").textContent="SPOTIFY MASTER OUTPUT";}}
-    else{device.textContent="Spotify is connected. Open Spotify on a device to make it active.";document.querySelector("#master-volume-status").textContent="NO ACTIVE SPOTIFY DEVICE";}
-    now.textContent=data.autoAdvanceError?"AUTO NEXT ERROR · "+data.autoAdvanceError:data.fallbackError?"FALLBACK ERROR · "+data.fallbackError:data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
+    device.textContent=playbackSummary.device;
+    if(playbackSummary.volume!==null){updateMasterVolumeDisplay(playbackSummary.volume);document.querySelector("#master-volume-status").textContent="SPOTIFY MASTER OUTPUT";}
+    else{document.querySelector("#master-volume-status").textContent="NO ACTIVE SPOTIFY DEVICE";}
+    now.textContent=playbackSummary.nowPlaying;
   }catch(e){
     if(!spotifyStatusRequests.isCurrent(requestId))return;
     state.textContent="NOT CONNECTED";
