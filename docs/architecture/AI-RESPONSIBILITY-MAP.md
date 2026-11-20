@@ -2,7 +2,7 @@
 
 ## Current state
 
-The AI route is `POST /api/dj/ai/assistant` in `apps/worker/src/index.ts`. It currently combines several concerns:
+The AI route is `POST /api/dj/ai/assistant` in `apps/worker/src/index.ts`. It still combines several concerns, although the first extraction steps are now in place:
 
 1. Detects explicit preference statements and persists DJ preferences in D1.
 2. Loads active queue, recent played tracks, request counts, saved order, preferences and accepted-set history.
@@ -21,10 +21,13 @@ This is too much responsibility for one route and is the primary AI extraction t
 
 ## Already extracted
 
-| Responsibility | Module |
-|---|---|
-| DJ assistant system/user prompt construction | `modules/ai/prompts/dj-assistant.ts` |
-| Belgian local event-time phase calculation | `modules/ai/context/event-moment.ts` |
+| Responsibility | Module | Status |
+|---|---|---|
+| DJ assistant system/user prompt construction | `modules/ai/prompts/dj-assistant.ts` | Extracted |
+| Belgian local event-time phase calculation | `modules/ai/context/event-moment.ts` | Extracted |
+| Provider-independent assistant context assembly and queue ordering | `modules/ai/context/assistant-context.ts` | Extracted; route delegates to it |
+| Defensive DJ preference parsing and explicit preference intent | `modules/ai/memory/dj-preferences.ts` | Extracted; D1 writes remain in route |
+| Cloudflare Workers AI invocation and response/tool-call normalization | `integrations/ai/cloudflare-ai.ts` | Extracted; route delegates to it |
 
 The prompt builder receives typed context and a question, and returns a system/user message pair. It does not access D1, Spotify, Cloudflare bindings or HTTP requests.
 
@@ -62,10 +65,10 @@ The prompt builder receives typed context and a question, and returns a system/u
 
 ## Extraction sequence
 
-1. Keep the prompt builder pure and add prompt contract tests.
-2. Extract event-time calculation and typed context assembly.
-3. Extract preference/history persistence behind a repository.
-4. Extract the Cloudflare provider adapter and response normalization.
+1. Keep the prompt builder pure and maintain prompt contract tests. (done)
+2. Extract event-time calculation and typed context assembly. (event time and context builder done)
+3. Extract preference/history persistence behind a repository. (pure preference rules done; D1 repository pending)
+4. Extract the Cloudflare provider adapter and response normalization. (adapter done)
 5. Extract the Spotify read-only tool adapter.
 6. Extract rate limiting and answer caching.
 7. Add the orchestrator and turn the HTTP route into a thin adapter.
