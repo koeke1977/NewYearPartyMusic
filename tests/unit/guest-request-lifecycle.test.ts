@@ -4,9 +4,11 @@ import { joinPartyGuest, submitGuestTrackRequest } from "../../apps/worker/src/m
 
 function fakeDb(options: {
   event?: unknown; guest?: unknown; settings?: Array<{key:string;value:string}>;
-  count?: number; openCount?: number; duplicate?: unknown; insertChanges?: number;
+  count?: number; countAfterInsert?: number; openCount?: number; openCountAfterInsert?: number;
+  duplicate?: unknown; insertChanges?: number;
 } = {}) {
   const calls: Array<{sql:string;values:unknown[]}> = [];
+  let insertAttempted = false;
   const db = {
     prepare(sql: string) {
       let values: unknown[] = [];
@@ -16,13 +18,13 @@ function fakeDb(options: {
           calls.push({sql,values:[...values]});
           if (sql.includes("FROM events")) return options.event === undefined ? {id:"event-1"} : options.event;
           if (sql.includes("FROM guests")) return options.guest === undefined ? {id:"guest-1"} : options.guest;
-          if (sql.includes("COUNT(*)") && sql.includes("status IN")) return {count:options.openCount ?? 0};
-          if (sql.includes("COUNT(*)")) return {count:options.count ?? 0};
+          if (sql.includes("COUNT(*)") && sql.includes("status IN")) return {count:insertAttempted ? (options.openCountAfterInsert ?? options.openCount ?? 0) : (options.openCount ?? 0)};
+          if (sql.includes("COUNT(*)")) return {count:insertAttempted ? (options.countAfterInsert ?? options.count ?? 0) : (options.count ?? 0)};
           if (sql.includes("FROM requests") && sql.includes("spotify_track_id")) return options.duplicate ?? null;
           return null;
         },
         async all() { calls.push({sql,values:[...values]}); return {results:options.settings ?? []}; },
-        async run() { calls.push({sql,values:[...values]}); return {meta:{changes:sql.includes("INTO requests") ? (options.insertChanges ?? 1) : 1}}; },
+        async run() { calls.push({sql,values:[...values]}); if (sql.includes("INTO requests")) insertAttempted = true; return {meta:{changes:sql.includes("INTO requests") ? (options.insertChanges ?? 1) : 1}}; },
       };
       return statement;
     },
@@ -115,6 +117,24 @@ describe("guest request lifecycle", () => {
     expect(insert?.values).toContain("queued");
     expect(insert?.values).toContain("Artist A, Artist B");
     expect(insert?.values).toContain("https://image.example/medium");
+  });
+
+  it("enforces the open-request limit atomically when two requests race", async () => {
+    const {db}=fakeDb({openCount:1,openCountAfterInsert:2,insertChanges:0});
+    const result=await submitGuestTrackRequest({
+      repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
+    });
+    expect(result).toMatchObject({status:429,body:{error:"Je hebt het maximum van 2 openstaande aanvragen bereikt."}});
+  });
+
+  it("enforces the rolling 30-minute limit atomically when requests race", async () => {
+    const {db}=fakeDb({count:4,countAfterInsert:5,insertChanges:0});
+    const result=await submitGuestTrackRequest({
+      repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
+    });
+    expect(result).toMatchObject({status:429,body:{error:"Je maximum van 5 aanvragen per 30 minuten is bereikt."}});
   });
 
   it("rejects a duplicate when another request wins the concurrent insert race", async () => {
