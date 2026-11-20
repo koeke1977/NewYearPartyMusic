@@ -10,6 +10,8 @@ test("bridge source keeps the listener loopback-only by default", async () => {
   assert.match(source, /"--tools", ""/);
   assert.match(source, /MAX_BODY_BYTES/);
   assert.match(source, /TIMEOUT_MS/);
+  assert.match(source, /ANTHROPIC_API_KEY/);
+  assert.match(source, /delete childEnv\[key\]/);
 });
 
 test("bridge documentation forbids silent API billing fallback", async () => {
