@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { createGuestRequestRepository } from "../../apps/worker/src/modules/requests/infrastructure/guest-request-d1-repository";
 import { joinPartyGuest, submitGuestTrackRequest } from "../../apps/worker/src/modules/requests/application/guest-request-lifecycle";
 
 function fakeDb(options: {
@@ -40,7 +41,7 @@ describe("guest request lifecycle", () => {
     const {db,calls}=fakeDb();
     const createToken=vi.fn(async () => "signed-session");
     const result=await joinPartyGuest({
-      db,eventId:"event-1",nickname:"Koen",eventCode:"party-code",
+      repository:createGuestRequestRepository(db),eventId:"event-1",nickname:"Koen",eventCode:"party-code",
       expectedCodeHash:"hash",sessionSecret:"secret",
       hashCode:async value => value==="party-code"?"hash":"wrong",
       createToken,createId:()=>"guest-new",nowSeconds:()=>1000,
@@ -55,7 +56,7 @@ describe("guest request lifecycle", () => {
   it("rejects an incorrect event code before touching the database", async () => {
     const {db,calls}=fakeDb();
     const result=await joinPartyGuest({
-      db,eventId:"event-1",nickname:"Koen",eventCode:"wrong",
+      repository:createGuestRequestRepository(db),eventId:"event-1",nickname:"Koen",eventCode:"wrong",
       expectedCodeHash:"hash",sessionSecret:"secret",hashCode:async()=>"nope",
       createToken:async()=>"token",createId:()=>"guest",nowSeconds:()=>100,
     });
@@ -94,7 +95,7 @@ describe("guest request lifecycle", () => {
       {key:"auto_approve",value:"true"},{key:"auto_queue",value:"true"},
     ]});
     const result=await submitGuestTrackRequest({
-      db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request-new",trackGateway:{getTrack:vi.fn(async()=>spotifyTrack)},
     });
     expect(result).toEqual({status:201,body:{
@@ -109,7 +110,7 @@ describe("guest request lifecycle", () => {
   it("does not insert when Spotify no longer returns the selected track", async () => {
     const {db,calls}=fakeDb();
     const result=await submitGuestTrackRequest({
-      db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:async()=>null},
     });
     expect(result).toMatchObject({status:400});
