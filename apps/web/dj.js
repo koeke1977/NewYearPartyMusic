@@ -396,13 +396,28 @@ async function askDJAI(prompt,mode="advice"){
         return null;
       }).filter(Boolean);
       if(queued.length&&ids.length===queued.length&&new Set(ids).size===queued.length){
-        if(!window.confirm("DJ#DATUUR heeft een nieuwe volgorde voorgesteld. Wil je deze volgorde toepassen op de echte PartyQueue-wachtrij?")) {
-          output.textContent=answer+"\n\nVoorstel niet toegepast. Je huidige wachtrij blijft ongewijzigd.";
-          return;
-        }
-        await api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order:ids})});
-        output.textContent=answer+"\n\n✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen.";
-        await refresh();
+        output.replaceChildren(el("p","",answer));
+        const confirmPanel=el("div","dj-ai-confirm-panel");
+        confirmPanel.append(el("p","dj-ai-results-hint","Alle "+queued.length+" nummers zijn herkend. Wil je deze nieuwe volgorde toepassen op UP NEXT?"));
+        const confirmButton=el("button","dj-ai-add","✓ JA, PAS VOLGORDE TOE");
+        confirmButton.type="button";
+        const cancelButton=el("button","dj-ai-cancel","ANNULEREN");
+        cancelButton.type="button";
+        confirmButton.addEventListener("click",async()=>{
+          confirmButton.disabled=true;cancelButton.disabled=true;confirmButton.textContent="VOLGORDE OPSLAAN…";
+          try{
+            await api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order:ids})});
+            output.replaceChildren(el("p","",answer),el("p","dj-ai-results-hint","✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen."));
+            await refresh();
+          }catch(error){
+            confirmButton.disabled=false;cancelButton.disabled=false;confirmButton.textContent="✓ JA, PAS VOLGORDE TOE";
+            output.append(el("p","dj-ai-results-hint","Opslaan mislukt: "+error.message));
+          }
+        });
+        cancelButton.addEventListener("click",()=>{
+          output.replaceChildren(el("p","",answer),el("p","dj-ai-results-hint","Voorstel geannuleerd. Je huidige wachtrij blijft ongewijzigd."));
+        });
+        confirmPanel.append(confirmButton,cancelButton);output.append(confirmPanel);
       }else{
         output.textContent=answer+"\n\n⚠️ Ik kon slechts "+ids.length+" van de "+queued.length+" nummers eenduidig koppelen. Er is niets gewijzigd. Niet herkend: "+(unmatchedLines.length?unmatchedLines.join(" | "):"controleer of de AI alle wachtrijtracks heeft opgenomen.");
       }
