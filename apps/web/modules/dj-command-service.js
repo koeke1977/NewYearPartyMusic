@@ -35,6 +35,30 @@ export function createDjCommandService({ api, refresh, onMessage }) {
     }
   }
 
+  async function runNextRequest({ button, onTrackStarted, refreshPlayback }) {
+    button.disabled = true;
+    onMessage("Loading next PartyQueue request…");
+    try {
+      const result = await api("/api/dj/spotify/next-request", { method: "POST" });
+      if (result.busy) {
+        onMessage(result.error || "NEXT wordt al verwerkt.");
+        return;
+      }
+      if (!result.track) {
+        onMessage("Er is geen volgende PartyQueue-aanvraag gestart.");
+        return;
+      }
+      onTrackStarted(result.track);
+      onMessage("Now playing PartyQueue request: " + result.track.name + " — " + result.track.artist);
+      await refresh();
+      await refreshPlayback();
+    } catch (error) {
+      onMessage(error.message);
+    } finally {
+      await refresh();
+    }
+  }
+
   async function updateSetting(key, enabled) {
     onMessage("Updating party controls…");
     try {
@@ -46,5 +70,5 @@ export function createDjCommandService({ api, refresh, onMessage }) {
     }
   }
 
-  return { saveQueueOrder, runRequestAction, updateSetting };
+  return { saveQueueOrder, runNextRequest, runRequestAction, updateSetting };
 }
