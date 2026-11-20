@@ -1,11 +1,10 @@
 import type { Env } from "../env";
 import { spotifyFetch } from "../../integrations/spotify/user-auth-service";
 import {
-  getPlaybackDevices, playPlaylist, playTrack, sendPlaybackCommand,
-  setPlaybackShuffle, setPlaybackVolume,
+  playPlaylist, playTrack, setPlaybackShuffle,
 } from "../../integrations/spotify/playback-api";
+import { createSpotifyPlaybackControlGateway } from "../../integrations/spotify/playback-control-gateway";
 import { createSpotifyPlaybackGateway } from "../../integrations/spotify/playback-status-gateway";
-import type { PlaybackCommand } from "../../modules/playback/application/playback-ports";
 import { getDjSpotifyPlaybackStatus } from "../../modules/playback/application/get-dj-spotify-playback-status";
 import {
   executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume,
@@ -91,19 +90,19 @@ export function getDjSpotifyPlaybackStatusFromEnvironment(env: Env) {
 
 export function listDjSpotifyDevicesFromEnvironment(env: Env) {
   const client = spotifyFetch.bind(null, env);
-  return listDjSpotifyDevices({ getDevices: () => getPlaybackDevices(client) });
+  return listDjSpotifyDevices({ gateway: createSpotifyPlaybackControlGateway(client) });
 }
 
 export function setDjSpotifyVolumeFromEnvironment(env: Env, volume: unknown) {
   const client = spotifyFetch.bind(null, env);
-  return setDjSpotifyVolume({ volume, setVolume: (value) => setPlaybackVolume(client, value) });
+  return setDjSpotifyVolume({ volume, gateway: createSpotifyPlaybackControlGateway(client) });
 }
 
 export function executeDjSpotifyCommandFromEnvironment(env: Env, action: string) {
   const client = spotifyFetch.bind(null, env);
   return executeDjSpotifyCommand({
     action,
-    sendCommand: (command: PlaybackCommand) => sendPlaybackCommand(client, command),
+    gateway: createSpotifyPlaybackControlGateway(client),
     setManualPause: (paused) => setSpotifyManualPause(env.DB, paused),
   });
 }
