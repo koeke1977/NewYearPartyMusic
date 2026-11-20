@@ -52,7 +52,7 @@ describe("DJ queue reorder controller", () => {
 
     let prevented = false;
     await handlers.drop({
-      target: { closest: () => b },
+      target: { closest: () => a },
       clientY: 20,
       preventDefault: () => { prevented = true; },
     });
