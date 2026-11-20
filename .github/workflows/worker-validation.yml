@@ -34,7 +34,7 @@ jobs:
 
 
   ui-screenshot-baseline:
-    name: Capture guest and DJ desktop/mobile screenshots
+    name: Capture guest desktop/mobile and DJ desktop baselines
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
