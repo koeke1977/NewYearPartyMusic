@@ -4,7 +4,7 @@
 **Applies to:** `apps/web`, `apps/worker`, shared contracts, tests and tooling  
 **Purpose:** Preserve existing behaviour while establishing explicit ownership, separation of concerns and maintainable module boundaries.
 
-This standard complements `REENGINEERING-PLAN.md`, the responsibility maps and the API inventory. Where this document defines frontend presentation rules, it is authoritative. It does not authorize a framework migration, API redesign, production change or behaviour change.
+This standard complements `REENGINEERING-PLAN.md`, the responsibility maps and the API inventory. Where this document defines frontend presentation rules, it is authoritative. It does not authorize a framework migration, an external public event launch or an untested behaviour change.
 
 ## 1. Non-negotiable principles
 
@@ -14,7 +14,7 @@ This standard complements `REENGINEERING-PLAN.md`, the responsibility maps and t
 4. Prefer cohesive modules over arbitrary file splitting. Do not split code merely to hit a line count.
 5. Make the smallest safe change that advances the architecture.
 6. Add or update focused tests at the boundary being changed.
-7. Do not deploy, mutate production data, rotate secrets or perform real Spotify playback as part of refactoring.
+7. Treat the current Cloudflare Worker, D1 and Spotify OAuth connection as test-only and disposable. Test deployments, database rebuilds and test-token recreation are allowed when useful; do not expose a real event without a separate decision.
 
 ## 2. Frontend asset separation
 
@@ -149,7 +149,7 @@ If tests or browser validation cannot be run, state that explicitly. Never repor
 - Treat external/model-provided input as untrusted and validate/bound it at the owning boundary.
 - Preserve the existing free-tier AI budget guard and bounded read-only Spotify AI tool.
 - Do not add paid services, runtime dependencies or frameworks without an explicit architectural decision.
-- No production deployment, production D1 writes, secret changes, real Spotify playback or destructive Git operation without explicit approval.
+- The current test Worker/D1 may be changed, reset or redeployed as needed. Keep credentials secret and never commit them; a real public event launch remains a separate decision.
 - Never force-push, reset away work or resolve merge conflicts by blindly choosing one side.
 
 ## 9. Definition of done
@@ -163,7 +163,7 @@ A refactoring task is complete only when:
 - Browser/screenshot validation passes for UI/CSS changes.
 - Documentation and responsibility maps reflect the actual code.
 - Unavailable validation and remaining risks are stated honestly.
-- No production resource was changed unless separately approved.
+- Test resources may be changed or recreated. Any future real public event release must be explicitly reviewed.
 
 ## 10. Relationship to other architecture documents
 
