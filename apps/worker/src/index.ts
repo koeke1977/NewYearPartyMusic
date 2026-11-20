@@ -4,14 +4,15 @@ import { constantTimeEqual, decryptSecret, encryptSecret, sha256, toBase64Url } 
 import { createSessionToken, readSession, type Session } from "./modules/identity/session-token";
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
-import { runDJAssistantTurn } from "./modules/ai/orchestration/assistant-orchestrator";
-import { createDailyAssistantNeuronBudget, ASSISTANT_MAX_OUTPUT_TOKENS } from "./modules/ai/infrastructure/neuron-budget";
-import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
-import { buildEventMoment } from "./modules/ai/context/event-moment";
-import { buildDJAssistantContext, parseAcceptedSetHistory, parseSavedQueueOrder } from "./modules/ai/context/assistant-context";
-import { loadAssistantContextSnapshot } from "./modules/ai/infrastructure/assistant-context-repository";
-import { parseDJPreferences } from "./modules/ai/memory/dj-preferences";
-import { claimAssistantRateLimit, readAssistantAnswerCache, rememberDJPreferenceInDatabase, writeAssistantAnswerCache } from "./modules/ai/infrastructure/assistant-settings-repository";
+import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
+
+
+
+
+
+
+
+
 
 
 const app = new Hono<{ Bindings: Env }>();
@@ -121,56 +122,9 @@ app.post("/api/dj/ai/assistant", async (c) => {
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
-  const memoryUpdated = await rememberDJPreferenceInDatabase(c.env.DB, c.env.EVENT_ID, prompt);
-  const snapshot = await loadAssistantContextSnapshot(c.env.DB, c.env.EVENT_ID);
-  const context = buildDJAssistantContext({
-    event: c.env.EVENT_NAME,
-    eventMoment: buildEventMoment(),
-    djPreferences: parseDJPreferences(snapshot.djPreferences),
-    acceptedSetHistory: parseAcceptedSetHistory(snapshot.acceptedSetHistory),
-    tracks: snapshot.queue,
-    playedTracks: snapshot.playedTracks,
-    requestCounts: snapshot.requestCounts,
-    savedQueueOrder: parseSavedQueueOrder(snapshot.savedQueueOrder),
-  });
-  const { system, user } = buildDJAssistantPrompt(context, prompt);
-  // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
-  const provider = "cloudflare";
-  const cacheKey = await sha256(provider + "\n" + system + "\n" + user + "\nspotify-tools-v1");
-  const cached = await readAssistantAnswerCache(c.env.DB, cacheKey);
-  if (cached) return c.json({
-    ok:true,provider,answer:cached.answer,spotifyMatches:cached.spotifyMatches,cached:true,memoryUpdated
-  });
-  // Keep the free Workers AI usage below the account's 10,000 daily Neurons.
-  // Reserve 2,500 Neurons for other Workers AI usage outside PartyQueue.
-  const neuronBudget = await createDailyAssistantNeuronBudget(c.env.DB);
-  if (!neuronBudget.canAfford(system.length + user.length, ASSISTANT_MAX_OUTPUT_TOKENS)) {
-    return c.json({error:"DJ#DATUUR AI heeft zijn veilige dagbudget bereikt. Er worden geen extra AI-aanroepen gedaan; morgen vanaf 00:00 UTC is er opnieuw gratis budget."},429);
-  }
-  if (!await claimAssistantRateLimit(c.env.DB)) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
-  try {
-    if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
 
-    const model = "@cf/google/gemma-4-26b-a4b-it";
-    const { answer: finalAnswer, spotifyMatches } = await runDJAssistantTurn(
-      c.env.AI,
-      c.env,
-      model,
-      system,
-      user,
-      neuronBudget,
-    );
-    await writeAssistantAnswerCache(c.env.DB, cacheKey, finalAnswer, spotifyMatches);
-    return c.json({ok:true,provider,answer:finalAnswer,spotifyMatches,cached:false,memoryUpdated});
-  } catch(error) {
-    const errorMessage = error instanceof Error ? error.message : "AI-assistent is tijdelijk niet beschikbaar.";
-    const freeQuotaReached = /neuron|daily.{0,30}(limit|quota)|quota|limit.{0,30}(reached|exceeded)|exceeded.{0,30}(limit|quota)|HTTP 429|rate limit/i.test(errorMessage);
-    return c.json({
-      error: freeQuotaReached
-        ? "Het gratis Cloudflare AI-dagbudget lijkt bereikt. DJ#DATUUR AI probeert geen betalende provider; probeer opnieuw na de dagelijkse reset om 00:00 UTC."
-        : errorMessage
-    }, freeQuotaReached ? 429 : 502);
-  }
+  const result = await executeDJAssistant(c.env, prompt);
+  return c.json(result.body, result.status as 200);
 });
 app.post("/api/dj/ai/music/search", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
