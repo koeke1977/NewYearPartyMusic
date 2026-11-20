@@ -20,7 +20,10 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-playback-coordinator.js`: coordinates Spotify status reads and transport commands, rejects stale status responses, prevents polling during commands, reports command errors and refreshes status after the final queued command. It deliberately does not retry `next`/`previous` commands.
 - `modules/dj-chatgpt-handoff.js`: builds the current Spotify/UP NEXT context prompt for the optional handoff to the user\u2019s regular ChatGPT account; opening the tab and clipboard interaction remain in the page controller.
 - `modules/dj-playback-state.js`: pure Spotify UI-state mapping for volume normalization, play/pause/booth state, device/track summary and playback error priority.
-- `dj.js` remains the page composition/controller for login, rendering, moderation, playback and AI interactions until those flows have dedicated tests.
+- `modules/dj-ai-intent.js`: resolves free-text DJ prompts into the existing advice, import, fill or optimize modes and recovers numbered suggestions from the previous AI answer with real line breaks.
+- `modules/dj-overview-model.js`: pure projection of the DJ overview response into lifecycle counts, requested/remaining durations, saved queue order, next track, live requests and queue positions.
+- `modules/dj-queue-reorder.js`: owns drag-and-drop interaction and calculates the new queue order; the page controller supplies the save callback.
+- `dj.js` remains the page composition/controller for login, DOM rendering, moderation API actions, playback integration and AI interaction wiring. Pure overview projection, prompt intent, playback coordination, queue ordering and drag-and-drop interaction are now separated.
 
 `index.html` and `dj.html` load their entrypoints as native ES modules; no bundler or new runtime dependency was introduced.
 
@@ -31,9 +34,9 @@ The remaining DJ entrypoint still owns several separate concerns:
 | DOM bootstrap and element lookup | Global `querySelector` references, `el()` helper | `dj/bootstrap.ts`, `shared/dom/` |
 | DJ session lifecycle | localStorage token, login state, `setLoggedIn`, `logout` | `modules/dj-session.js` (token storage extracted), then `dj/features/authentication/` |
 | HTTP/API transport | `api(path, options)`, bearer header, JSON/error parsing | `modules/dj-api.js` (extracted) |
-| DJ application state | token, poll handle, settings, Spotify status flags, queue drag state, latest overview | `dj/state/` |
-| Dashboard rendering | `render()`, stats, request cards, status labels | `dj/features/overview/` and `dj/features/requests/` views |
-| Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()`, drag/drop handlers | `modules/dj-queue.js` (ordering extracted), then `dj/features/queue/` |
+| DJ application state | token, poll handle, settings and latest overview | `dj/state/`; queue drag state is encapsulated by `modules/dj-queue-reorder.js` |
+| Dashboard rendering | `render()`, stats, request cards, status labels | `modules/dj-overview-model.js` (pure response projection extracted), then `dj/features/overview/` and `dj/features/requests/` views |
+| Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()`, drag/drop handlers | `modules/dj-queue.js` (ordering extracted), `modules/dj-queue-reorder.js` (drag/drop interaction extracted), then `dj/features/queue/` |
 | Request moderation | `runAction()`, action buttons | `dj/features/requests/` |
 | Settings controls | pause, auto-approve and auto-queue toggles | `dj/features/settings/` |
 | Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle) and `modules/dj-request-guard.js` (stale-response/in-flight guard) extracted; then `dj/services/polling-service.ts` |
