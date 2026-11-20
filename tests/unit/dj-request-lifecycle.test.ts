@@ -77,12 +77,12 @@ describe("DJ request lifecycle",()=>{
 
   it("does not add a duplicate DJ track",async()=>{
     const {db,calls}=fakeDb({duplicate:{id:"existing",status:"queued"}});
-    const getSpotifyTrack=vi.fn();
+    const getTrack=vi.fn();
     const result=await addDjTrackToPartyQueue({
-      db,eventId:"event-1",trackId:track.id,createId:()=>"new-request",getSpotifyTrack,
+      db,eventId:"event-1",trackId:track.id,createId:()=>"new-request",trackGateway:{getTrack},
     });
     expect(result).toEqual({status:200,body:{ok:true,alreadyQueued:true,status:"queued"}});
-    expect(getSpotifyTrack).not.toHaveBeenCalled();
+    expect(getTrack).not.toHaveBeenCalled();
     expect(calls.some(call=>call.sql.startsWith("INSERT INTO requests"))).toBe(false);
   });
 
@@ -90,7 +90,7 @@ describe("DJ request lifecycle",()=>{
     const {db,calls}=fakeDb({savedOrder:'["old","stale"]'});
     const result=await addDjTrackToPartyQueue({
       db,eventId:"event-1",trackId:track.id,createId:()=>"new-request",
-      getSpotifyTrack:async()=>new Response(JSON.stringify(track),{status:200,headers:{"Content-Type":"application/json"}}),
+      trackGateway:{getTrack:async()=>track},
     });
     expect(result).toEqual({status:201,body:{ok:true,request:{
       id:"new-request",name:"AI selected song",artist:"Artist",status:"queued",
@@ -107,7 +107,7 @@ describe("DJ request lifecycle",()=>{
     const {db,calls}=fakeDb();
     const result=await addDjTrackToPartyQueue({
       db,eventId:"event-1",trackId:track.id,createId:()=>"new-request",
-      getSpotifyTrack:async()=>new Response("not found",{status:404}),
+      trackGateway:{getTrack:async()=>null},
     });
     expect(result).toMatchObject({status:502});
     expect(calls.some(call=>call.sql.startsWith("INSERT INTO requests"))).toBe(false);
