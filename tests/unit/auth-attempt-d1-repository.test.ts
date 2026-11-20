@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   consumeAuthAttempt, deleteExpiredAuthAttemptBuckets,
-} from "../../apps/worker/src/modules/identity/infrastructure/auth-attempt-d1-repository";
+} from "../../apps/worker/src/platform/infrastructure/auth-attempt-d1-repository";
 
 function fakeDb(returned: { attempt_count: number } | null = { attempt_count: 1 }) {
   const calls: Array<{ sql: string; values: unknown[] }> = [];
