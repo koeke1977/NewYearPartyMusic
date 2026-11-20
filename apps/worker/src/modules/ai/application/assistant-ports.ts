@@ -1,7 +1,4 @@
-import type { AssistantRequestCount } from "../context/assistant-context";
-
 export type AssistantContextSnapshot = {
-  requestCounts: AssistantRequestCount[];
   djPreferences: string | null;
 };
 
