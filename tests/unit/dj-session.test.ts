@@ -23,7 +23,7 @@ describe("DJ session", () => {
     };
     expect(await loginDj({ ...base, expectedCodeHash: "" })).toMatchObject({ status: 503 });
     expect(await loginDj(base)).toMatchObject({ status: 401 });
-    expect(await loginDj({ ...base, code: "x".repeat(65), hashCode: vi.fn() })).toMatchObject({ status: 401 });
+    expect(await loginDj({ ...base, code: "x".repeat(65), hashCode: async () => "expected" })).toMatchObject({ status: 401 });
   });
 
   it("accepts only a valid DJ session for the configured event", async () => {
