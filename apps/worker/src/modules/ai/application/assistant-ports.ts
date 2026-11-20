@@ -1,16 +1,8 @@
-import type {
-  AssistantPlayedTrack,
-  AssistantQueueTrack,
-  AssistantRequestCount,
-} from "../context/assistant-context";
+import type { AssistantRequestCount } from "../context/assistant-context";
 
 export type AssistantContextSnapshot = {
-  queue: AssistantQueueTrack[];
-  playedTracks: AssistantPlayedTrack[];
   requestCounts: AssistantRequestCount[];
-  savedQueueOrder: string | null;
   djPreferences: string | null;
-  acceptedSetHistory: string | null;
 };
 
 export type CachedSpotifyMatch = {
@@ -38,4 +30,3 @@ export interface AssistantRepository {
 }
 
 export type CloudflareAIClient = { run(model: string, input: Record<string, unknown>): Promise<unknown> };
-export type SpotifyCatalogMatch = { query: string; tracks: Array<{ id: string; uri: string; name: string; artists: string[]; durationMs: number; albumImageUrl: string | null }> };
