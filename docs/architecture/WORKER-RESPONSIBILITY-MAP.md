@@ -43,7 +43,7 @@ The route handlers are substantially thinner than the original Worker entrypoint
 - `modules/identity/session-token.ts`: pure signed session-token policy; consumes an injected cryptographic port.
 - `platform/composition/session-token.ts`: binds session-token policy to the platform HMAC/base64url primitives.
 - `modules/requests/infrastructure/guest-request-d1-repository.ts`: D1 implementation of the guest/request repository port.
-- `modules/requests/infrastructure/guest-request-repository.ts`: D1 query implementation, including atomic guest quota checks, conflict-safe active-track insertion, conditional moderation transitions and atomic queue-order append.
+- `modules/requests/infrastructure/guest-request-repository.ts`: D1 query implementation, including the atomic rolling 60-minute guest request quota (20 per guest), conflict-safe active-track insertion, conditional moderation transitions and atomic queue-order append.
 - `db/schema.sql`: partial unique index `idx_requests_one_active_track` enforces one active request per Spotify track per event; terminal states release the key.
 - `modules/requests/application/guest-request-lifecycle.ts`: consumes the shared normalized `CatalogTrack` DTO and a typed track-lookup port; it does not parse Spotify wire data.
 - `modules/requests/infrastructure/dj-queue-d1-repository.ts`: DJ overview, saved queue order and settings persistence.
@@ -97,8 +97,8 @@ These are infrastructure composition adapters, not domain/application modules.
 - Preserve encrypted token format, refresh leases, invalidation and owner checks.
 - Preserve queue dispatch lease expiry, ordering and only-mark-played-after-Spotify-success semantics.
 - Preserve playback polling auto-advance/fallback behaviour.
-- Preserve D1 event scoping, guest rate limits, duplicate checks, request transitions and 30-day cleanup rules.
-- Guest open-request and rolling 30-minute limits are rechecked in the same D1 `INSERT ... SELECT` statement that inserts the request; a concurrent request cannot exceed the configured limits.
+- Preserve D1 event scoping, the unlimited-active-request policy, the rolling 20-per-60-minute guest quota, duplicate checks, request transitions and 30-day cleanup rules.
+- Guest requests have no per-guest open/active queue cap. A rolling 60-minute limit of 20 requests per guest is rechecked in the same D1 `INSERT ... SELECT` statement that inserts the request; concurrent submissions cannot exceed the quota.
 - DJ queue-order append is a single SQLite JSON upsert using `json_each`/`json_insert`, avoiding read-modify-write lost updates when multiple tracks are added concurrently.
 - Guest session signing completes before the guest row is persisted, preventing orphan guest records if signing fails.
 - Active-track uniqueness is enforced by a partial unique index over `(event_id, spotify_track_id)` for `pending`, `approved` and `queued`; both guest and DJ insert paths use conflict-safe inserts.
