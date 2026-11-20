@@ -40,7 +40,8 @@
 | `modules/dj-ai-queue-parser.js` | Matching and validation of AI queue proposals against current queued tracks |
 | `modules/dj-ai-suggestions.js` | Bounded extraction of numbered track suggestions |
 | `modules/dj-ai-actions.js` | Sequential track-add workflow, duplicate handling, partial failure reporting and full queue-permutation validation |
-| `modules/dj-ai-assistant.js` | AI prompt lifecycle, mode orchestration, suggestion selection UI and explicit queue-reorder confirmation |
+| `modules/dj-ai-assistant-view.js` | DOM-only AI answer, queue-confirmation and Spotify-suggestion rendering; invokes injected controller callbacks |
+| `modules/dj-ai-assistant.js` | AI prompt lifecycle, mode orchestration and API workflows; no DOM construction |
 | `modules/dj-chatgpt-handoff.js` | Current party/Spotify context prompt, clipboard transfer and regular ChatGPT tab handoff |
 | `modules/dom.js` | Shared safe DOM element factory |
 
@@ -48,7 +49,7 @@
 
 The main page entrypoints are composition roots. Remaining mixed concerns are inside two feature controllers:
 
-1. `dj-ai-assistant.js` still combines prompt submission/orchestration with suggestion and confirmation DOM rendering. The side-effecting track-add and queue-permutation workflows are already separated in `dj-ai-actions.js`. If further separation is needed, extract cohesive view functions without changing the current confirmation flow or per-track failure reporting.
+1. `dj-ai-assistant.js` now owns prompt submission, mode orchestration and API workflows. `dj-ai-assistant-view.js` owns suggestion/confirmation DOM rendering; `dj-ai-actions.js` owns sequential track additions and queue-permutation policy. The DJ must still explicitly confirm a complete queue reorder.
 2. `dj-spotify-console.js` combines API/status coordination, volume-write lifecycle and event binding. Rendering is already isolated in `dj-spotify-console-view.js`, and playback sequencing is coordinated by `dj-playback-coordinator.js`. Further extraction should only occur if tests show a real responsibility seam; avoid another layer of pass-through wrappers.
 
 The guest and DJ feature modules should not import each other's private implementation files. Shared DOM behaviour belongs in `modules/dom.js` only while it remains genuinely shared.
@@ -69,13 +70,13 @@ The DJ stylesheet order in `dj.html` preserves the original cascade. Guest pages
 
 ## Browser contracts and validation
 
-The Playwright browser journeys use deterministic API stubs and cover guest join/search/request, DJ login/session, overview/playback polling and logout. They do not call Spotify or production Cloudflare services. The screenshot workflow captures guest desktop/mobile and DJ desktop/responsive baselines.
+The Playwright browser journeys use deterministic API stubs and cover guest join/search/request, DJ login/session, overview/playback polling and logout. They do not call Spotify or the deployed Cloudflare test resources. The screenshot workflow captures guest desktop/mobile and DJ desktop/responsive baselines.
 
 Run:
 - `npm run test:browser`
 - `npm run screenshots:baseline`
 
-A green browser journey does not replace Worker/API contract tests or production smoke testing.
+A green browser journey does not replace Worker/API contract tests or a future real-event smoke test.
 
 ## Behaviour invariants
 
