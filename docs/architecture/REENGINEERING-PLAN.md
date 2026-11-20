@@ -42,7 +42,7 @@ The following measurements describe the **original pre-extraction baseline**, no
 | HTML | `apps/web/dj.html`, ~9 KB | Semantic page structure and stable hooks; behaviour loads through external native ES modules |
 | Documentation | Original architecture/development notes | Responsibility maps are maintained in `docs/architecture/`; this plan records target boundaries and remaining work |
 
-The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The Worker application layer now uses application-owned repository/provider ports across the guest/request, DJ queue, music catalogue, AI, queue dispatch and playback workflows. A CI dependency-boundary check enforces Worker application/domain/identity dependencies and browser transport/storage ownership, including no direct Spotify API calls or inline HTML presentation/behaviour. The remaining work is targeted composition review, frontend interaction coverage and operational hardening before a real event.
+The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The Worker application layer now uses application-owned repository/provider ports across the guest/request, DJ queue, music catalogue, AI, queue dispatch and playback workflows. A CI dependency-boundary check enforces Worker application/domain/identity dependencies and browser transport/storage ownership, including no direct Spotify API calls or inline HTML presentation/behaviour. The remaining architecture cleanup includes replacing HTTP-shaped application results with typed use-case outcomes, while routes retain status/body mapping. Continue targeted composition review and frontend interaction coverage. Edge throttling remains a future public-event operational requirement, not a blocker for current test development.
 
 ## Environment assumptions
 
@@ -341,3 +341,20 @@ The request lifecycle now protects two concurrency-sensitive state changes at th
 2. **DJ moderation state transitions.** The repository updates a request only when its current status is one of the transition's allowed source states. A concurrent stale action changes zero rows and returns a conflict rather than overwriting the winning action.
 
 The new regressions cover both races. Full CI run [44777146224](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44777146224) passed on commit `0cf0cbc979e759d584ca20dfee71e8dc7d664cb6`.
+
+
+## Follow-up: atomic request and queue concurrency — 2026-11-20
+
+The request/queue persistence boundary now enforces concurrency-sensitive invariants in single D1 statements:
+
+- **Active-track uniqueness:** a partial unique index on `(event_id, spotify_track_id)` applies to `pending`, `approved` and `queued`. Conflict-safe inserts preserve guest 409 and DJ `alreadyQueued` behavior; terminal states free the track.
+- **Guest quotas:** the open-request count and rolling 30-minute count are checked in the same `INSERT ... SELECT` that creates the guest request. The earlier reads remain as fast prechecks and provide clear error messages, while the database predicate closes the race.
+- **Moderation:** state changes include the expected previous state in the `UPDATE` predicate; a stale concurrent action updates zero rows and returns 409.
+- **Queue ordering:** adding a DJ track appends its ID using one SQLite JSON upsert rather than reading and rewriting the entire array. Concurrent additions no longer lose each other's order entries.
+- **Guest join:** the session token is signed before inserting the guest row, so a signing failure cannot leave an orphan record.
+
+The regressions and the complete CI run [44778527531](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44778527531) passed on `b377906e0a6f3fdcdc5f296874762bbb592825a8`.
+
+### Next architecture boundary
+
+A few Worker application use cases still return `{ status, body }` structures. The next cleanup should replace these HTTP-shaped results with typed application outcomes and leave HTTP status/body mapping in the route adapters, without changing any public API response.
