@@ -27,7 +27,8 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-spotify-console.js`: owns Spotify status refresh, connection/device/track/volume/progress presentation, fallback queue preview, volume-write lifecycle and Spotify control bindings. It receives the API, playback coordinator accessor, message callback and queue-preview callback explicitly.
 - `modules/dj-ai-assistant.js`: owns DJ AI prompt submission, advice/import/fill/starter/optimize flows, AI response rendering, safe queue reorder confirmation and Spotify suggestion selection/addition. It receives the API, overview refresh and document dependencies explicitly.
 - `modules/dj-auth-controller.js`: owns DJ login submission, persisted-token lifecycle, login/logout and authenticated-console visibility. Polling and playback invalidation are injected through one state-change callback.
-- `dj.js` remains the page composition/controller for login, dashboard/request rendering, page-level event composition and ChatGPT hand-off. Spotify presentation/control bindings, AI assistant interactions, command workflows, pure overview projection, prompt intent, playback coordination, queue ordering and drag-and-drop interaction are separated.
+- `modules/dj-overview-view.js`: owns dashboard stats, request cards, moderation action wiring and UP NEXT rendering. It consumes the pure overview model and receives queue, command and Spotify view dependencies explicitly; it also preserves request cards while a drag reorder is active.
+- `dj.js` remains the page composition/controller for page-level event composition and ChatGPT hand-off. Login/session lifecycle, dashboard/request rendering, Spotify presentation/control bindings, AI assistant interactions, command workflows, pure overview projection, prompt intent, playback coordination, queue ordering and drag-and-drop interaction are separated.
 
 `index.html` and `dj.html` load their entrypoints as native ES modules; no bundler or new runtime dependency was introduced.
 
@@ -39,7 +40,7 @@ The remaining DJ entrypoint still owns several separate concerns:
 | DJ session lifecycle | login submission, persisted token, login/logout and console visibility | `modules/dj-session.js` (storage primitives) and `modules/dj-auth-controller.js` (authentication lifecycle extracted) |
 | HTTP/API transport | `api(path, options)`, bearer header, JSON/error parsing | `modules/dj-api.js` (extracted) |
 | DJ application state | token, poll handle, settings and latest overview | `dj/state/`; queue drag state is encapsulated by `modules/dj-queue-reorder.js` |
-| Dashboard rendering | `render()`, stats, request cards, status labels | `modules/dj-overview-model.js` (pure response projection extracted), then `dj/features/overview/` and `dj/features/requests/` views |
+| Dashboard rendering | stats, request cards, status labels and UP NEXT view | `modules/dj-overview-model.js` (pure response projection) and `modules/dj-overview-view.js` (DOM rendering and moderation action wiring extracted) |
 | Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()` | `modules/dj-queue.js` (ordering extracted), `modules/dj-queue-reorder.js` (drag/drop interaction extracted), `modules/dj-command-service.js` (save workflow extracted), then `dj/features/queue/` |
 | Request moderation | action buttons and moderation commands | `modules/dj-command-service.js` (mutation lifecycle extracted), then `dj/features/requests/` |
 | Settings controls | pause, auto-approve and auto-queue toggles | `modules/dj-command-service.js` (mutation lifecycle extracted), then `dj/features/settings/` |
