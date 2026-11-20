@@ -46,15 +46,16 @@ export async function findActiveTrackRequest(db: GuestRequestDatabase, eventId: 
   ).bind(eventId, trackId).first<{ id: string; status: string }>();
 }
 
-export async function insertTrackRequest(db: GuestRequestDatabase, request: StoredTrackRequest): Promise<void> {
-  await db.prepare(
-    "INSERT INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) " +
+export async function insertTrackRequest(db: GuestRequestDatabase, request: StoredTrackRequest): Promise<boolean> {
+  const result = await db.prepare(
+    "INSERT OR IGNORE INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) " +
     "VALUES (?,?,?,?,?,?,?,?,?,?,CASE WHEN ? IN ('approved','queued') THEN CURRENT_TIMESTAMP ELSE NULL END,CASE WHEN ? = 'queued' THEN CURRENT_TIMESTAMP ELSE NULL END)",
   ).bind(
     request.id, request.event_id, request.guest_id, request.spotify_track_id, request.track_uri,
     request.track_name, request.artist_name, request.album_image_url, request.duration_ms,
     request.status, request.status, request.status,
   ).run();
+  return result.meta.changes === 1;
 }
 
 export async function createDjQueueGuest(db: GuestRequestDatabase, eventId: string): Promise<string> {
