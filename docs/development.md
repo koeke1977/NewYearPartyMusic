@@ -30,7 +30,7 @@ This checklist describes the current application and the next safe engineering s
 - [x] Extract Spotify catalogue token cache, track type and catalogue API adapter
 - [ ] Extract Spotify OAuth token store, refresh lifecycle and authenticated user API adapter
 - [ ] Extract queue and playback services
-- [x] Extract the pure DJ assistant prompt builder
+- [x] Extract the pure DJ assistant prompt builder and Belgian event-time calculation
 - [ ] Split AI orchestration, providers, context, memory, tool dispatch and use cases
 - [ ] Split Hono routes into transport-only modules
 - [ ] Split DJ frontend API/auth/state/polling/features/rendering
@@ -49,6 +49,7 @@ This checklist describes the current application and the next safe engineering s
 - `apps/worker/src/integrations/spotify/catalog-api.ts` owns Spotify catalogue search and track lookup HTTP requests.
 - `apps/worker/src/integrations/spotify/types.ts` owns the Spotify track response contract.
 - `apps/worker/src/modules/ai/prompts/dj-assistant.ts` owns DJ assistant system/user prompt construction.
+- `apps/worker/src/modules/ai/context/event-moment.ts` owns deterministic Belgian event-time phase calculation.
 - AI responsibility boundaries and remaining work are documented in `docs/architecture/AI-RESPONSIBILITY-MAP.md`.
 - `docs/architecture/WORKER-RESPONSIBILITY-MAP.md` and `FRONTEND-RESPONSIBILITY-MAP.md` record the remaining extraction boundaries.
 - The existing Worker entrypoint now consumes those modules; API paths and token/encryption formats are intentionally unchanged.
