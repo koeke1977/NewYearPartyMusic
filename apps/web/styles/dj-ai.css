@@ -8,7 +8,10 @@
 .dj-ai-form button{padding:0 16px;border:0;border-radius:9px;background:#00d982;color:#061009;font-size:9px;font-weight:950;letter-spacing:.08em;cursor:pointer}.dj-ai-form button:disabled{opacity:.5}
 .dj-ai-answer{margin-top:12px;padding:13px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(0,0,0,.2);color:#e2eee5;font-size:12px;line-height:1.55;white-space:pre-wrap;min-height:48px}
 @media(max-width:560px){.dj-shell .dj-ai-panel{padding:14px}.dj-ai-heading{align-items:flex-start;flex-direction:column}.dj-ai-form{flex-direction:column}.dj-ai-form button{min-height:42px}}
-\n/* DJ#DATUUR AI Music Director actions */\n.dj-ai-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 10px}.dj-ai-action{min-height:42px;padding:9px 10px;border:1px solid rgba(0,232,138,.28);border-radius:9px;background:rgba(0,0,0,.24);color:#c9f6d8;font-size:9px;font-weight:950;letter-spacing:.045em;cursor:pointer}.dj-ai-action:hover:not(:disabled){border-color:#00e88a;background:rgba(0,232,138,.1)}.dj-ai-action.dj-ai-primary{background:#00d982;color:#061009;border-color:#00d982}.dj-ai-action:disabled{opacity:.45;cursor:wait}.dj-ai-form{margin-top:8px}@media(max-width:650px){.dj-ai-actions{grid-template-columns:1fr}.dj-ai-action{min-height:40px}}\n
+
+/* DJ#DATUUR AI Music Director actions */
+.dj-ai-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 10px}.dj-ai-action{min-height:42px;padding:9px 10px;border:1px solid rgba(0,232,138,.28);border-radius:9px;background:rgba(0,0,0,.24);color:#c9f6d8;font-size:9px;font-weight:950;letter-spacing:.045em;cursor:pointer}.dj-ai-action:hover:not(:disabled){border-color:#00e88a;background:rgba(0,232,138,.1)}.dj-ai-action.dj-ai-primary{background:#00d982;color:#061009;border-color:#00d982}.dj-ai-action:disabled{opacity:.45;cursor:wait}.dj-ai-form{margin-top:8px}@media(max-width:650px){.dj-ai-actions{grid-template-columns:1fr}.dj-ai-action{min-height:40px}}
+
 .dj-ai-results-hint{margin:12px 0 8px;color:#aab7ad;font-size:10px;line-height:1.5}
 .dj-ai-suggestion{margin-top:9px;padding:10px;border:1px solid rgba(0,232,138,.16);border-radius:10px;background:rgba(0,0,0,.18)}
 .dj-ai-query{display:block;margin-bottom:8px;color:#e8fff0;font-size:11px}
