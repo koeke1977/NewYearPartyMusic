@@ -11,4 +11,12 @@ describe("test D1 bootstrap schema", () => {
     expect(schema).not.toContain("event_code_hash");
     expect(schema).not.toContain("REPLACE_WITH_HASHED_EVENT_CODE");
   });
+
+  it("prevents concurrent active requests for the same track within one event", () => {
+    const schema = readFileSync(schemaPath, "utf8");
+    expect(schema).toContain("CREATE UNIQUE INDEX IF NOT EXISTS idx_requests_one_active_track");
+    expect(schema).toContain("ON requests(event_id, spotify_track_id)");
+    expect(schema).toContain("WHERE status IN ('pending', 'approved', 'queued')");
+
+  });
 });
