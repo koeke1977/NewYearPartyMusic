@@ -23,6 +23,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Completed-request 30-day retention policy and deletion | `modules/requests/application/cleanup-completed-requests.ts` + `request-retention-repository.ts` | Same application/repository boundary |
 | Queue end-of-track advancement and fallback eligibility/retry policy | `modules/playback/application/playback-automation.ts` | `modules/playback/application/playback-automation.ts` + `modules/playback/infrastructure/playback-policy-repository.ts` |
 | DJ Spotify status orchestration, response mapping and fallback queue preview | `modules/playback/application/get-dj-spotify-playback-status.ts` | Same playback application module |
+| DJ Spotify device listing, volume validation and transport-command/manual-pause orchestration | `modules/playback/application/dj-playback-controls.ts` | Same playback application module |
 | Playback policy settings, fallback leases/errors/retry state and manual-pause persistence | `modules/playback/infrastructure/playback-policy-repository.ts` | Same repository |
 | Spotify playback HTTP route state reads/writes | Thin adapters calling playback repository functions | `modules/playback/infrastructure/playback-policy-repository.ts` |
 
@@ -52,10 +53,10 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | `maybeAdvancePartyQueue` | Thin adapter to queue advancement policy | `modules/playback/application/playback-automation.ts` |
 | `maybeStartSpotifyFallback` | Thin adapter to fallback eligibility/retry policy | `modules/playback/application/playback-automation.ts` |
 | `GET /api/dj/spotify/status` | DJ authorization and HTTP response serialization | `modules/playback/application/get-dj-spotify-playback-status.ts` + playback policy + Spotify playback adapter |
-| `GET /api/dj/spotify/devices` | DJ auth, Spotify device request, response forwarding | List-Spotify-devices use case |
+| `GET /api/dj/spotify/devices` | DJ authorization and HTTP response serialization | `modules/playback/application/dj-playback-controls.ts` + Spotify playback adapter |
 | `POST /api/dj/spotify/next-request` | DJ auth and queue dispatch | Dispatch-next-track use case |
-| `PUT /api/dj/spotify/volume` | DJ auth, validation and Spotify volume command | Set-volume use case |
-| `POST /api/dj/spotify/:action` | Command allow-list, Spotify transport command and manual-pause repository call | Playback-command use case + `modules/playback/infrastructure/playback-policy-repository.ts` |
+| `PUT /api/dj/spotify/volume` | DJ authorization, JSON parsing and response serialization | `modules/playback/application/dj-playback-controls.ts` + Spotify playback adapter |
+| `POST /api/dj/spotify/:action` | DJ authorization and response serialization | `modules/playback/application/dj-playback-controls.ts` + playback policy repository + Spotify playback adapter |
 | `POST /api/dj/spotify/queue/:id` | DJ authorization and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + conditional request repository update |
 | Scheduled request cleanup | Worker scheduled-event adapter | `modules/requests/application/cleanup-completed-requests.ts` + `request-retention-repository.ts` |
 | `QueueRoom` | Durable Object health endpoint only | Keep isolated under `durable-objects/`; do not expand without a real coordination requirement |
@@ -74,7 +75,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 1. Characterize and extract guest join, guest track submission, DJ moderation transitions and AI-added queue tracks. The application use cases and D1 repository now live under `modules/requests/`.
 2. DJ overview, queue reorder, DJ settings and 30-day completed-request retention now live under `modules/requests/`; keep future request-related D1 access in the same repository/application boundaries.
 3. Keep Spotify catalogue and OAuth user-token handling separate. OAuth code exchange, refresh rotation and authenticated user API requests now live in `integrations/spotify/user-auth-service.ts`; encrypted persistence remains in `user-auth-repository.ts`. Playback paths and payloads live in `playback-api.ts`.
-4. Queue dispatch, fallback policy and DJ Spotify status orchestration now use dedicated application/repository modules. The Spotify playback routes no longer issue D1 SQL directly; remaining transport commands, device listing and volume handling still need use-case extraction.
+4. Queue dispatch, fallback policy and DJ Spotify status orchestration now use dedicated application/repository modules. The Spotify playback routes no longer issue D1 SQL directly; the remaining Spotify OAuth start/callback flow, catalogue search routes and queue-next route still need final application/use-case boundaries.
 5. Split AI context, memory, prompt catalog, provider adapter, tool adapter and use cases.
 6. Convert route handlers to thin transport adapters and assemble them from `app.ts`.
 7. Keep `index.ts` as the Worker composition root only.
