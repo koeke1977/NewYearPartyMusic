@@ -14,7 +14,6 @@ interface Env {
   SPOTIFY_CLIENT_ID: string;
   SPOTIFY_CLIENT_SECRET: string;
   AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };
-  AI_MODEL?: string;
 }
 
 type Session = { sub: string; eventId: string; nickname: string; exp: number; role?: string };
@@ -284,7 +283,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   try {
     let answer = "";
           if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
-      const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/google/gemma-4-26b-a4b-it",{
+      const result:any=await c.env.AI.run("@cf/google/gemma-4-26b-a4b-it",{
         messages:[{role:"system",content:system},{role:"user",content:user}],
         max_tokens:1400,
         temperature:0.4,
@@ -306,7 +305,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
     return c.json({ ok:true,provider,answer:finalAnswer,cached:false,memoryUpdated });
   } catch(error) {
     const errorMessage = error instanceof Error ? error.message : "AI-assistent is tijdelijk niet beschikbaar.";
-    const freeQuotaReached = /neuron|daily.{0,20}(limit|quota)|quota|usage limit|exceeded.{0,20}(limit|quota)|HTTP 429/i.test(errorMessage);
+    const freeQuotaReached = /neuron|daily.{0,30}(limit|quota)|quota|limit.{0,30}(reached|exceeded)|exceeded.{0,30}(limit|quota)|HTTP 429|rate limit/i.test(errorMessage);
     return c.json({
       error: freeQuotaReached
         ? "Het gratis Cloudflare AI-dagbudget lijkt bereikt. DJ#DATUUR AI probeert geen betalende provider; probeer opnieuw na de dagelijkse reset om 00:00 UTC."
