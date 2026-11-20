@@ -1,56 +1,93 @@
 import { describe, expect, it, vi } from "vitest";
 import { executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume } from "../../apps/worker/src/modules/playback/application/dj-playback-controls";
+import type { SpotifyPlaybackControlGateway } from "../../apps/worker/src/modules/playback/application/playback-ports";
 
 describe("DJ Spotify playback controls", () => {
-  it("returns device data and maps Spotify failures", async () => {
-    const payload = { devices: [{ id: "device-1", name: "Speaker" }] };
-    const getDevices = vi.fn(async () => Response.json(payload));
-    await expect(listDjSpotifyDevices({ getDevices })).resolves.toEqual({ status: 200, body: payload });
+  it("returns mapped device data and handles unavailable Spotify", async () => {
+    const gateway: SpotifyPlaybackControlGateway = {
+      getDevices: async () => ({
+        kind: "available",
+        devices: [{ id: "device-1", name: "Speaker", type: "Speaker", active: true, volume: 70 }],
+      }),
+      setVolume: vi.fn(),
+      sendCommand: vi.fn(),
+    };
+    await expect(listDjSpotifyDevices({ gateway })).resolves.toEqual({
+      status: 200,
+      body: { devices: [{ id: "device-1", name: "Speaker", type: "Speaker", is_active: true, volume_percent: 70 }] },
+    });
     await expect(listDjSpotifyDevices({
-      getDevices: async () => new Response(null, { status: 401 }),
+      gateway: { ...gateway, getDevices: async () => ({ kind: "unavailable", status: 401 }) },
     })).resolves.toEqual({
       status: 502, body: { error: "Spotify-apparaten ophalen mislukt (HTTP 401)." },
     });
     await expect(listDjSpotifyDevices({
-      getDevices: async () => { throw new Error("network down"); },
+      gateway: { ...gateway, getDevices: async () => { throw new Error("network down"); } },
     })).resolves.toEqual({ status: 503, body: { error: "network down" } });
   });
 
-  it("validates volume bounds before calling Spotify and accepts 204", async () => {
-    const setVolume = vi.fn(async () => new Response(null, { status: 204 }));
-    expect(await setDjSpotifyVolume({ volume: -1, setVolume })).toMatchObject({ status: 400 });
-    expect(await setDjSpotifyVolume({ volume: 101, setVolume })).toMatchObject({ status: 400 });
-    expect(await setDjSpotifyVolume({ volume: 42.5, setVolume })).toMatchObject({ status: 400 });
+  it("validates volume bounds before calling Spotify and accepts success", async () => {
+    const setVolume = vi.fn(async () => ({ ok: true as const }));
+    const gateway: SpotifyPlaybackControlGateway = {
+      getDevices: vi.fn(),
+      setVolume,
+      sendCommand: vi.fn(),
+    };
+    expect(await setDjSpotifyVolume({ volume: -1, gateway })).toMatchObject({ status: 400 });
+    expect(await setDjSpotifyVolume({ volume: 101, gateway })).toMatchObject({ status: 400 });
+    expect(await setDjSpotifyVolume({ volume: 42.5, gateway })).toMatchObject({ status: 400 });
     expect(setVolume).not.toHaveBeenCalled();
-    await expect(setDjSpotifyVolume({ volume: 42, setVolume })).resolves.toEqual({
+    await expect(setDjSpotifyVolume({ volume: 42, gateway })).resolves.toEqual({
       status: 200, body: { ok: true, volume: 42 },
     });
     expect(setVolume).toHaveBeenCalledWith(42);
   });
 
+  it("maps failed volume commands without exposing provider response objects", async () => {
+    const gateway: SpotifyPlaybackControlGateway = {
+      getDevices: vi.fn(),
+      setVolume: async () => ({ ok: false, status: 404 }),
+      sendCommand: vi.fn(),
+    };
+    await expect(setDjSpotifyVolume({ volume: 40, gateway })).resolves.toEqual({
+      status: 502,
+      body: { error: "Spotify kon het volume niet aanpassen (HTTP 404). Controleer of een actief Spotify-apparaat beschikbaar is." },
+    });
+  });
+
   it("sets manual pause only after a successful Spotify play/pause command", async () => {
-    const sendCommand = vi.fn(async () => new Response(null, { status: 204 }));
+    const sendCommand = vi.fn(async () => ({ ok: true as const }));
+    const gateway: SpotifyPlaybackControlGateway = {
+      getDevices: vi.fn(),
+      setVolume: vi.fn(),
+      sendCommand,
+    };
     const setManualPause = vi.fn(async () => {});
-    await expect(executeDjSpotifyCommand({ action: "pause", sendCommand, setManualPause })).resolves.toEqual({
+    await expect(executeDjSpotifyCommand({ action: "pause", gateway, setManualPause })).resolves.toEqual({
       status: 200, body: { ok: true },
     });
     expect(sendCommand).toHaveBeenCalledWith("pause");
     expect(setManualPause).toHaveBeenLastCalledWith(true);
 
-    await executeDjSpotifyCommand({ action: "play", sendCommand, setManualPause });
+    await executeDjSpotifyCommand({ action: "play", gateway, setManualPause });
     expect(setManualPause).toHaveBeenLastCalledWith(false);
 
-    await executeDjSpotifyCommand({ action: "next", sendCommand, setManualPause });
+    await executeDjSpotifyCommand({ action: "next", gateway, setManualPause });
     expect(setManualPause).toHaveBeenCalledTimes(2);
   });
 
-  it("rejects unknown commands and preserves Spotify error detail", async () => {
-    const sendCommand = vi.fn(async () => new Response("device unavailable", { status: 404 }));
+  it("rejects unknown commands and preserves bounded Spotify error detail", async () => {
+    const sendCommand = vi.fn(async () => ({ ok: false as const, status: 404, detail: "device unavailable" }));
+    const gateway: SpotifyPlaybackControlGateway = {
+      getDevices: vi.fn(),
+      setVolume: vi.fn(),
+      sendCommand,
+    };
     const setManualPause = vi.fn(async () => {});
-    expect(await executeDjSpotifyCommand({ action: "shuffle", sendCommand, setManualPause })).toMatchObject({ status: 400 });
+    expect(await executeDjSpotifyCommand({ action: "shuffle", gateway, setManualPause })).toMatchObject({ status: 400 });
     expect(sendCommand).not.toHaveBeenCalled();
 
-    await expect(executeDjSpotifyCommand({ action: "next", sendCommand, setManualPause })).resolves.toEqual({
+    await expect(executeDjSpotifyCommand({ action: "next", gateway, setManualPause })).resolves.toEqual({
       status: 502,
       body: { error: "Spotify-commando geweigerd (HTTP 404). device unavailable" },
     });
@@ -58,15 +95,18 @@ describe("DJ Spotify playback controls", () => {
   });
 
   it("maps thrown transport and manual-pause persistence errors", async () => {
-    await expect(executeDjSpotifyCommand({
-      action: "pause",
+    const gateway: SpotifyPlaybackControlGateway = {
+      getDevices: vi.fn(),
+      setVolume: vi.fn(),
       sendCommand: async () => { throw new Error("Spotify offline"); },
-      setManualPause: vi.fn(),
+    };
+    await expect(executeDjSpotifyCommand({
+      action: "pause", gateway, setManualPause: vi.fn(),
     })).resolves.toEqual({ status: 503, body: { error: "Spotify offline" } });
 
     await expect(executeDjSpotifyCommand({
       action: "pause",
-      sendCommand: async () => new Response(null, { status: 204 }),
+      gateway: { ...gateway, sendCommand: async () => ({ ok: true }) },
       setManualPause: async () => { throw new Error("D1 offline"); },
     })).resolves.toEqual({ status: 503, body: { error: "D1 offline" } });
   });
