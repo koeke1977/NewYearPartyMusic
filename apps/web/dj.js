@@ -1,5 +1,7 @@
 import { createDjApi } from "./modules/dj-api.js";
 import { clearDjToken, getSavedDjToken, saveDjToken } from "./modules/dj-session.js";
+import { element as el } from "./modules/dom.js";
+import { orderedQueued } from "./modules/dj-queue.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -16,7 +18,6 @@ let spotifyStatusInFlight=false;
 let queueDragId=null;
 let queueReorderBusy=false;
 let latestDJOverview=null;
-const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n;};
 const api=createDjApi(()=>token);
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
@@ -34,13 +35,6 @@ function addCover(parent,url,cls){if(!url)return;const img=el("img",cls);img.src
 function trackLine(r,index){
   const row=el("div","queue-track");row.append(el("span","queue-position",String(index+1).padStart(2,"0")));addCover(row,r.album_image_url,"");
   const info=el("div","queue-track-info");info.append(el("strong","",r.track_name),el("span","",r.artist_name));row.append(info,row.appendChild(el("span","queue-state","QUEUED")));return row;
-}
-function orderedQueued(requests,queueOrder=[]){
-  const positions=new Map((Array.isArray(queueOrder)?queueOrder:[]).map((id,index)=>[id,index]));
-  return requests.filter(r=>r.status==="queued").sort((a,b)=>
-    (positions.get(a.id)??Number.MAX_SAFE_INTEGER)-(positions.get(b.id)??Number.MAX_SAFE_INTEGER)||
-    (a.queued_at||a.requested_at||"").localeCompare(b.queued_at||b.requested_at||"")
-  );
 }
 function renderDeck(requests,queueOrder){
   const queued=orderedQueued(requests,queueOrder);
