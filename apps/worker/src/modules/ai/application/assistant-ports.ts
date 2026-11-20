@@ -1,5 +1,27 @@
-import type { AssistantContextSnapshot } from "../infrastructure/assistant-context-repository";
-import type { CachedAssistantAnswer, CachedSpotifyMatch } from "../infrastructure/assistant-settings-repository";
+import type {
+  AssistantPlayedTrack,
+  AssistantQueueTrack,
+  AssistantRequestCount,
+} from "../context/assistant-context";
+
+export type AssistantContextSnapshot = {
+  queue: AssistantQueueTrack[];
+  playedTracks: AssistantPlayedTrack[];
+  requestCounts: AssistantRequestCount[];
+  savedQueueOrder: string | null;
+  djPreferences: string | null;
+  acceptedSetHistory: string | null;
+};
+
+export type CachedSpotifyMatch = {
+  query: string;
+  tracks: Array<Record<string, unknown>>;
+};
+
+export type CachedAssistantAnswer = {
+  answer: string;
+  spotifyMatches: CachedSpotifyMatch[];
+};
 
 export interface AssistantNeuronBudget {
   canAfford(inputCharacters: number, outputTokens: number): boolean;

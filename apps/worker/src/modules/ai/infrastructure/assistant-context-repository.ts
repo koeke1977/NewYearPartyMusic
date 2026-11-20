@@ -3,17 +3,10 @@ import type {
   AssistantQueueTrack,
   AssistantRequestCount,
 } from "../context/assistant-context";
+import type { AssistantContextSnapshot } from "../application/assistant-ports";
+export type { AssistantContextSnapshot } from "../application/assistant-ports";
 
 export type AssistantContextDatabase = Pick<D1Database, "prepare">;
-
-export type AssistantContextSnapshot = {
-  queue: AssistantQueueTrack[];
-  playedTracks: AssistantPlayedTrack[];
-  requestCounts: AssistantRequestCount[];
-  savedQueueOrder: string | null;
-  djPreferences: string | null;
-  acceptedSetHistory: string | null;
-};
 
 /** Loads the bounded, read-only D1 snapshot used to construct an assistant prompt. */
 export async function loadAssistantContextSnapshot(

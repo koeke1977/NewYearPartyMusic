@@ -1,16 +1,8 @@
 import { rememberDJPreference } from "../memory/dj-preferences";
+import type { CachedAssistantAnswer, CachedSpotifyMatch } from "../application/assistant-ports";
+export type { CachedAssistantAnswer, CachedSpotifyMatch } from "../application/assistant-ports";
 
 export type AssistantSettingsDatabase = Pick<D1Database, "prepare">;
-
-export type CachedSpotifyMatch = {
-  query: string;
-  tracks: Array<Record<string, unknown>>;
-};
-
-export type CachedAssistantAnswer = {
-  answer: string;
-  spotifyMatches: CachedSpotifyMatch[];
-};
 
 /** Persist only explicit DJ preferences; ordinary prompts do not cause a profile read. */
 export async function rememberDJPreferenceInDatabase(
