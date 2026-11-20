@@ -28,7 +28,7 @@ The route handlers are substantially thinner than the original Worker entrypoint
 | Guest and DJ request lifecycle | `modules/requests/application/guest-request-lifecycle.ts` | Join, submit, add, moderate and queue-approved workflows |
 | DJ queue management | `modules/requests/application/dj-queue-management.ts` | Overview composition, queue ordering and setting validation |
 | Request retention | `modules/requests/application/cleanup-completed-requests.ts` | 30-day completed/terminal request cleanup policy |
-| Spotify catalogue search | `modules/music/application/search-spotify-tracks.ts` | Query validation, result mapping and guest/DJ search behaviour |
+| Spotify catalogue search | `modules/music/application/search-spotify-tracks.ts` | Query validation, application DTOs and guest/DJ search behaviour through `SpotifyCatalogSearchGateway` |
 | Queue dispatch | `modules/queue/application/dispatch-next-track.ts` | Authoritative NEXT workflow and lease/side-effect sequencing |
 | Playback automation | `modules/playback/application/playback-automation.ts` | Queue advancement and fallback eligibility/retry policy |
 | Playback status | `modules/playback/application/get-dj-spotify-playback-status.ts` | Status result orchestration while preserving existing polling side effects |
@@ -47,9 +47,11 @@ The route handlers are substantially thinner than the original Worker entrypoint
 - `modules/queue/infrastructure/queue-dispatch-d1-repository.ts`: D1 lease, ordered queue reads, conditional played transition and playback-state writes.
 - `modules/playback/infrastructure/playback-policy-repository.ts`: fallback policy state, retry/lease state and manual-pause persistence.
 - `modules/ai/infrastructure/assistant-context-repository.ts`, `assistant-settings-repository.ts` and `neuron-budget.ts`: bounded context reads, preference/cache/cooldown persistence and daily usage tracking.
-- `integrations/spotify/catalog-token.ts`, `catalog-api.ts`: public catalogue client-credentials flow and search/track endpoints.
+- `integrations/spotify/catalog-token.ts`, `catalog-api.ts`: public catalogue client-credentials flow, Spotify wire parsing and typed catalogue gateway implementation.
+- `integrations/spotify/playback-control-gateway.ts`: Spotify device, volume and transport HTTP response normalization into the application-owned playback-control port.
 - `integrations/spotify/user-auth-service.ts` and `user-auth-repository.ts`: DJ OAuth token exchange, encryption lifecycle, refresh rotation, authenticated API calls and token persistence.
 - `integrations/spotify/playback-api.ts`: Spotify playback endpoint paths, methods and payloads.
+- `modules/playback/application/playback-ports.ts`: typed playback status and control gateway contracts; playback control use cases no longer consume Fetch `Response` objects.
 - `integrations/spotify/playback-status-gateway.ts`: Spotify playback wire-response parsing and normalization into the application-owned typed gateway contract.
 - `integrations/ai/cloudflare-ai.ts`: Cloudflare Workers AI invocation and response/tool-call normalization.
 - `integrations/ai/spotify-catalog-search.ts`: bounded, read-only Spotify catalogue search tool exposed to the assistant.
@@ -104,3 +106,12 @@ GitHub Actions run [44769018405](https://github.com/koeke1977/NewYearPartyMusic/
 - Desktop/responsive screenshot baseline capture.
 
 The screenshot artifact `partyqueue-ui-baseline` was uploaded successfully. This validates the current behaviour and tests; the architecture work below remains open. The current deployed Cloudflare resources are test-only, not a live production service.
+
+## Follow-up: Spotify catalogue and playback-control ports — 2026-11-20
+
+- Introduced an application-owned `CatalogTrack` DTO and `SpotifyCatalogSearchGateway`. Guest and DJ catalogue use cases now depend on typed results rather than Spotify wire DTOs or Fetch `Response` objects.
+- Added Spotify response normalization to the catalogue integration adapter, including validation of required track fields and typed handling of rate limits/provider errors.
+- Introduced `SpotifyPlaybackControlGateway` for device discovery, volume and transport commands. The playback application maps typed results to the existing API response contract; Spotify HTTP status/body parsing remains in the integration adapter.
+- Preserved guest/DJ search payloads, query limits, rate-limit responses, device JSON field names, volume validation, transport command behaviour and bounded error detail.
+- Added use-case and integration tests for success, provider failures, malformed catalogue payloads, 204 playback success and error-detail bounds.
+- Current-head CI is running; update this section with the exact result after it completes.
