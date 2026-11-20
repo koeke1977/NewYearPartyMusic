@@ -22,7 +22,7 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
   };
   return executeDJAssistant({
     eventId: env.EVENT_ID, eventName: env.EVENT_NAME, ai: env.AI,
-    localAI: createLocalAIBridgeClient({ url: env.LOCAL_AI_BRIDGE_URL, token: env.LOCAL_AI_BRIDGE_TOKEN }),
+    localAI: createLocalAIBridgeClient({ url: env.LOCAL_AI_BRIDGE_URL, token: env.LOCAL_AI_BRIDGE_TOKEN,\n      accessClientId: env.LOCAL_AI_ACCESS_CLIENT_ID, accessClientSecret: env.LOCAL_AI_ACCESS_CLIENT_SECRET }),
     prompt, repository, hash: sha256,
   });
 }
