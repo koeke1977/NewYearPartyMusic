@@ -24,9 +24,9 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Current function / route | Current mixed responsibility | Intended owner |
 |---|---|---|
 | `requireDJ` | DJ role/event authorization | Identity application service / DJ auth middleware |
-| `POST /api/guests/join` | Input validation, event-code verification, active-event query, guest insert, session issue | Guest join use case + Guest repository + Identity service |
+| `POST /api/guests/join` | HTTP body parsing and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Identity session-token service |
 | `GET /api/spotify/search` | Guest authorization, Spotify HTTP request, Spotify response mapping | Search use case + Spotify catalogue adapter |
-| `POST /api/requests` | Guest validation, settings lookup, rate/duplicate policy, Spotify track verification, insert | Submit-request use case + Request/Guest/Settings repositories + Spotify catalogue adapter |
+| `POST /api/requests` | Guest session authorization, input validation and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Spotify catalogue adapter |
 | `POST /api/dj/login` | DJ code validation and session issue | DJ authentication use case |
 | `POST /api/dj/ai/assistant` | Preference persistence, history/context assembly, event-time logic, prompt construction, provider call, tool dispatch, cache, quota/error mapping | AI orchestrator + context assembler + memory repository + prompt catalog + Cloudflare AI provider + Spotify search tool |
 | `POST /api/dj/ai/music/search` | DJ validation, query normalization, Spotify search and result mapping | AI music-search use case + Spotify catalogue adapter |
