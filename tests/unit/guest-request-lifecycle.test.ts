@@ -4,7 +4,7 @@ import { joinPartyGuest, submitGuestTrackRequest } from "../../apps/worker/src/m
 
 function fakeDb(options: {
   event?: unknown; guest?: unknown; settings?: Array<{key:string;value:string}>;
-  count?: number; openCount?: number; duplicate?: unknown;
+  count?: number; openCount?: number; duplicate?: unknown; insertChanges?: number;
 } = {}) {
   const calls: Array<{sql:string;values:unknown[]}> = [];
   const db = {
@@ -22,7 +22,7 @@ function fakeDb(options: {
           return null;
         },
         async all() { calls.push({sql,values:[...values]}); return {results:options.settings ?? []}; },
-        async run() { calls.push({sql,values:[...values]}); return {meta:{changes:1}}; },
+        async run() { calls.push({sql,values:[...values]}); return {meta:{changes:sql.startsWith("INSERT INTO requests") ? (options.insertChanges ?? 1) : 1}}; },
       };
       return statement;
     },
@@ -115,6 +115,16 @@ describe("guest request lifecycle", () => {
     expect(insert?.values).toContain("queued");
     expect(insert?.values).toContain("Artist A, Artist B");
     expect(insert?.values).toContain("https://image.example/medium");
+  });
+
+  it("rejects a duplicate when another request wins the concurrent insert race", async () => {
+    const {db,calls}=fakeDb({insertChanges:0});
+    const result=await submitGuestTrackRequest({
+      repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
+    });
+    expect(result).toMatchObject({status:409,body:{error:"Dit nummer staat al in de wachtrij."}});
+    expect(calls.some(call=>call.sql.startsWith("INSERT INTO requests"))).toBe(true);
   });
 
   it("does not insert when Spotify no longer returns the selected track", async () => {
