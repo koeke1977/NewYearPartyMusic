@@ -71,4 +71,3 @@ describe("DJ Spotify playback controls", () => {
     })).resolves.toEqual({ status: 503, body: { error: "D1 offline" } });
   });
 });
-\n
