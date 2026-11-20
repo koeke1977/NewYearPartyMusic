@@ -222,7 +222,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
     requestMix: Object.fromEntries((countRows.results||[]).map(row=>[row.status,row.count]))
   };
   const djKnowledge = "DJ KNOWLEDGE (compact rules): Build a set in short coherent blocks of 2–3 tracks, then bridge into the next style; avoid abrupt genre jumps and long repetitive blocks. Think in energy levels: low = relaxed/chill, medium = singalong/pop/indie groove, high = dance/EDM/rock anthems. Treat these labels as estimates from track/artist names only; never claim BPM, key, tempo or mood as measured facts. Shape a broad arc: warm-up, gradual lift, peak, brief breather when useful, then another peak or singalong finish. For transitions, match a shared artist, era, vocal feel or broad style; suggest a familiar bridge track only as an outside suggestion. When asked to reorder, return a concrete numbered order using every track actually listed in upNext exactly once. Explain transitions only when requested. If the queue is too short or metadata is ambiguous, say so rather than guessing.";
-  const system = "You are DJ#DATUUR AI, a concise Dutch-language assistant for a live party DJ. Analyse only the supplied PartyQueue metadata. Give practical, specific advice in Dutch. Never claim to hear audio, know the crowd, access Spotify audio, or control playback. Never invent queued tracks; clearly label any outside suggestion. The DJ always decides. Keep normal advice under 120 words, but when asked for a complete numbered queue order or a numbered music selection include every requested track even if that exceeds 120 words.\n\n" + djKnowledge;
+  const system = "You are DJ#DATUUR AI, a concise Dutch-language assistant for a live party DJ. Analyse only the supplied PartyQueue metadata. Give practical, specific advice in Dutch. Never claim to hear audio, know the crowd, access Spotify audio, or control playback. Never invent queued tracks; clearly label any outside suggestion. The DJ always decides. Keep normal advice under 120 words. When the DJ asks for 20 tracks, return exactly 20 concrete numbered tracks, one per line, in the format "1. Titel — Artiest". Never stop early; no intro or outro around a requested track list. When asked for a complete numbered queue order, include every requested track even if that exceeds 120 words.\n\n" + djKnowledge;
   const user = "PARTYQUEUE CONTEXT:\n"+JSON.stringify(context)+"\n\nDJ QUESTION:\n"+prompt;
   const provider = (c.env.AI_PROVIDER || "cloudflare").toLowerCase();
   // Reuse an identical answer for ten minutes while the queue context remains unchanged.
@@ -241,19 +241,19 @@ app.post("/api/dj/ai/assistant", async (c) => {
     let answer = "";
     if (provider === "openai") {
       if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI is nog niet geconfigureerd. Voeg OPENAI_API_KEY toe als Worker secret." }, 503);
-      const response = await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+c.env.OPENAI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({model:c.env.OPENAI_MODEL||"gpt-6-luna",messages:[{role:"developer",content:system},{role:"user",content:user}],max_completion_tokens:220})});
+      const response = await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+c.env.OPENAI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({model:c.env.OPENAI_MODEL||"gpt-6-luna",messages:[{role:"developer",content:system},{role:"user",content:user}],max_completion_tokens:850})});
       const data:any=await response.json(); if(!response.ok)throw new Error("OpenAI HTTP "+response.status+": "+JSON.stringify(data.error||{}).slice(0,220));
       answer=data.choices?.[0]?.message?.content||"Geen antwoord ontvangen.";
     } else if (provider === "anthropic") {
       if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "Claude is nog niet geconfigureerd. Voeg ANTHROPIC_API_KEY toe als Worker secret." }, 503);
-      const response = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"x-api-key":c.env.ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},body:JSON.stringify({model:c.env.ANTHROPIC_MODEL||"claude-haiku-5-5",max_tokens:240,system,messages:[{role:"user",content:user}]})});
+      const response = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"x-api-key":c.env.ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},body:JSON.stringify({model:c.env.ANTHROPIC_MODEL||"claude-haiku-5-5",max_tokens:850,system,messages:[{role:"user",content:user}]})});
       const data:any=await response.json(); if(!response.ok)throw new Error("Claude HTTP "+response.status+": "+JSON.stringify(data.error||{}).slice(0,220));
       answer=(data.content||[]).filter((part:any)=>part.type==="text").map((part:any)=>part.text).join("\n")||"Geen antwoord ontvangen.";
     } else {
       if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
       const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/google/gemma-4-26b-a4b-it",{
         messages:[{role:"system",content:system},{role:"user",content:user}],
-        max_tokens:320,
+        max_tokens:850,
         temperature:0.4,
         chat_template_kwargs:{enable_thinking:false}
       });
