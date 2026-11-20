@@ -31,7 +31,7 @@ describe("executeDJAssistant", () => {
 
   it("returns a cached answer without claiming the cooldown or invoking AI", async () => {
     const repository = createRepository();
-    vi.mocked(repository.readAnswerCache).mockResolvedValue({ answer: "Prima!", spotifyMatches: [] });
+    vi.mocked(repository.readAnswerCache).mockResolvedValue({ answer: "Prima!" });
     const result = await executeDJAssistant({
       eventId: "event-1", eventName: "Test Party",
       prompt: "Geef me disco-advies", repository, hash: async value => value,
