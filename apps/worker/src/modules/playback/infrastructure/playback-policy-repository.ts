@@ -1,0 +1,46 @@
+export type PlaybackPolicyDatabase = Pick<D1Database, "prepare">;
+export type LastPartyQueueTrack = { uri: string; durationMs: number; startedAt: number };
+
+export async function readPlaybackSetting(db: PlaybackPolicyDatabase, key: string): Promise<{ value: string; updated_at?: string } | null> {
+  return db.prepare("SELECT value,updated_at FROM settings WHERE key=?").bind(key).first<{ value: string; updated_at?: string }>();
+}
+
+export async function readQueuedRequestCount(db: PlaybackPolicyDatabase, eventId: string): Promise<number> {
+  const row = await db.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(eventId).first<{ count: number }>();
+  return row?.count || 0;
+}
+
+export async function claimSpotifyFallbackStart(db: PlaybackPolicyDatabase): Promise<boolean> {
+  const result = await db.prepare(
+    "INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','starting',CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(key) DO UPDATE SET value='starting',updated_at=CURRENT_TIMESTAMP " +
+    "WHERE settings.value NOT IN ('true','starting') OR settings.updated_at < datetime('now','-1 minute')",
+  ).run();
+  return Boolean(result.meta.changes);
+}
+
+export async function setSpotifyFallbackState(db: PlaybackPolicyDatabase, value: "true" | "false"): Promise<void> {
+  await db.prepare(
+    "INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active',?,CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
+  ).bind(value).run();
+}
+
+export async function setSpotifyFallbackError(db: PlaybackPolicyDatabase, message: string): Promise<void> {
+  await db.prepare(
+    "INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_error',?,CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
+  ).bind(message).run();
+}
+
+export async function setSpotifyFallbackRetryAfter(db: PlaybackPolicyDatabase, timestamp: number): Promise<void> {
+  await db.prepare(
+    "INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_retry_after',?,CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
+  ).bind(String(timestamp)).run();
+}
+
+export async function clearSpotifyFallbackFailure(db: PlaybackPolicyDatabase): Promise<void> {
+  await db.prepare("DELETE FROM settings WHERE key='spotify_fallback_retry_after'").run();
+  await db.prepare("DELETE FROM settings WHERE key='spotify_fallback_error'").run();
+}
