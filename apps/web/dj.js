@@ -10,6 +10,7 @@ import { createLatestTaskQueue } from "./modules/dj-latest-task-queue.js";
 import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackSummary } from "./modules/dj-playback-state.js";
 import { createDjPlaybackCoordinator } from "./modules/dj-playback-coordinator.js";
 import { buildDjChatGptPrompt } from "./modules/dj-chatgpt-handoff.js";
+import { resolveDjAiPrompt } from "./modules/dj-ai-intent.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -481,7 +482,11 @@ async function askDJAI(prompt,mode="advice"){
 aiForm.addEventListener("submit",async event=>{
   event.preventDefault();
   const prompt=document.querySelector("#dj-ai-prompt").value.trim();
-  if(prompt){const out=document.querySelector("#dj-ai-answer");const importIntent=/\b(zet|voeg|importeer|plaats)\b[\s\S]{0,100}\b(lijst|muzieklijst|nummers|tracks|wachtrij|up\s*next)\b/i.test(prompt);const reorderIntent=/\b(optimaliseer|herschik|herorden|verplaats|zet)\b/i.test(prompt)&&/\b(wachtrij|up\s*next|volgorde|blok|tussen|ballades|stijl|genre|jaren|90s|80s|70s)\b/i.test(prompt);const extractTracks=value=>value.split(/\r?\n/).filter(line=>/^\s*\d+[.)]\s*.+\s+[—–-]\s+.+/.test(line));let source=prompt;let trackLines=extractTracks(source);if(importIntent&&trackLines.length===0){const previous=out.innerText||out.textContent||"";const previousTracks=extractTracks(previous);if(previousTracks.length>=2){source=previousTracks.join("\\n");trackLines=previousTracks;}}if(reorderIntent){await askDJAI("Pas deze DJ-instructie toe op de volledige huidige UP NEXT-wachtrij: "+prompt+". Geef ALLEEN een genummerde lijst met alle bestaande tracks exact één keer, geen nummers toevoegen of weglaten.", "optimize");}else if(importIntent&&trackLines.length>0){await askDJAI(source,"import");}else if(importIntent){await askDJAI("De DJ wil deze specifieke track(s) toevoegen aan UP NEXT. Geef alleen de gevraagde track(s) als genummerde lijst in exact het formaat Titel — Artiest. Voeg geen andere suggesties toe. Verzoek: "+prompt,"fill");}else{await askDJAI(source,"advice");}}
+  if(prompt){
+    const output=document.querySelector("#dj-ai-answer");
+    const resolved=resolveDjAiPrompt(prompt,output.innerText||output.textContent||"");
+    if(resolved)await askDJAI(resolved.prompt,resolved.mode);
+  }
 });
 document.querySelectorAll("[data-ai-action]").forEach(button=>button.addEventListener("click",async()=>{
   const action=button.dataset.aiAction;
