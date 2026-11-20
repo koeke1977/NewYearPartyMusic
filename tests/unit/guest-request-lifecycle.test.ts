@@ -124,7 +124,7 @@ describe("guest request lifecycle", () => {
       createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
     });
     expect(result).toMatchObject({status:409,body:{error:"Dit nummer staat al in de wachtrij."}});
-    expect(calls.some(call=>call.sql.startsWith("INSERT INTO requests"))).toBe(true);
+    expect(calls.some(call=>call.sql.includes("INTO requests"))).toBe(true);
   });
 
   it("does not insert when Spotify no longer returns the selected track", async () => {
@@ -134,6 +134,6 @@ describe("guest request lifecycle", () => {
       createId:()=>"request",trackGateway:{getTrack:async()=>null},
     });
     expect(result).toMatchObject({status:400});
-    expect(calls.some(call=>call.sql.startsWith("INSERT INTO requests"))).toBe(false);
+    expect(calls.some(call=>call.sql.includes("INTO requests"))).toBe(false);
   });
 });
