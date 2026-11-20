@@ -98,14 +98,18 @@ export async function readAutoQueueSetting(db: GuestRequestDatabase): Promise<bo
   return row?.value === "true";
 }
 
-export async function updateRequestStatus(
-  db: GuestRequestDatabase, eventId: string, requestId: string, status: string,
-  timestampColumn: "approved_at" | "queued_at" | "played_at" | null,
-): Promise<void> {
-  const sql = timestampColumn
-    ? "UPDATE requests SET status = ?, " + timestampColumn + " = CURRENT_TIMESTAMP WHERE id = ? AND event_id = ?"
-    : "UPDATE requests SET status = ? WHERE id = ? AND event_id = ?";
-  await db.prepare(sql).bind(status, requestId, eventId).run();
+export async function transitionRequestStatus(
+  db: GuestRequestDatabase, eventId: string, requestId: string, fromStatuses: string[],
+  status: string, timestampColumn: "approved_at" | "queued_at" | "played_at" | null,
+): Promise<boolean> {
+  if (fromStatuses.length === 0) return false;
+  const timestamp = timestampColumn ? ", " + timestampColumn + " = CURRENT_TIMESTAMP" : "";
+  const placeholders = fromStatuses.map(() => "?").join(",");
+  const result = await db.prepare(
+    "UPDATE requests SET status = ?" + timestamp +
+    " WHERE id = ? AND event_id = ? AND status IN (" + placeholders + ")",
+  ).bind(status, requestId, eventId, ...fromStatuses).run();
+  return result.meta.changes === 1;
 }
 
 export async function moveApprovedRequestToQueue(
