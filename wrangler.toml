@@ -48,6 +48,7 @@ run_worker_first = ["/api/*", "/auth/*"]
 binding = "DB"
 database_name = "partyqueue-production-db"
 database_id = "0599c4f5-cd8c-4e8f-9557-54dd63690d29"
+migrations_dir = "./db/migrations"
 
 [env.production.durable_objects]
 bindings = [
