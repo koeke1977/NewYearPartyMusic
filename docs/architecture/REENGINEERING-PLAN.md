@@ -331,3 +331,13 @@ The current Cloudflare Worker, D1 and Spotify OAuth state are test-only and disp
 - The Spotify integration adapter now owns wire parsing for both search and individual track lookup.
 - Guest request submission and DJ track insertion consume that DTO through the request-owned track gateway; composition only wires the adapter and D1 repository.
 - Updated request lifecycle and Spotify adapter tests for normalized artist arrays, album images, missing tracks and malformed provider payloads.
+
+
+## Follow-up: atomic request concurrency controls — 2026-11-20
+
+The request lifecycle now protects two concurrency-sensitive state changes at the D1 boundary:
+
+1. **One active request per track/event.** The bootstrap schema defines a partial unique index over `(event_id, spotify_track_id)` while the request is `pending`, `approved` or `queued`. Guest and DJ inserts use conflict-safe `INSERT OR IGNORE`; the application maps the conflict to the existing guest 409 response or DJ `alreadyQueued` response. Terminal states release the index key.
+2. **DJ moderation state transitions.** The repository updates a request only when its current status is one of the transition's allowed source states. A concurrent stale action changes zero rows and returns a conflict rather than overwriting the winning action.
+
+The new regressions cover both races. Full CI run [44777146224](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44777146224) passed on commit `0cf0cbc979e759d584ca20dfee71e8dc7d664cb6`.

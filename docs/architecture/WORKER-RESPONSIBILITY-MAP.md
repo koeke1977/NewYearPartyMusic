@@ -43,6 +43,7 @@ The route handlers are substantially thinner than the original Worker entrypoint
 - `modules/identity/session-token.ts`: pure signed session-token policy; consumes an injected cryptographic port.
 - `platform/composition/session-token.ts`: binds session-token policy to the platform HMAC/base64url primitives.
 - `modules/requests/infrastructure/guest-request-d1-repository.ts`: D1 implementation of the guest/request repository port.
+- `db/schema.sql`: partial unique index `idx_requests_one_active_track` enforces one active request per Spotify track per event; terminal states release the key.
 - `modules/requests/application/guest-request-lifecycle.ts`: consumes the shared normalized `CatalogTrack` DTO and a typed track-lookup port; it does not parse Spotify wire data.
 - `modules/requests/infrastructure/dj-queue-d1-repository.ts`: DJ overview, saved queue order and settings persistence.
 - `modules/requests/infrastructure/request-retention-repository.ts`: completed-request retention persistence.
@@ -95,20 +96,22 @@ These are infrastructure composition adapters, not domain/application modules.
 - Preserve queue dispatch lease expiry, ordering and only-mark-played-after-Spotify-success semantics.
 - Preserve playback polling auto-advance/fallback behaviour.
 - Preserve D1 event scoping, guest rate limits, duplicate checks, request transitions and 30-day cleanup rules.
+- Active-track uniqueness is enforced by a partial unique index over `(event_id, spotify_track_id)` for `pending`, `approved` and `queued`; both guest and DJ insert paths use conflict-safe inserts.
+- DJ moderation transitions use a conditional `UPDATE ... WHERE status IN (...)`; stale concurrent actions return the existing conflict response rather than overwriting a newer state.
 - The current Cloudflare Worker, D1 and Spotify OAuth connection are test-only. Test rows/tokens are disposable and may be reset or recreated during architecture work. Keep secrets protected and never commit them.
 
 ## Validation status
 
-GitHub Actions run [44774538622](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44774538622) passed on head `719c9d6058133ee826223fb0a3c23dadcf337fb0`:
+GitHub Actions run [44777146224](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44777146224) passed on current head `0cf0cbc979e759d584ca20dfee71e8dc7d664cb6`:
 
 - TypeScript validation.
 - Worker and browser architecture-boundary checks.
-- All unit and security tests, including typed Spotify adapters and schema checks.
+- All unit and security tests, including concurrent duplicate insertion and stale moderation transition regressions.
 - Cloudflare Worker bundle dry-run.
 - Guest and DJ browser journeys.
 - Desktop/responsive screenshot baseline capture and artifact upload.
 
-The current branch head has subsequent documentation-only commits. The current Cloudflare Worker, D1 and Spotify OAuth connection remain test-only and disposable; no real-event release or external deployment was performed.
+The current Cloudflare Worker, D1 and Spotify OAuth connection remain test-only and disposable; no real-event release or external deployment was performed.
 
 ## Follow-up: Spotify catalogue and playback-control ports — 2026-11-20
 
@@ -126,3 +129,12 @@ The current branch head has subsequent documentation-only commits. The current C
 - The Spotify integration now normalizes both catalogue search results and individual track lookups, including required-field validation and album-image selection.
 - Guest request and DJ-added-track workflows receive the same typed DTO. `platform/composition/guest-workflows.ts` no longer parses Spotify JSON or passes Fetch `Response` objects into application workflows.
 - Preserved not-found behaviour, error mapping, artist order, album-image selection and request persistence payloads.
+
+
+## Follow-up: D1 request concurrency invariants — 2026-11-20
+
+- Added the partial unique index `idx_requests_one_active_track` on `(event_id, spotify_track_id)` for active request states `pending`, `approved` and `queued`.
+- Request insertion now uses `INSERT OR IGNORE` and returns whether D1 inserted the row. Guest requests map a concurrent duplicate to HTTP 409; DJ additions return `alreadyQueued` and do not append a duplicate queue-order entry.
+- Moderation writes now include the expected previous status in the SQL predicate. If another action wins first, the stale action returns HTTP 409 and cannot overwrite the new status.
+- Terminal states (`played`, `rejected`, `failed`) release the unique active-track key, so the track can be requested again later.
+- Regression tests cover guest/DJ duplicate-insert races and stale moderation updates. Complete CI run [44777146224](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44777146224) passed all checks and browser baselines.
