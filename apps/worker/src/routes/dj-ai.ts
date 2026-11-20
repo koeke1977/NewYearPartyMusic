@@ -4,10 +4,10 @@ import { executeDJAssistant } from "../modules/ai/application/execute-dj-assista
 import { addDjTrackToPartyQueue } from "../modules/requests/application/guest-request-lifecycle";
 import { searchDjSpotifyTracks } from "../modules/music/application/search-spotify-tracks";
 import { searchSpotifyTracks, getSpotifyTrack } from "../integrations/spotify/catalog-api";
-import { requireDJ } from "./dj-auth";
+import { requireDJSession } from "./dj-auth";
 export const djAiRoutes = new Hono<{ Bindings: Env }>();
+djAiRoutes.use("/api/dj/*", requireDJSession);
 djAiRoutes.post("/api/dj/ai/assistant", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   let body: { prompt?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";

@@ -2,10 +2,10 @@ import { Hono } from "hono";
 import type { Env } from "../platform/env";
 import { getDjOverview, reorderDjQueue, updateDjSetting } from "../modules/requests/application/dj-queue-management";
 import { moderatePartyRequest } from "../modules/requests/application/guest-request-lifecycle";
-import { requireDJ } from "./dj-auth";
+import { requireDJSession } from "./dj-auth";
 export const djRequestRoutes = new Hono<{ Bindings: Env }>();
+djRequestRoutes.use("/api/dj/*", requireDJSession);
 djRequestRoutes.get("/api/dj/overview", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   return c.json(await getDjOverview({ db: c.env.DB, eventId: c.env.EVENT_ID }));
 });
 djRequestRoutes.post("/api/dj/queue/reorder", async (c) => {

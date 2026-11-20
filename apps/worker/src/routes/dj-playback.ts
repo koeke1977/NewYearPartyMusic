@@ -7,10 +7,10 @@ import { executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume } fro
 import { readSpotifyFallbackError, setSpotifyManualPause } from "../modules/playback/infrastructure/playback-policy-repository";
 import { queueApprovedPartyRequest } from "../modules/requests/application/guest-request-lifecycle";
 import { maybeAdvancePartyQueue, maybeStartSpotifyFallback, startNextPartyQueueRequest } from "./dj-playback-workflows";
-import { requireDJ } from "./dj-auth";
+import { requireDJSession } from "./dj-auth";
 export const djPlaybackRoutes = new Hono<{ Bindings: Env }>();
+djPlaybackRoutes.use("/api/dj/*", requireDJSession);
 djPlaybackRoutes.get("/api/dj/spotify/status", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
   const spotify = spotifyFetch.bind(null, c.env);
   const result = await getDjSpotifyPlaybackStatus({
     getCurrentPlayback: () => getCurrentPlayback(spotify),
@@ -31,7 +31,6 @@ djPlaybackRoutes.get("/api/dj/spotify/devices", async (c) => {
   return c.json(result.body, result.status);
 });
 djPlaybackRoutes.post("/api/dj/spotify/next-request",async(c)=>{
-  if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
   const result=await startNextPartyQueueRequest(c.env);
   if(result.busy)return c.json({ok:false,busy:true,error:result.error||"Een andere NEXT-actie wordt al verwerkt."});
   if(!result.ok)return c.json({error:result.error||"Volgende aanvraag starten is mislukt."},409);
