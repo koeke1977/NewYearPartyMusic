@@ -13,6 +13,7 @@ function fakeDb(options:{
   savedOrder?:string;
   updateChanges?:number;
   insertChanges?:number;
+  duplicateAfterInsert?:{id:string;status:string}|null;
 }={}){
   const calls:Array<{sql:string;values:unknown[]}>= [];
   const db={
@@ -22,7 +23,7 @@ function fakeDb(options:{
         bind(...args:unknown[]){values=args;return statement;},
         async first(){
           calls.push({sql,values:[...values]});
-          if(sql.includes("spotify_track_id"))return options.duplicate??null;
+          if(sql.includes("spotify_track_id"))return insertAttempted ? (options.duplicateAfterInsert ?? options.duplicate ?? null) : (options.duplicate ?? null);
           if(sql.includes("SELECT id,status FROM requests"))return options.current===undefined?{id:"req-1",status:"pending"}:options.current;
           if(sql.includes("SELECT value FROM settings WHERE key = ?"))return {value:options.autoQueue??"false"};
           if(sql.includes("SELECT value FROM settings WHERE key='partyqueue_order'"))return {value:options.savedOrder??'["old"]'};
@@ -30,6 +31,7 @@ function fakeDb(options:{
         },
         async run(){
           calls.push({sql,values:[...values]});
+          if(sql.includes("INTO requests")) insertAttempted = true;
           return {meta:{changes:sql.includes("INTO requests") ? (options.insertChanges??1) : (options.updateChanges??1)}};
         },
       };
@@ -118,7 +120,7 @@ describe("DJ request lifecycle",()=>{
   });
 
   it("treats a concurrent DJ add as already queued without changing saved order",async()=>{
-    const {db,calls}=fakeDb({insertChanges:0,duplicate:{id:"raced-request",status:"queued"}});
+    const {db,calls}=fakeDb({insertChanges:0,duplicateAfterInsert:{id:"raced-request",status:"queued"}});
     const result=await addDjTrackToPartyQueue({
       repository:createGuestRequestRepository(db),eventId:"event-1",trackId:track.id,createId:()=>"new-request",
       trackGateway:{getTrack:async()=>track},
