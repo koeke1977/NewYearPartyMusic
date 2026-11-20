@@ -1,7 +1,6 @@
 import { createLatestTaskQueue } from "./dj-latest-task-queue.js";
 import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./dj-playback-display.js";
 import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackSummary } from "./dj-playback-state.js";
-import { element as el } from "./dom.js";
 
 // Owns the Spotify-facing DJ console UI, status refresh and playback control bindings.
 export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {}, onQueuePreview = () => {}, documentRef = document, windowRef = window }) {
