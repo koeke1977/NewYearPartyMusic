@@ -15,7 +15,7 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
     rememberPreference: (eventId, value) => rememberDJPreferenceInDatabase(env.DB, eventId, value),
     loadContext: eventId => loadAssistantContextSnapshot(env.DB, eventId),
     readAnswerCache: key => readAssistantAnswerCache(env.DB, key),
-    writeAnswerCache: (key, answer, matches) => writeAssistantAnswerCache(env.DB, key, answer, matches),
+    writeAnswerCache: (key, answer) => writeAssistantAnswerCache(env.DB, key, answer),
     claimRateLimit: () => claimAssistantRateLimit(env.DB),
     createNeuronBudget: () => createDailyAssistantNeuronBudget(createD1AssistantNeuronUsageRepository(env.DB)),
   };
