@@ -39,6 +39,8 @@ describe("DJ assistant orchestration", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    runCloudflareAI.mockReset();
+    searchSpotifyCatalog.mockReset();
   });
 
   it("runs a simple answer with one provider call and no Spotify tool", async () => {
@@ -74,7 +76,7 @@ describe("DJ assistant orchestration", () => {
     runCloudflareAI.mockResolvedValueOnce({ response: "Hou het energiek." });
     await runDJAssistantTurn(ai, "model", "system", "advies", makeBudget(), searchSpotifyCatalog);
     expect(runCloudflareAI).toHaveBeenCalledTimes(1);
-    expect(searchSpotifyCatalogForAssistant).not.toHaveBeenCalled();
+    expect(searchSpotifyCatalog).not.toHaveBeenCalled();
   });
 
   it("normalizes array content and bounds the final answer", async () => {
@@ -87,7 +89,7 @@ describe("DJ assistant orchestration", () => {
   it("skips the follow-up model call when the remaining daily budget is insufficient", async () => {
     runCloudflareAI
       .mockResolvedValueOnce({ tool_calls: [{ name: "searchSpotifyTracks", arguments: { queries: ["Stardust"] } }] });
-    searchSpotifyCatalogForAssistant.mockResolvedValueOnce([{
+    searchSpotifyCatalog.mockResolvedValueOnce([{
       query: "Stardust",
       tracks: [{ id: "track-id", uri: "spotify:track:track-id", name: "Music Sounds Better With You", artists: ["Stardust"], durationMs: 240000, albumImageUrl: null }],
     }]);
