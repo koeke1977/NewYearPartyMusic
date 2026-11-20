@@ -464,17 +464,23 @@ async function askDJAI(prompt,mode="advice"){
         const chosen=selectedTracks.filter(item=>item.pick.checked);
         if(!chosen.length)return;
         addSelected.disabled=true;addSelected.textContent="NUMMERS WORDEN TOEGEVOEGD…";
-        let added=0,failed=[];
+        let added=0,alreadyThere=0,failed=[];
         for(const item of chosen){
           try{
-            await api("/api/dj/ai/music/add",{method:"POST",body:JSON.stringify({trackId:item.track.id})});
-            added++;
+            const result=await api("/api/dj/ai/music/add",{method:"POST",body:JSON.stringify({trackId:item.track.id})});
+            if(result.alreadyQueued)alreadyThere++;
+            else added++;
           }catch(error){failed.push(item.track.name+": "+error.message);}
         }
         await refresh();
         addSelected.textContent=added+" NUMMERS TOEGEVOEGD";
-        const summary=el("p","dj-ai-results-hint",added+" nummers toegevoegd aan UP NEXT."+ (failed.length?" Niet toegevoegd: "+failed.join("; "):""));
-        output.append(summary);
+        const parts=[];
+        if(added)parts.push(added+" nieuw toegevoegd aan UP NEXT");
+        if(alreadyThere)parts.push(alreadyThere+" stonden al in de actieve wachtrij en zijn overgeslagen");
+        if(!parts.length)parts.push("Geen nieuwe nummers toegevoegd");
+        if(failed.length)parts.push("Fouten: "+failed.join("; "));
+        output.append(el("p","dj-ai-results-hint",parts.join(". ")+"."));
+
       });
       output.append(addSelected);
       }else{
