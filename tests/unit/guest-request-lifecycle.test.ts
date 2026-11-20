@@ -67,25 +67,25 @@ describe("guest request lifecycle", () => {
   it("enforces event-scoped guest, pause, hourly limit and duplicate checks", async () => {
     const missing=fakeDb({guest:null});
     expect(await submitGuestTrackRequest({
-      db:missing.db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      repository:createGuestRequestRepository(missing.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:401});
 
     const paused=fakeDb({settings:[{key:"requests_paused",value:"true"}]});
     expect(await submitGuestTrackRequest({
-      db:paused.db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      repository:createGuestRequestRepository(paused.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:403});
 
     const limited=fakeDb({count:20});
     expect(await submitGuestTrackRequest({
-      db:limited.db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      repository:createGuestRequestRepository(limited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:429});
 
     const duplicate=fakeDb({duplicate:{id:"existing"}});
     expect(await submitGuestTrackRequest({
-      db:duplicate.db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      repository:createGuestRequestRepository(duplicate.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:409});
   });
