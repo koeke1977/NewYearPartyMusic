@@ -11,6 +11,7 @@ import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackS
 import { createDjPlaybackCoordinator } from "./modules/dj-playback-coordinator.js";
 import { buildDjChatGptPrompt } from "./modules/dj-chatgpt-handoff.js";
 import { resolveDjAiPrompt } from "./modules/dj-ai-intent.js";
+import { createDjOverviewModel } from "./modules/dj-overview-model.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -172,22 +173,16 @@ function render(data){
   document.querySelector("#pause-state").textContent=currentSettings.requestsPaused?"PAUSED":"ACCEPTING";
   document.querySelector("#approval-state").textContent=currentSettings.autoApprove?"AUTO":"DJ";
 
-  const requests=data.requests||[];
-  const count=(s)=>requests.filter(r=>r.status===s).length;
-  const activeStatuses=["pending","approved","queued"];
-  const musicRequested=requests.filter(r=>[...activeStatuses,"played"].includes(r.status)).reduce((sum,r)=>sum+(Number(r.duration_ms)||0),0);
-  const musicRemaining=requests.filter(r=>activeStatuses.includes(r.status)).reduce((sum,r)=>sum+(Number(r.duration_ms)||0),0);
+  const overview=createDjOverviewModel(data);
+  const {requests,queueOrder,queued,liveRequests,queuePositions,nextQueued}=overview;
   const stats=document.querySelector("#dj-stats");stats.replaceChildren(
-    stat("AANVRAGEN",requests.length,"♫"),
-    stat("IN WACHTRIJ",count("queued"),"☷"),
-    stat("GESPEELD",count("played"),"✓"),
-    stat("MUZIEK GEKOZEN",formatMusicTime(musicRequested),"♧"),
-    stat("NOG TE SPELEN",formatMusicTime(musicRemaining),"⌛")
+    stat("AANVRAGEN",overview.counts.total,"♫"),
+    stat("IN WACHTRIJ",overview.counts.queued,"☷"),
+    stat("GESPEELD",overview.counts.played,"✓"),
+    stat("MUZIEK GEKOZEN",formatMusicTime(overview.durations.requested),"♧"),
+    stat("NOG TE SPELEN",formatMusicTime(overview.durations.remaining),"⌛")
   );
-  const queueOrder=data.queueOrder||[];
   renderDeck(requests,queueOrder);
-  const queuedRequests=orderedQueued(requests,queueOrder);
-  const nextQueued=queuedRequests[0]||null;
   setBoothDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:spotifyQueuePreview);
   const nextButton=document.querySelector("#partyqueue-next");
   if(nextButton){
@@ -203,11 +198,8 @@ function render(data){
   document.querySelector("#last-updated").textContent="SYNCED "+new Date().toLocaleTimeString();
   requestList.replaceChildren();
   if(queueDragId)return;
-  const live=requests.filter(r=>["pending","approved","queued"].includes(r.status));
-  if(!live.length){requestList.append(el("p","dj-empty","No incoming requests. The dancefloor is waiting…"));return;}
-  const queuedOrder=orderedQueued(live,queueOrder);
-  const queuePositions=new Map(queuedOrder.map((r,i)=>[r.id,i]));
-  for(const r of live){
+  if(!liveRequests.length){requestList.append(el("p","dj-empty","No incoming requests. The dancefloor is waiting…"));return;}
+  for(const r of liveRequests){
     const isQueued=r.status==="queued";
     const card=el("article","dj-request"+(isQueued?" dj-request-queued":""));
     card.dataset.requestId=r.id;
