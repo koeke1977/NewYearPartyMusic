@@ -1,7 +1,7 @@
 import type { Env } from "../env";
 import { sha256 } from "../security/crypto";
 import { createSessionToken } from "./session-token";
-import { joinPartyGuest, submitGuestTrackRequest, addDjTrackToPartyQueue, type GuestRequestTrack } from "../../modules/requests/application/guest-request-lifecycle";
+import { joinPartyGuest, submitGuestTrackRequest, addDjTrackToPartyQueue } from "../../modules/requests/application/guest-request-lifecycle";
 import { searchGuestSpotifyTracks, searchDjSpotifyTracks } from "../../modules/music/application/search-spotify-tracks";
 import { getSpotifyCatalogTrack, searchSpotifyCatalog } from "../../integrations/spotify/catalog-api";
 import { createGuestRequestRepository } from "../../modules/requests/infrastructure/guest-request-d1-repository";
@@ -27,7 +27,7 @@ export function addDjTrackFromEnvironment(env: Env, trackId: string) {
   return addDjTrackToPartyQueue({
     repository: createGuestRequestRepository(env.DB), eventId: env.EVENT_ID, trackId,
     createId: () => crypto.randomUUID(),
-    trackGateway: { getTrack: (id) => getGuestRequestTrack(env, id) },
+    trackGateway: { getTrack: (id) => getSpotifyCatalogTrack(env, id) },
   });
 }
 
