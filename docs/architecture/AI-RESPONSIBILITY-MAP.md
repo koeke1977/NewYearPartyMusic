@@ -32,6 +32,7 @@ This is too much responsibility for one route and is the primary AI extraction t
 | One bounded assistant turn, read-only tool dispatch, verified-result follow-up and answer normalization | `modules/ai/orchestration/assistant-orchestrator.ts` | Extracted; route delegates to it |
 | Daily free-tier Neuron estimation, UTC usage tracking and follow-up budget checks | `modules/ai/infrastructure/neuron-budget.ts` | Extracted; route preflights and orchestrator records usage |
 | DJ preference persistence, answer cache and atomic eight-second cooldown | `modules/ai/infrastructure/assistant-settings-repository.ts` | Extracted; route delegates all persistence |
+| End-to-end assistant use case: context, prompt, cache, budget, cooldown, orchestration and error mapping | `modules/ai/application/execute-dj-assistant.ts` | Extracted; Hono route retains only DJ auth, JSON validation and HTTP response |
 | Bounded queue/history/count/settings reads for assistant context | `modules/ai/infrastructure/assistant-context-repository.ts` | Extracted; route receives a typed snapshot |
 
 The prompt builder receives typed context and a question, and returns a system/user message pair. It does not access D1, Spotify, Cloudflare bindings or HTTP requests.
