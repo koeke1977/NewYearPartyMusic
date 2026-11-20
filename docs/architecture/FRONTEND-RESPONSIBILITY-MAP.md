@@ -2,18 +2,28 @@
 
 Based on the current `apps/web/dj.js`, `apps/web/app.js`, HTML entrypoints and shared stylesheet. This is an extraction map, not a redesign of the UI.
 
-## DJ console — current `apps/web/dj.js`
+## DJ console — `apps/web/dj.js` ES module entrypoint
 
-The DJ script is approximately 36 KB / 579 lines and currently owns several separate concerns:
+The DJ entrypoint has started its first low-risk extraction. It now imports:
+
+- `modules/dj-api.js`: authenticated JSON API transport, with the current DJ token supplied at call time.
+- `modules/dj-session.js`: reads, writes and clears the existing `partyqueue_dj_token` localStorage key.
+- `modules/dom.js`: shared safe text-based DOM element factory, also used by the guest UI.
+- `modules/dj-queue.js`: pure ordering of queued requests using saved order and the existing chronological fallback.
+- `dj.js` remains the page composition/controller for login, polling, rendering, moderation, playback and AI until those flows have dedicated tests.
+
+`dj.html` now loads `dj.js` as a native ES module; no bundler or new runtime dependency was introduced.
+
+The remaining DJ entrypoint still owns several separate concerns:
 
 | Current concern | Examples in current script | Target module |
 |---|---|---|
 | DOM bootstrap and element lookup | Global `querySelector` references, `el()` helper | `dj/bootstrap.ts`, `shared/dom/` |
-| DJ session lifecycle | localStorage token, login state, `setLoggedIn`, `logout` | `dj/features/authentication/` |
-| HTTP/API transport | `api(path, options)`, bearer header, JSON/error parsing | `shared/api/partyqueue-client.ts` |
+| DJ session lifecycle | localStorage token, login state, `setLoggedIn`, `logout` | `modules/dj-session.js` (token storage extracted), then `dj/features/authentication/` |
+| HTTP/API transport | `api(path, options)`, bearer header, JSON/error parsing | `modules/dj-api.js` (extracted) |
 | DJ application state | token, poll handle, settings, Spotify status flags, queue drag state, latest overview | `dj/state/` |
 | Dashboard rendering | `render()`, stats, request cards, status labels | `dj/features/overview/` and `dj/features/requests/` views |
-| Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()`, drag/drop handlers | `dj/features/queue/` |
+| Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()`, drag/drop handlers | `modules/dj-queue.js` (ordering extracted), then `dj/features/queue/` |
 | Request moderation | `runAction()`, action buttons | `dj/features/requests/` |
 | Settings controls | pause, auto-approve and auto-queue toggles | `dj/features/settings/` |
 | Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `dj/services/polling-service.ts` |
@@ -60,7 +70,7 @@ Avoid changing the visual design while splitting CSS. Compare screenshots at the
 2. Extract the API client and session storage without changing endpoint paths or localStorage keys.
 3. Extract polling lifecycle and shared application state.
 4. Finish guest search/request separation and add browser-level coverage.
-5. Extract DJ authentication, overview and moderation features.
+5. Extract DJ authentication, overview and moderation features; the API client, token storage and pure queue-ordering helper are already separated.
 6. Extract queue and Spotify playback features.
 7. Extract the AI assistant into independent prompt-action, proposal-validation, Spotify-suggestion and ChatGPT-handoff modules.
 8. Inventory and split CSS by actual selector ownership.
