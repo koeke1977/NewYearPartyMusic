@@ -1,14 +1,15 @@
 # CSS selector ownership inventory
 
-Snapshot: `apps/web/styles.css` on `refactor/architecture-foundation`.
+Snapshot: `apps/web/styles.css`, `apps/web/styles/tokens.css` and `apps/web/styles/base.css` on `refactor/architecture-foundation`.
 
 ## Measured structure
 
-- 58,814 characters across 655 lines.
-- 574 selector blocks.
+- `58,285` characters across 4 lines in `styles.css` after the first extraction.
+- 568 selector blocks remain in `styles.css`; four foundation blocks were moved unchanged in value to the two shared foundation files (one token block and three reset/base blocks).
 - 32 media-query blocks, covering 13 distinct breakpoint expressions.
 - Four keyframe animations: `vinyl-spin`, `booth-spin`, `booth-meter` and `spotify-fallback-pulse`.
-- Six top-level design tokens in `:root`: `--bg`, `--panel`, `--border`, `--text`, `--muted` and `--green`.
+- Six top-level design tokens in `styles/tokens.css`: `--bg`, `--panel`, `--border`, `--text`, `--muted` and `--green`.
+- Shared reset/base rules and the Inter font import now live in `styles/base.css`; the original declarations and values were moved without redesign.
 - The stylesheet imports Inter and contains both guest and DJ surfaces.
 
 ## Naming clusters (selector-block counts)
@@ -32,7 +33,7 @@ The guest search uses several generic classes rather than a consistent `.guest-*
 ## Safe extraction sequence
 
 1. Capture the guest page on desktop and mobile. Capture the DJ console primarily on a desktop viewport (1600×1100), with a single 1024×768 responsive sanity check; it is a PC-first control surface. The repeatable Playwright capture is in `scripts/capture-ui-baseline.mjs`; CI uploads `guest-desktop.png`, `guest-mobile.png`, `dj-desktop.png` and `dj-responsive-check.png` as the `partyqueue-ui-baseline` artifact. DJ captures use deterministic mock API data and a seeded test-only DJ token, never Spotify or production data.
-2. Extract the six root design tokens and reset/base rules without changing values.
+2. **Completed:** extract the six root design tokens to `styles/tokens.css` and the reset/base rules to `styles/base.css`, without changing their values.
 3. Identify shared controls and layout primitives from actual usage in both HTML entrypoints.
 4. Move guest-only selectors by verified markup ownership; do not rename classes in the same change.
 5. Move DJ-only selectors, keeping booth animations and responsive rules with their owning component.
@@ -41,4 +42,4 @@ The guest search uses several generic classes rather than a consistent `.guest-*
 
 ## Current decision
 
-No CSS has been moved or rewritten in this pass. The selector inventory is groundwork only. The Playwright capture workflow now produces the desktop/mobile baseline as a CI artifact; review those captures before changing the shared stylesheet. Avoiding an unverified split is safer than creating superficially tidy files that alter the live design.
+The first CSS foundation extraction is complete. Both HTML entrypoints now load `styles/tokens.css`, `styles/base.css` and the remaining `styles.css` in that order. Only the six root tokens, universal box-sizing reset, `html`, and `body` foundation rules plus the font import moved; all values and component selectors are preserved. The Playwright baseline artifact was captured before this change and will be compared with the new CI captures before further selector moves.
