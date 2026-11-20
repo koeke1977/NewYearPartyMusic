@@ -9,7 +9,7 @@ import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistan
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
 import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
 import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist, playTrack, sendPlaybackCommand, setPlaybackShuffle, setPlaybackVolume } from "./integrations/spotify/playback-api";
-import { joinPartyGuest, submitGuestTrackRequest } from "./modules/requests/application/guest-request-lifecycle";
+import { addDjTrackToPartyQueue, joinPartyGuest, moderatePartyRequest, queueApprovedPartyRequest, submitGuestTrackRequest } from "./modules/requests/application/guest-request-lifecycle";
 
 
 
@@ -137,27 +137,11 @@ app.post("/api/dj/ai/music/add", async (c) => {
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const trackId = typeof body.trackId === "string" ? body.trackId.trim() : "";
   if (!/^[A-Za-z0-9]{22}$/.test(trackId)) return c.json({ error: "Ongeldig Spotify-track-ID." }, 400);
-  try {
-    const duplicate = await c.env.DB.prepare("SELECT id,status FROM requests WHERE event_id=? AND spotify_track_id=? AND status IN ('pending','approved','queued') LIMIT 1").bind(c.env.EVENT_ID,trackId).first<{id:string;status:string}>();
-    if (duplicate) return c.json({ ok:true,alreadyQueued:true,status:duplicate.status });
-    const response = await getSpotifyTrack(c.env, trackId);
-    if (!response.ok) return c.json({error:"Spotify kon dit nummer niet meer ophalen."},502);
-    const track = await response.json() as SpotifyTrack;
-    const djGuestId = "dj-music-director-"+c.env.EVENT_ID;
-    await c.env.DB.prepare("INSERT OR IGNORE INTO guests (id,event_id,nickname) VALUES (?,?,?)").bind(djGuestId,c.env.EVENT_ID,"DJ#DATUUR AI").run();
-    const requestId = crypto.randomUUID();
-    await c.env.DB.prepare("INSERT INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) VALUES (?,?,?,?,?,?,?,?,?,'queued',CURRENT_TIMESTAMP,CURRENT_TIMESTAMP)")
-      .bind(requestId,c.env.EVENT_ID,djGuestId,track.id,track.uri,track.name,track.artists.map(a=>a.name).join(", "),track.album.images?.[1]?.url||track.album.images?.[0]?.url||null,track.duration_ms).run();
-    const saved = await c.env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>();
-    let order: string[] = [];
-    try { order = JSON.parse(saved?.value||"[]"); } catch { order=[]; }
-    order = order.filter(id=>id!==requestId);
-    order.push(requestId);
-    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('partyqueue_order',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(order)).run();
-    return c.json({ok:true,request:{id:requestId,name:track.name,artist:track.artists.map(a=>a.name).join(", "),status:"queued"}},201);
-  } catch(error) {
-    return c.json({error:error instanceof Error?error.message:"Track toevoegen aan de wachtrij is mislukt."},502);
-  }
+  const result = await addDjTrackToPartyQueue({
+    db: c.env.DB,eventId: c.env.EVENT_ID,trackId,createId:()=>crypto.randomUUID(),
+    getSpotifyTrack:(id)=>getSpotifyTrack(c.env,id),
+  });
+  return c.json(result.body,result.status as 200);
 });
 app.get("/api/dj/overview", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
@@ -206,22 +190,10 @@ app.post("/api/dj/queue/reorder", async (c) => {
 });
 app.post("/api/dj/requests/:id/:action", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  const id = c.req.param("id");
-  const action = c.req.param("action");
-  const current = await c.env.DB.prepare("SELECT id, status FROM requests WHERE id = ? AND event_id = ?").bind(id, c.env.EVENT_ID).first<{id:string;status:string}>();
-  if (!current) return c.json({ error: "Aanvraag niet gevonden." }, 404);
-  const transitions: Record<string, {from:string[];to:string}> = {
-    approve: {from:["pending"],to:"approved"}, reject: {from:["pending","approved","queued"],to:"rejected"},
-    played: {from:["approved","queued"],to:"played"}, queue: {from:["approved"],to:"queued"}
-  };
-  const transition = transitions[action];
-  const autoQueue = action === "approve" && (await c.env.DB.prepare("SELECT value FROM settings WHERE key = ?").bind("auto_queue").first<{value:string}>())?.value === "true";
-  if (!transition || !transition.from.includes(current.status)) return c.json({ error: "Deze actie kan niet op deze aanvraag worden uitgevoerd." }, 409);
-  const nextStatus = autoQueue ? "queued" : transition.to;
-  const timestamp = action === "played" ? "played_at" : action === "queue" || autoQueue ? "queued_at" : action === "approve" ? "approved_at" : null;
-  const sql = timestamp ? "UPDATE requests SET status = ?, " + timestamp + " = CURRENT_TIMESTAMP WHERE id = ? AND event_id = ?" : "UPDATE requests SET status = ? WHERE id = ? AND event_id = ?";
-  await c.env.DB.prepare(sql).bind(nextStatus, id, c.env.EVENT_ID).run();
-  return c.json({ ok: true, status: nextStatus });
+  const result = await moderatePartyRequest({
+    db:c.env.DB,eventId:c.env.EVENT_ID,requestId:c.req.param("id"),action:c.req.param("action"),
+  });
+  return c.json(result.body,result.status as 200);
 });
 app.post("/api/dj/settings/:key", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
@@ -373,11 +345,8 @@ app.post("/api/dj/spotify/:action",async(c)=>{
 });
 app.post("/api/dj/spotify/queue/:id",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
-  const id=c.req.param("id");
-  const row=await c.env.DB.prepare("SELECT status FROM requests WHERE id=? AND event_id=?").bind(id,c.env.EVENT_ID).first<{status:string}>();
-  if(!row||row.status!=="approved")return c.json({error:"Alleen goedgekeurde nummers kunnen naar de PartyQueue-wachtrij."},409);
-  await c.env.DB.prepare("UPDATE requests SET status='queued',queued_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=?").bind(id,c.env.EVENT_ID).run();
-  return c.json({ok:true,status:"queued"});
+  const result=await queueApprovedPartyRequest({db:c.env.DB,eventId:c.env.EVENT_ID,requestId:c.req.param("id")});
+  return c.json(result.body,result.status as 200);
 });
 
 app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
