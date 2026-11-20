@@ -1,41 +1,46 @@
 import { describe, expect, it, vi } from "vitest";
 import { executeDJAssistant } from "../../apps/worker/src/modules/ai/application/execute-dj-assistant";
+import type { AssistantRepository } from "../../apps/worker/src/modules/ai/application/assistant-ports";
 
-function createBudgetExhaustedEnv() {
-  const statements: string[] = [];
-  const prepare = vi.fn((sql: string) => {
-    statements.push(sql);
-    let values: unknown[] = [];
-    const statement = {
-      bind: (...args: unknown[]) => { values = args; return statement; },
-      all: async () => ({ results: [] }),
-      first: async () => {
-        if (values[0] && String(values[0]).startsWith("dj_ai_neurons_")) return { value: "7500" };
-        return null;
-      },
-      run: async () => ({ meta: { changes: 1 } }),
-    };
-    return statement;
-  });
+function createRepository(): AssistantRepository {
   return {
-    env: {
-      DB: { prepare } as never,
-      EVENT_ID: "event-1",
-      EVENT_NAME: "Test Party",
-      AI: { run: vi.fn() },
-    } as never,
-    statements,
-    prepare,
+    rememberPreference: vi.fn(async () => false),
+    loadContext: vi.fn(async () => ({
+      queue: [], playedTracks: [], requestCounts: [], savedQueueOrder: null,
+      djPreferences: null, acceptedSetHistory: null,
+    })),
+    readAnswerCache: vi.fn(async () => null),
+    writeAnswerCache: vi.fn(async () => {}),
+    claimRateLimit: vi.fn(async () => true),
+    createNeuronBudget: vi.fn(async () => ({
+      canAfford: () => false, record: vi.fn(async () => 0),
+    })),
   };
 }
 
 describe("executeDJAssistant", () => {
   it("stops at the free-tier budget before cooldown or provider invocation", async () => {
-    const { env, statements } = createBudgetExhaustedEnv();
-    const result = await executeDJAssistant(env, "Geef me wat disco-advies");
+    const repository = createRepository();
+    const ai = { run: vi.fn() };
+    const result = await executeDJAssistant({
+      env: { EVENT_ID: "event-1", EVENT_NAME: "Test Party", AI: ai } as never,
+      prompt: "Geef me wat disco-advies", repository, hash: async value => value,
+    });
     expect(result.status).toBe(429);
     expect(result.body.error).toContain("veilige dagbudget");
-    expect(statements.some(sql => sql.includes("dj_ai_last_request"))).toBe(false);
-    expect((env as any).AI.run).not.toHaveBeenCalled();
+    expect(repository.claimRateLimit).not.toHaveBeenCalled();
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it("returns a cached answer without claiming the cooldown or invoking AI", async () => {
+    const repository = createRepository();
+    vi.mocked(repository.readAnswerCache).mockResolvedValue({ answer: "Prima!", spotifyMatches: [] });
+    const result = await executeDJAssistant({
+      env: { EVENT_ID: "event-1", EVENT_NAME: "Test Party" } as never,
+      prompt: "Geef me disco-advies", repository, hash: async value => value,
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.cached).toBe(true);
+    expect(repository.claimRateLimit).not.toHaveBeenCalled();
   });
 });

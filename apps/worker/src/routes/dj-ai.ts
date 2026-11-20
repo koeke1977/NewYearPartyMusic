@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import type { Env } from "../platform/env";
-import { executeDJAssistant } from "../modules/ai/application/execute-dj-assistant";
+import { executeDJAssistantFromEnvironment } from "../platform/composition/ai-assistant";
 import { addDjTrackFromEnvironment, searchDjTracksFromEnvironment } from "../platform/composition/guest-workflows";
 import { requireDJSession } from "./dj-auth";
 export const djAiRoutes = new Hono<{ Bindings: Env }>();
@@ -10,8 +10,7 @@ djAiRoutes.post("/api/dj/ai/assistant", async (c) => {
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
-
-  const result = await executeDJAssistant(c.env, prompt);
+  const result = await executeDJAssistantFromEnvironment(c.env, prompt);
   return c.json(result.body, result.status as 200 | 429 | 503 | 502);
 });
 djAiRoutes.post("/api/dj/ai/music/search", async (c) => {
