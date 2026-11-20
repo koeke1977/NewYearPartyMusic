@@ -124,7 +124,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
 
   const result = await executeDJAssistant(c.env, prompt);
-  return c.json(result.body, result.status as 200);
+  return c.json(result.body, result.status as 200 | 429 | 503 | 502);
 });
 app.post("/api/dj/ai/music/search", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
