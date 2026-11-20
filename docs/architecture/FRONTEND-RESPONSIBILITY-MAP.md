@@ -23,6 +23,7 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-ai-intent.js`: resolves free-text DJ prompts into the existing advice, import, fill or optimize modes and recovers numbered suggestions from the previous AI answer with real line breaks.
 - `modules/dj-overview-model.js`: pure projection of the DJ overview response into lifecycle counts, requested/remaining durations, saved queue order, next track, live requests and queue positions.
 - `modules/dj-queue-reorder.js`: owns drag-and-drop interaction and calculates the new queue order; the page controller supplies the save callback.
+- `modules/dj-command-service.js`: owns the authenticated DJ mutation workflows for moderation, queue reordering and party settings, including success/error messaging and overview refresh. The page controller supplies the API, refresh and message dependencies.
 - `dj.js` remains the page composition/controller for login, DOM rendering, moderation API actions, playback integration and AI interaction wiring. Pure overview projection, prompt intent, playback coordination, queue ordering and drag-and-drop interaction are now separated.
 
 `index.html` and `dj.html` load their entrypoints as native ES modules; no bundler or new runtime dependency was introduced.
@@ -36,9 +37,9 @@ The remaining DJ entrypoint still owns several separate concerns:
 | HTTP/API transport | `api(path, options)`, bearer header, JSON/error parsing | `modules/dj-api.js` (extracted) |
 | DJ application state | token, poll handle, settings and latest overview | `dj/state/`; queue drag state is encapsulated by `modules/dj-queue-reorder.js` |
 | Dashboard rendering | `render()`, stats, request cards, status labels | `modules/dj-overview-model.js` (pure response projection extracted), then `dj/features/overview/` and `dj/features/requests/` views |
-| Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()`, drag/drop handlers | `modules/dj-queue.js` (ordering extracted), `modules/dj-queue-reorder.js` (drag/drop interaction extracted), then `dj/features/queue/` |
-| Request moderation | `runAction()`, action buttons | `dj/features/requests/` |
-| Settings controls | pause, auto-approve and auto-queue toggles | `dj/features/settings/` |
+| Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()` | `modules/dj-queue.js` (ordering extracted), `modules/dj-queue-reorder.js` (drag/drop interaction extracted), `modules/dj-command-service.js` (save workflow extracted), then `dj/features/queue/` |
+| Request moderation | action buttons and moderation commands | `modules/dj-command-service.js` (mutation lifecycle extracted), then `dj/features/requests/` |
+| Settings controls | pause, auto-approve and auto-queue toggles | `modules/dj-command-service.js` (mutation lifecycle extracted), then `dj/features/settings/` |
 | Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle) and `modules/dj-request-guard.js` (stale-response/in-flight guard) extracted; then `dj/services/polling-service.ts` |
 | Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `dj/features/playback/`; command/status coordination in `modules/dj-playback-coordinator.js`, pure time/progress calculations in `modules/dj-playback-display.js` and connection/device/volume/transport display mapping in `modules/dj-playback-state.js` |
 | AI request lifecycle | `askDJAI()`, response display and loading state | `dj/features/ai-assistant/`; prompt intent resolution in `modules/dj-ai-intent.js` |
