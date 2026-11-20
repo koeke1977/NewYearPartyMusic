@@ -22,6 +22,7 @@ describe("DJ session", () => {
       hashCode: async () => "wrong", createToken: async () => "token", nowSeconds: () => 1000,
     };
     expect(await loginDj({ ...base, expectedCodeHash: "" })).toMatchObject({ status: 503 });
+    expect(await loginDj({ ...base, sessionSecret: "" })).toMatchObject({ status: 503 });
     expect(await loginDj(base)).toMatchObject({ status: 401 });
     expect(await loginDj({ ...base, code: "x".repeat(65), hashCode: async () => "expected" })).toMatchObject({ status: 401 });
   });
