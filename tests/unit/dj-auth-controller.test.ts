@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createDjAuthController } from "../../apps/web/modules/dj-auth-controller.js";
 
-const storage = new Map();
+const { storage } = vi.hoisted(() => ({ storage: new Map() }));
 vi.mock("../../apps/web/modules/dj-session.js", () => ({
   clearDjToken: vi.fn(() => storage.delete("token")),
   getSavedDjToken: vi.fn(() => storage.get("token") || ""),
