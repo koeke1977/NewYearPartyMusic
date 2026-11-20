@@ -1,10 +1,13 @@
+import { createDjApi } from "./modules/dj-api.js";
+import { clearDjToken, getSavedDjToken, saveDjToken } from "./modules/dj-session.js";
+
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
 const loginMessage=document.querySelector("#dj-login-message");
 const consoleView=document.querySelector("#dj-console");
 const requestList=document.querySelector("#dj-requests");
 const message=document.querySelector("#dj-message");
-let token=localStorage.getItem("partyqueue_dj_token")||"";
+let token=getSavedDjToken();
 let pollHandle=null;
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
@@ -14,12 +17,7 @@ let queueDragId=null;
 let queueReorderBusy=false;
 let latestDJOverview=null;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n;};
-async function api(path,options={}){
-  const response=await fetch(path,{...options,headers:{...(options.headers||{}),Authorization:"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{})}});
-  const data=await response.json().catch(()=>({error:"Ongeldig antwoord van server."}));
-  if(!response.ok)throw new Error(data.error||"Request failed");
-  return data;
-}
+const api=createDjApi(()=>token);
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
   if(on){refresh();refreshSpotify();if(pollHandle)clearInterval(pollHandle);pollHandle=setInterval(()=>{refresh();refreshSpotify();},5000);}
@@ -273,10 +271,10 @@ async function updateSetting(key,enabled){
   try{await api("/api/dj/settings/"+key,{method:"POST",body:JSON.stringify({enabled})});message.textContent="Party controls updated.";await refresh();}
   catch(e){message.textContent=e.message;}
 }
-function logout(){token="";localStorage.removeItem("partyqueue_dj_token");setLoggedIn(false);}
+function logout(){token="";clearDjToken();setLoggedIn(false);}
 loginForm.addEventListener("submit",async e=>{
   e.preventDefault();const button=loginForm.querySelector("button");button.disabled=true;loginMessage.textContent="Checking DJ access…";
-  try{const response=await fetch("/api/dj/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:new FormData(loginForm).get("code")})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Login failed");token=data.token;localStorage.setItem("partyqueue_dj_token",token);loginForm.reset();loginMessage.textContent="";setLoggedIn(true);}
+  try{const response=await fetch("/api/dj/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:new FormData(loginForm).get("code")})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Login failed");token=data.token;saveDjToken(token);loginForm.reset();loginMessage.textContent="";setLoggedIn(true);}
   catch(e){loginMessage.textContent=e.message;}
   finally{button.disabled=false;}
 });
