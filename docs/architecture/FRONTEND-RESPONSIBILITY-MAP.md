@@ -75,13 +75,13 @@ The guest search transport and Spotify result-card rendering are now separate fr
 
 ## CSS ownership
 
-The stylesheet foundation is now layered: `styles/tokens.css` owns the six root design tokens, `styles/base.css` owns the font import and universal/html/body reset, `styles.css` retains shared controls and DJ presentation, and `styles/guest.css` owns guest search/results/request presentation. The guest stylesheet is loaded only by `index.html`; the DJ page does not load it. Selector names and values are preserved. The measured selector clusters and shared-selector risks are recorded in `docs/architecture/CSS-SELECTOR-INVENTORY.md` (574 selector blocks, 32 media-query blocks). Do not split it by arbitrary file size. Capture desktop/mobile browser screenshots first, then separate:
+The stylesheet foundation is now layered: `styles/tokens.css` owns the six root design tokens, `styles/base.css` owns the font import and universal/html/body reset, `styles.css` retains shared page-shell and text-button foundations, while `styles/guest.css` owns guest search/results/request presentation. DJ-only presentation is split by feature into `styles/dj-layout.css`, `styles/dj-playback.css`, `styles/dj-request-search.css`, `styles/dj-queue.css` and `styles/dj-ai.css`. The guest page loads only the guest stylesheet; the DJ page loads the five DJ stylesheets in their original cascade order. Selector names and values are preserved. The measured selector clusters and shared-selector risks are recorded in `docs/architecture/CSS-SELECTOR-INVENTORY.md` (574 selector blocks, 32 media-query blocks). Do not split it by arbitrary file size. Capture desktop/mobile browser screenshots first, then separate:
 
 1. `styles/tokens.css`: color, spacing, typography, radii, shadows and motion tokens.
 2. `styles/base.css`: reset, body, accessibility and shared layout primitives.
-3. `shared/components/*.css`: buttons, cards, fields, badges and shared controls.
-4. `guest/*.css`: guest-only layout and request search components.
-5. `dj/*.css`: booth, queue, request moderation, AI panel and playback controls.
+3. `styles.css`: shared page shell and text-button controls.
+4. `styles/guest.css`: guest search/results/request presentation.
+5. `styles/dj-*.css`: DJ layout, playback, request search, queue and AI presentation.
 
 Avoid changing the visual design while splitting CSS. Compare screenshots at the existing desktop and mobile breakpoints after each change.
 
@@ -116,3 +116,8 @@ The Playwright browser journey suite runs against the real static frontend with 
 - Browser runtime errors fail the journey tests.
 
 Run locally with `npm run test:browser` after installing the Playwright Chromium browser. The CI browser job runs these journeys before capturing the existing visual baselines. These are frontend integration tests with stubbed API responses; they do not replace Worker/API integration tests or production acceptance testing.
+
+
+## Current DJ CSS ownership
+
+The original DJ stylesheet has been separated into five ordered feature stylesheets without rewriting selectors or declaration values. `dj.html` loads them in the same order as the source declarations. The Playwright visual-baseline workflow is the required regression gate for this move.

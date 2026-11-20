@@ -10,6 +10,8 @@
 
 ## Current implementation progress
 
+The current branch has completed the initial Worker route composition and the first feature-scoped frontend CSS extraction. System health/config routes and scheduled cleanup have dedicated adapters; the Worker entrypoint is now a composition root. DJ route authorization is centralized and characterized across all protected feature endpoints. The shared stylesheet is limited to shared foundations, and DJ presentation is split into layout, playback, request-search, queue and AI files. These are migration milestones, not a claim that the full architecture is finished.
+
 The first security/platform extraction has been implemented on `refactor/architecture-foundation`:
 
 - `apps/worker/src/platform/env.ts`: Worker binding contract.
@@ -181,6 +183,8 @@ Extract in small batches: environment/types; crypto/session utilities; D1 reposi
 Keep URL paths, response shapes, status codes, auth semantics and existing behaviour unchanged unless a separately tested bug fix is approved.
 
 ### Phase 3 — DJ frontend extraction
+
+Current branch status: DJ page entrypoint, API/auth/session, polling, overview, moderation, queue, playback and AI behaviour are already separated into native ES modules. Continue with dependency-boundary verification, state ownership review and characterization coverage rather than recreating modules that already exist.
 - Extract an API client and session/auth controller first.
 - Split polling, overview, request moderation, queue reorder, Spotify controls and AI assistant into feature modules.
 - Separate view rendering from event binding and network operations.
@@ -188,6 +192,8 @@ Keep URL paths, response shapes, status codes, auth semantics and existing behav
 - Preserve DOM IDs during incremental migration or provide explicit compatibility adapters.
 
 ### Phase 4 — CSS and HTML ownership cleanup
+
+Current branch status: token/base/shared/guest layers exist; DJ-only styles are now split into five ordered feature stylesheets. Continue with selector ownership validation, duplicate/unused rule review and accessibility checks. The split is not complete until the browser visual baselines remain green.
 - Inventory selectors, duplicate declarations, specificity conflicts and unused styles.
 - Introduce design tokens and predictable component/feature scopes.
 - Split CSS by responsibility without unintentionally changing visual design.

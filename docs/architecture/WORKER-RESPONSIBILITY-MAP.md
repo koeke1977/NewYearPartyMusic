@@ -40,6 +40,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 
 | Route group | Module | Responsibility |
 |---|---|---|
+| System health and public event configuration | `routes/system.ts` | Preserve the public health/config HTTP contracts |
 | Guest join, guest Spotify search and guest request submission | `routes/guest.ts` | Parse guest HTTP input, enforce event-scoped guest sessions, call request/music use cases and serialize their existing responses |
 
 Guest route tests verify unauthenticated search/request rejection and malformed join JSON handling without invoking D1 or Spotify.
@@ -119,4 +120,4 @@ Identity policy and Spotify token exchange remain in their application/integrati
 - `routes/dj-playback.ts`: Spotify playback status, devices, NEXT, volume, transport commands and approved-request dispatch. It composes playback/queue use cases and Spotify adapters.
 - `routes/dj-playback-workflows.ts`: adapter workflows connecting queue dispatch, fallback playlist startup and playback automation to Spotify/D1 dependencies.
 
-The Worker entrypoint now mounts feature route groups rather than owning their HTTP handlers.
+The Worker entrypoint now mounts system and feature route groups rather than owning their HTTP handlers. `scheduled/handler.ts` owns the scheduled-event adapter and delegates to the request cleanup use case.
