@@ -74,6 +74,10 @@ binding = "AI"
 [env.production.observability]
 enabled = true
 head_sampling_rate = 1
+redact_query_string = true
+
+[env.production.observability.issues]
+enabled = true
 
 [env.production.observability.logs]
 enabled = true
