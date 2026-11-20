@@ -64,9 +64,18 @@ During extraction, preserve:
 9. AI preference persistence, answer caching, rate limiting, Spotify search tool calls and proposal-only behaviour.
 10. Scheduled cleanup: completed/terminal requests older than 30 days only; pending, approved and queued requests remain untouched.
 
-## Known architecture observations
+## Current route ownership
 
-- Route handlers still contain SQL, domain decisions, Spotify orchestration and AI prompt/context assembly. They are not yet transport-only adapters.
-- The AI assistant route currently owns multiple AI responsibilities (preference memory, context assembly, prompt construction, provider invocation, tool dispatch, caching and response validation). These are explicit future extraction candidates, not independent modules yet.
-- Spotify client-credentials catalogue access and DJ OAuth user-token access are separate credential flows and must remain distinct in the future Spotify integration module.
+- Public health and event configuration are implemented in `routes/system.ts`.
+- Guest join, catalogue search and guest request transport are implemented in `routes/guest.ts`.
+- DJ login and Spotify OAuth callback transport are implemented in `routes/dj-identity.ts`.
+- DJ AI endpoints are implemented in `routes/dj-ai.ts`; AI orchestration is delegated to `modules/ai/application/execute-dj-assistant.ts` and its context, prompt, memory, provider and budget collaborators.
+- DJ overview, queue reorder, moderation and settings transport are implemented in `routes/dj-requests.ts`.
+- Spotify playback transport is implemented in `routes/dj-playback.ts`; the route composes application workflows and Spotify adapters.
+- DJ feature route groups apply shared event-scoped session middleware from `routes/dj-auth.ts`. DJ login and OAuth callback retain their distinct public/state-cookie boundaries.
+- Scheduled cleanup is delegated by `scheduled/handler.ts` to the request-retention use case.
+- SQL ownership is in request, queue, identity and playback infrastructure repositories, not in the HTTP route modules.
+- Spotify client-credentials catalogue access and DJ OAuth user-token access are separate credential flows and must remain distinct.
 - `QueueRoom` is currently only a health endpoint; do not assume it is responsible for queue synchronization or WebSocket delivery.
+
+This is an incremental migration. Continue checking that route modules remain transport adapters and that orchestration stays in application modules; do not claim the entire backend is complete based on route extraction alone.
