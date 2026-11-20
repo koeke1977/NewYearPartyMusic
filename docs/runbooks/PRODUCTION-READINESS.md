@@ -94,7 +94,7 @@ GitHub pull-request validation runs:
 
 Cloudflare production builds run typecheck, architecture checks and Vitest before applying production D1 migrations and deploying. A failed build command must stop before the deploy command. Production build configuration is bound to the Worker system tag, not the human-readable Worker name.
 
-The production release completed on 2026-11-20. The latest validated build reported 65 test files and 268 unit tests passing on Vitest 5.1.1. Bun audit reported zero vulnerabilities across 198 packages (and zero in production dependencies). The active production Worker version is 8: `f61031c9-74d8-4e50-8a23-7261d8bc236e`. The Cloudflare production build now gates deployment on typecheck, architecture checks, unit tests and a full dependency audit; any audit finding fails the build. Always inspect the active deployment before a release or rollback.
+The production release completed on 2026-11-20. The latest validated build reported 65 test files and 268 unit tests passing on Vitest 5.1.1. Bun audit reported zero vulnerabilities across 198 packages (and zero in production dependencies). The active production Worker version is 9: `b0d3f711-316b-440e-a3f1-d235e72dce5e`. The Cloudflare production build now gates deployment on typecheck, architecture checks, unit tests and a full dependency audit; any audit finding fails the build. Always inspect the active deployment before a release or rollback.
 
 ## Release verification checklist
 
