@@ -57,7 +57,7 @@ function setup() {
     documentRef,
     windowRef: { location: {} },
   });
-  return { spotify, api, playback, elements };
+  return { spotify, api, playback, elements, documentRef };
 }
 
 describe("DJ Spotify console", () => {
@@ -76,25 +76,19 @@ describe("DJ Spotify console", () => {
   });
 
   it("ignores a stale Spotify status response", async () => {
-    const { spotify, api, elements } = setup();
-    api.mockResolvedValueOnce({
-      connected: true,
-      playing: true,
-      device: { name: "Old device", type: "Speaker", volume: 10 },
-      track: { name: "Old track", artists: ["Old artist"] },
-    });
-
-    const { playback } = setup();
+    const { api, playback, elements, documentRef } = setup();
     playback.isStatusCurrent.mockReturnValue(false);
     const stale = createDjSpotifyConsole({
       api,
       getPlayback: () => playback,
-      documentRef: elements,
+      documentRef,
       windowRef: { location: {} },
     });
+
     await stale.refreshStatus();
 
     expect(elements["#spotify-now-playing"].textContent).toBe("");
     expect(playback.completeStatus).toHaveBeenCalledWith(7);
   });
+
 });
