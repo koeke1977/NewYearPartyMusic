@@ -28,6 +28,7 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-ai-assistant.js`: owns DJ AI prompt submission, advice/import/fill/starter/optimize flows, AI response rendering, safe queue reorder confirmation and Spotify suggestion selection/addition. It receives the API, overview refresh and document dependencies explicitly.
 - `modules/dj-auth-controller.js`: owns DJ login submission, persisted-token lifecycle, login/logout and authenticated-console visibility. Polling and playback invalidation are injected through one state-change callback.
 - `modules/dj-overview-view.js`: owns dashboard stats, request cards, moderation action wiring and UP NEXT rendering. It consumes the pure overview model and receives queue, command and Spotify view dependencies explicitly; it also preserves request cards while a drag reorder is active.
+- `modules/guest-music-api.js`: owns the guest Spotify search and track-request HTTP contracts, including authorization headers, URL encoding, request payloads and server-error handling.
 - `dj.js` remains the page composition/controller for page-level event composition and ChatGPT hand-off. Login/session lifecycle, dashboard/request rendering, Spotify presentation/control bindings, AI assistant interactions, command workflows, pure overview projection, prompt intent, playback coordination, queue ordering and drag-and-drop interaction are separated.
 
 `index.html` and `dj.html` load their entrypoints as native ES modules; no bundler or new runtime dependency was introduced.
@@ -56,12 +57,13 @@ The remaining DJ entrypoint still owns several separate concerns:
 The guest entrypoint has completed its first low-risk ES module extraction:
 
 - `app.js` is now a small page bootstrap and join-form controller.
-- `modules/guest-session.js` owns existing `partyqueue_session` restoration and persistence; the storage key and expiry rule are unchanged.
-- `modules/guest-music-search.js` owns authenticated search, debounce/abort handling, result rendering, request submission and logout UI.
+- `modules/guest-session.js` owns existing `partyqueue_session` restoration, persistence and cleanup; the storage key and expiry rule are unchanged.
+- `modules/guest-music-api.js` owns authenticated Spotify search and track-request transport; endpoint paths, headers and payloads are unchanged.
+- `modules/guest-music-search.js` owns the guest search component, debounce/abort lifecycle, result rendering, request-button interaction and logout UI; it delegates transport and session cleanup.
 - `modules/dom.js` owns the shared safe text-based element factory.
 - `index.html` loads `app.js` as a native ES module; no bundler or new dependency is required.
 
-The next guest-side boundary should separate the search/request transport from rendering, but only after browser-level characterization tests are available.
+The guest search/request transport is now separated from rendering. Browser-level characterization coverage is still needed before changing the UI lifecycle or shared CSS.
 
 ## HTML ownership
 
