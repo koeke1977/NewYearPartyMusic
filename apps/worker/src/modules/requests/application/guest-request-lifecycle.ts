@@ -80,13 +80,23 @@ export async function submitGuestTrackRequest(input: {
     const requestId = input.createId();
     const status = config.auto_approve === "true" ? (config.auto_queue === "true" ? "queued" : "approved") : "pending";
     const artists = track.artists;
-    const inserted = await input.repository.insertTrackRequest({
+    const inserted = await input.repository.insertGuestTrackRequest({
       id: requestId, event_id: input.eventId, guest_id: input.guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
       album_image_url: track.albumImageUrl,
       duration_ms: track.durationMs, status,
-    });
-    if (!inserted) return { status: 409, body: { error: "Dit nummer staat al in de wachtrij." } };
+    }, { maxOpenRequests: openRequestLimit, maxRequestsPer30Minutes: rateLimit });
+    if (!inserted) {
+      const latestOpenCount = await input.repository.countOpenGuestRequests(input.guestId);
+      if (latestOpenCount >= openRequestLimit) {
+        return { status: 429, body: { error: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
+      }
+      const latestRecentCount = await input.repository.countRecentGuestRequests(input.guestId);
+      if (latestRecentCount >= rateLimit) {
+        return { status: 429, body: { error: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
+      }
+      return { status: 409, body: { error: "Dit nummer staat al in de wachtrij." } };
+    }
     return { status: 201, body: { ok: true, request: { id: requestId, name: track.name, artists, status } } };
   } catch (error) {
     return { status: 503, body: { error: error instanceof Error ? error.message : "Aanvraag kon niet worden opgeslagen." } };
