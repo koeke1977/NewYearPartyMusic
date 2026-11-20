@@ -1,4 +1,4 @@
-import type { SpotifyTransportAction } from "../../../integrations/spotify/playback-api";
+import type { PlaybackCommand } from "../../../integrations/spotify/playback-api";
 
 type Result = { status: 200 | 400 | 502 | 503; body: Record<string, unknown> };
 
