@@ -18,6 +18,7 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-latest-task-queue.js`: serializes asynchronous DJ control writes, skips queued values superseded by newer input, and invalidates pending work when the DJ session ends.
 - `modules/dj-serial-task-queue.js`: low-level serial task primitive that preserves command order and invalidates queued work after a session change.
 - `modules/dj-playback-coordinator.js`: coordinates Spotify status reads and transport commands, rejects stale status responses, prevents polling during commands, reports command errors and refreshes status after the final queued command. It deliberately does not retry `next`/`previous` commands.
+- `modules/dj-chatgpt-handoff.js`: builds the current Spotify/UP NEXT context prompt for the optional handoff to the user\u2019s regular ChatGPT account; opening the tab and clipboard interaction remain in the page controller.
 - `modules/dj-playback-state.js`: pure Spotify UI-state mapping for volume normalization, play/pause/booth state, device/track summary and playback error priority.
 - `dj.js` remains the page composition/controller for login, rendering, moderation, playback and AI interactions until those flows have dedicated tests.
 
@@ -40,7 +41,7 @@ The remaining DJ entrypoint still owns several separate concerns:
 | AI request lifecycle | `askDJAI()`, prompt actions, response display and loading state | `dj/features/ai-assistant/` |
 | AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `modules/dj-ai-queue-parser.js` (pure matching extracted), then `dj/features/ai-assistant/queue-proposal-parser.ts` |
 | AI Spotify suggestions | numbered title/artist extraction, search result groups, selected tracks, add-to-queue actions | `modules/dj-ai-suggestions.js` (pure suggestion extraction), then `dj/features/ai-assistant/track-suggestions-view.ts` |
-| ChatGPT hand-off | context formatting, queue snapshot, opening ChatGPT | `dj/features/ai-assistant/chatgpt-handoff.ts` |
+| ChatGPT hand-off | opening ChatGPT and clipboard interaction | `modules/dj-chatgpt-handoff.js` (pure context/prompt builder extracted), then `dj/features/ai-assistant/chatgpt-handoff.ts` |
 
 ## Guest application — current `apps/web/app.js`
 
