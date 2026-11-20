@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "./platform/env";
 import { cleanupCompletedRequests } from "./modules/requests/application/cleanup-completed-requests";
+import { QueueRoom } from "./durable-objects/queue-room";
 import { guestRoutes } from "./routes/guest";
 import { djIdentityRoutes } from "./routes/dj-identity";
 import { djAiRoutes } from "./routes/dj-ai";
@@ -25,14 +26,7 @@ app.route("/", djPlaybackRoutes);
 
 app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
 
-export class QueueRoom {
-  constructor(private readonly state: DurableObjectState) {}
-  async fetch(request: Request): Promise<Response> {
-    const url = new URL(request.url);
-    if (url.pathname === "/health") return Response.json({ ok: true, service: "queue-room" });
-    return new Response("Not found", { status: 404 });
-  }
-}
+export { QueueRoom };
 export default {
   fetch: app.fetch,
   scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {

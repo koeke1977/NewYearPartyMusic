@@ -29,6 +29,10 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Playback policy settings, fallback leases/errors/retry state and manual-pause persistence | `modules/playback/infrastructure/playback-policy-repository.ts` | Same repository |
 | Spotify playback HTTP route state reads/writes | Thin adapters calling playback repository functions | `modules/playback/infrastructure/playback-policy-repository.ts` |
 
+## Extracted platform components
+
+- `durable-objects/queue-room.ts`: isolated Cloudflare Durable Object export. The Worker composition root re-exports `QueueRoom` so the Wrangler binding name remains unchanged.
+
 ## Extracted HTTP route modules
 
 | Route group | Module | Responsibility |
@@ -69,7 +73,7 @@ Guest route tests verify unauthenticated search/request rejection and malformed 
 | `POST /api/dj/spotify/:action` | DJ authorization and response serialization | `modules/playback/application/dj-playback-controls.ts` + playback policy repository + Spotify playback adapter |
 | `POST /api/dj/spotify/queue/:id` | DJ authorization and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + conditional request repository update |
 | Scheduled request cleanup | Worker scheduled-event adapter | `modules/requests/application/cleanup-completed-requests.ts` + `request-retention-repository.ts` |
-| `QueueRoom` | Durable Object health endpoint only | Keep isolated under `durable-objects/`; do not expand without a real coordination requirement |
+| `QueueRoom` | `durable-objects/queue-room.ts` | Isolated Durable Object health endpoint; keep minimal until a real coordination requirement exists |
 | `app.notFound` and default export | Static asset fallback, Worker fetch and scheduled composition | HTTP app composition + Worker composition root |
 
 ## Architectural hotspots to address first
