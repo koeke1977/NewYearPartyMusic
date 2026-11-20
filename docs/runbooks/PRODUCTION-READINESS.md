@@ -1,93 +1,57 @@
-# Production readiness and release runbook
+# Test environment and future public-release runbook
 
-**Status: NOT READY / NO DEPLOYMENT AUTHORIZED**
+## Current environment — test only
 
-This document prepares a future release. It does not authorize Cloudflare account changes, DNS changes, OAuth connection, D1 writes or deployment.
+The current Cloudflare Worker, D1 database and Spotify OAuth connection are used for development and testing only. PartyQueue has not been used for a real event or real production users. The existing database rows, Spotify test token and test configuration are disposable.
 
-## Current repository facts
-- Wrangler currently defines one default Worker configuration and no dedicated `env.production` block.
-- The default variables label the environment `development`, but the file also contains a concrete D1 database identifier. Do not assume that binding is disposable or safe to reset.
-- `db/schema.sql` is an initial schema for a fresh database, not a versioned migration set.
-- Runtime secrets required by the Worker are `EVENT_ACCESS_CODE_HASH`, `DJ_ACCESS_CODE_HASH`, `SESSION_SECRET`, `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
-- Intended public origin: `https://spotify.electrafest.be`.
-- Spotify callback URI: `https://spotify.electrafest.be/auth/spotify/callback`.
-- Public guest join and DJ login still need Cloudflare edge rate limiting before public exposure.
-- The Workers AI binding must be verified for production availability, quotas and account limits.
+This is an explicit project assumption, not an inference from the Wrangler environment name. Do not treat the current resources as a live production system or preserve test data at the expense of sound architecture.
 
-## 1. Dedicated environment and resource isolation
-- [ ] Create/confirm a dedicated production Worker environment.
-- [ ] Create or identify a dedicated production D1 database; do not reuse a development/preview database.
-- [ ] Record the production D1 UUID in the production-only Wrangler binding.
-- [ ] Configure production Assets, D1, Durable Object namespace/migration, AI binding and scheduled trigger explicitly under `env.production`.
-- [ ] Set `APP_ENV = production`, correct event ID/name and exact HTTPS `PUBLIC_ORIGIN`.
-- [ ] Verify Worker name, routes and custom domain in Cloudflare before deployment.
-- [ ] Keep preview/staging isolated from production data and secrets.
+### Allowed during development
 
-The production environment block does not currently exist. The deployment guard must fail until it is reviewed and committed.
+- Reset, drop and recreate the current test D1 database when schema work requires it.
+- Replace test rows and regenerate event/DJ access-code hashes.
+- Reconnect or replace the test Spotify OAuth account and tokens.
+- Change test Worker bindings/configuration and redeploy the test Worker.
+- Change API contracts and persisted test-data formats when the refactor warrants it; update callers and tests together.
 
-## 2. Worker secrets
-Configure these as Cloudflare Worker secrets for production, never plaintext vars or committed files:
-| Secret | Requirement |
-|---|---|
-| `SESSION_SECRET` | High-entropy random value unique to production; signs sessions and encrypts Spotify tokens |
-| `EVENT_ACCESS_CODE_HASH` | SHA-256 hash of the event access code, lowercase hexadecimal |
-| `DJ_ACCESS_CODE_HASH` | SHA-256 hash of a separate DJ access code, lowercase hexadecimal |
-| `SPOTIFY_CLIENT_ID` | Spotify application client ID |
-| `SPOTIFY_CLIENT_SECRET` | Spotify application client secret |
+Always keep credentials out of Git, logs and browser code. Preserve authorization, encryption, input validation, rate limits and AI/DJ permission boundaries. Disposable data does not mean disposable security.
 
-Do not reuse test secrets or paste values into GitHub, logs or chat. Verify secret names and environment scope in Cloudflare immediately before an approved release.
+## Current technical configuration
 
-## 3. D1 initialization and data safety
-- [ ] Confirm target database is newly created and its UUID matches the reviewed production binding.
-- [ ] Review `db/schema.sql`; it uses `CREATE TABLE IF NOT EXISTS` and seed inserts. It is a bootstrap file, not a safe upgrade migration for an existing database.
-- [ ] Generate and retain actual event and DJ code hashes securely.
-- [ ] Verify event row, event ID, event dates and active flag after bootstrap.
-- [ ] Verify settings: `max_open_requests_per_guest = 2`, `max_requests_per_30_minutes = 5`, `auto_approve` and `requests_paused`.
-- [ ] Confirm `spotify_auth` exists and is initially empty before DJ OAuth connection.
-- [ ] Export/backup target database and verify recovery before subsequent schema changes.
+- Wrangler's default environment is labelled `APP_ENV = "development"`.
+- The configured Worker is `partyqueue`.
+- The D1 binding is `partyqueue-db`; its current identifier is a test-resource identifier.
+- Runtime Worker secrets are `EVENT_ACCESS_CODE_HASH`, `DJ_ACCESS_CODE_HASH`, `SESSION_SECRET`, `SPOTIFY_CLIENT_ID` and `SPOTIFY_CLIENT_SECRET`.
+- Intended test/public hostname currently configured: `https://spotify.electrafest.be`.
+- Spotify callback configured in the application: `https://spotify.electrafest.be/auth/spotify/callback`.
+- Public guest join and DJ login should have Cloudflare edge rate limits before the application is used for a real public event.
+- The Workers AI binding remains subject to the account's actual availability and free-tier limits.
 
-Never run `db/schema.sql` against an existing production database as a reset/upgrade shortcut. The generic `db:remote` npm script has been removed.
+## Test-environment validation
 
-## 4. Spotify application and OAuth
-- [ ] Confirm Spotify Developer account/app eligibility and current Development Mode restrictions.
-- [ ] Verify host account Premium entitlement and playback device.
-- [ ] Confirm required scopes against current API behaviour.
-- [ ] Register exact URI `https://spotify.electrafest.be/auth/spotify/callback` in Spotify Developer Dashboard.
-- [ ] Confirm production `PUBLIC_ORIGIN` matches exactly (scheme, hostname and callback path).
-- [ ] Complete OAuth only after the approved Worker and domain are in place.
-- [ ] Verify encrypted token storage and token refresh without exposing tokens in logs or browser responses.
-- [ ] Test device unavailable, expired/revoked token, Spotify 401/429/5xx and no-active-device paths.
+Before a test deployment or database rebuild:
 
-Do not run OAuth against the production app during architecture validation.
+1. Confirm the target is the current test Worker/D1, not a separately created real-event environment.
+2. Review `wrangler.toml` and `db/schema.sql` so the command targets the intended test resource.
+3. Rebuild the test D1 schema/data if needed; seed only test event settings and test hashes.
+4. Set Worker secrets through Wrangler/Cloudflare secret management; never place secret values in files.
+5. Reconnect the test Spotify account if the OAuth record was cleared.
+6. Run TypeScript, unit/security tests, Worker dry-run and browser journeys.
+7. Verify guest join, search/request, DJ login, queue moderation and playback with test accounts.
 
-## 5. Public endpoint protection and application security
-- [ ] Configure Cloudflare edge rate limits for `POST /api/guests/join` and `POST /api/dj/login`.
-- [ ] Test ordinary retries and burst attempts without blocking normal guest use.
-- [ ] Confirm HTTPS, secure cookie behaviour and exact hostname.
-- [ ] Confirm guest/DJ sessions are event-bound and expire as expected.
-- [ ] Confirm DJ routes reject missing, expired and wrong-event sessions.
-- [ ] Confirm secrets/tokens/cookies are redacted from logs.
-- [ ] Confirm AI remains proposal-only and DJ confirmation is required for queue mutation.
+The existing `release:preflight` and `deploy` scripts are currently designed as a fail-closed gate for a future dedicated production environment. They are not prerequisites for architecture work and must not be used to imply that the current test app is live production.
 
-## 6. Pre-release validation
-- [ ] PR reviewed and merged only after explicit approval.
-- [ ] CI green on exact release commit: TypeScript, unit/security tests, Worker dry-run, browser journeys and screenshot baselines.
-- [ ] Production Wrangler configuration reviewed separately from default/preview.
-- [ ] D1 bootstrap/migration SQL reviewed and tested on a disposable database.
-- [ ] Spotify eligibility, scopes and API limits rechecked.
-- [ ] Edge rate-limit rules verified.
-- [ ] Backup/export and rollback rehearsed.
-- [ ] DNS/custom-domain ownership and certificate status verified.
-- [ ] Event-day operational owner and support contact confirmed.
+## Checklist before a real public event (future, not current work)
 
-## 7. Deployment and rollback
-Deployment is a separately approved action. `npm run deploy` is guarded and requires a complete production Wrangler configuration, successful preflight and `PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY=YES`. The guard then runs `wrangler deploy --env production`. It does not configure secrets, DNS, D1 or Spotify.
+- [ ] Confirm the event owner explicitly wants a real public launch.
+- [ ] Create a dedicated production Worker environment and D1 database; do not reuse test credentials or OAuth tokens.
+- [ ] Configure production Assets, D1, Durable Object namespace/migration, AI binding, scheduled trigger and exact HTTPS origin.
+- [ ] Create unique production secrets: `SESSION_SECRET`, `EVENT_ACCESS_CODE_HASH`, `DJ_ACCESS_CODE_HASH`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`.
+- [ ] Verify Spotify Developer Mode eligibility, account restrictions, Premium playback entitlement and required scopes.
+- [ ] Register the exact production OAuth callback URI.
+- [ ] Configure and verify Cloudflare edge rate limits for guest join and DJ login.
+- [ ] Review data retention, backup/recovery, event-day support and rollback.
+- [ ] Run the complete CI suite on the exact release commit and perform controlled smoke tests.
+- [ ] Obtain explicit approval before exposing the real event to guests.
 
-Before deployment, record the active Worker version and reviewed commit SHA. After deployment, run health, guest join, DJ login, Spotify connection, queue request/moderation and playback smoke tests with controlled credentials. If a critical check fails, roll back to the recorded Worker version using Cloudflare's version rollback. Do not destructively recreate D1; use a reviewed forward fix or verified backup restore.
-
-## 8. Explicitly out of scope
-- No Cloudflare production resource mutation or Worker deployment.
-- No D1 remote execution, reset, migration or data export.
-- No DNS/custom-domain change.
-- No Spotify OAuth connection or playback.
-- No production secret creation or rotation.
+No part of this future checklist should block current test development, refactoring, schema redesign or rebuilding the disposable test environment.
