@@ -18,8 +18,6 @@ export type DJAssistantRunResult = {
   spotifyMatches: SpotifyCatalogMatch[];
 };
 
-const MODEL_MAX_TOKENS = 1400;
-
 /**
  * Coordinates one bounded assistant turn. The provider gets only prompts and the
  * read-only catalogue tool; it never receives D1, OAuth user tokens or write tools.
@@ -64,7 +62,7 @@ export async function runDJAssistantTurn(
             },
             { role: "user", content: followupUser },
           ],
-          max_tokens: MODEL_MAX_OUTPUT_TOKENS,
+          max_tokens: ASSISTANT_MAX_OUTPUT_TOKENS,
           temperature: 0.35,
           chat_template_kwargs: { enable_thinking: false },
         });
