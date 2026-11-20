@@ -30,7 +30,8 @@ The GitHub validation workflow checks both the test and production Wrangler conf
 
 - [x] Dedicated production D1 database created in EU jurisdiction.
 - [x] Isolated Wrangler production bindings/configuration committed on the release branch.
-- [ ] Production schema installed and verified against `db/schema.sql` (use a versioned migration plan; do not improvise schema against live traffic).
+- [x] Versioned initial schema migration prepared at `db/migrations/0001_initial_schema.sql` and bound to the production D1 environment.
+- [ ] Apply and verify the initial migration on the empty production D1 database before first Worker deployment.
 - [ ] Set unique production secrets on `partyqueue-production`: `SESSION_SECRET`, `EVENT_ACCESS_CODE_HASH`, `DJ_ACCESS_CODE_HASH`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`.
 - [ ] Generate and securely distribute separate event and DJ access codes; store only their hashes in Worker secrets.
 - [ ] Create/configure the dedicated production Spotify app, register `https://spotify.electrafest.be/auth/spotify/callback`, and verify current Developer Mode eligibility, scopes, account restrictions and Premium playback entitlement.
