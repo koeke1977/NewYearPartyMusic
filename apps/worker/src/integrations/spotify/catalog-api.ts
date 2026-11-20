@@ -1,5 +1,6 @@
 import type { Env } from "../../platform/env";
-import type { CatalogSearchResult, CatalogTrack } from "../../modules/music/application/search-spotify-tracks";
+import type { CatalogSearchResult } from "../../modules/music/application/search-spotify-tracks";
+import type { CatalogTrack } from "../../modules/music/domain/catalog-track";
 import { getSpotifyCatalogToken } from "./catalog-token";
 
 /**
@@ -26,14 +27,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 /** Normalizes untrusted Spotify wire data into the application-owned catalogue DTO. */
-function normalizeCatalogTracks(payload: unknown): CatalogTrack[] {
-  const root = asRecord(payload);
-  const tracks = asRecord(root?.tracks);
-  const items = tracks?.items;
-  if (items === undefined || items === null) return [];
-  if (!Array.isArray(items)) throw new Error("Spotify gaf een ongeldig zoekresultaat terug.");
-
-  return items.map((value): CatalogTrack => {
+function normalizeCatalogTrack(value: unknown): CatalogTrack {
     const track = asRecord(value);
     const album = asRecord(track?.album);
     const images = Array.isArray(album?.images) ? album.images : [];
@@ -58,7 +52,15 @@ function normalizeCatalogTracks(payload: unknown): CatalogTrack[] {
       albumImageUrl: typeof image?.url === "string" ? image.url : null,
       durationMs: track.duration_ms,
     };
-  });
+}
+
+function normalizeCatalogTracks(payload: unknown): CatalogTrack[] {
+  const root = asRecord(payload);
+  const tracks = asRecord(root?.tracks);
+  const items = tracks?.items;
+  if (items === undefined || items === null) return [];
+  if (!Array.isArray(items)) throw new Error("Spotify gaf een ongeldig zoekresultaat terug.");
+  return items.map(normalizeCatalogTrack);
 }
 
 /** Application-facing Spotify catalogue adapter; HTTP and wire DTOs stop here. */
@@ -81,4 +83,11 @@ export async function getSpotifyTrack(env: Env, trackId: string): Promise<Respon
   return fetch("https://api.spotify.com/v1/tracks/" + encodeURIComponent(trackId), {
     headers: { Authorization: "Bearer " + token },
   });
+}
+
+/** Fetches and normalizes one track; request workflows never see Spotify's wire DTO or Response. */
+export async function getSpotifyCatalogTrack(env: Env, trackId: string): Promise<CatalogTrack | null> {
+  const response = await getSpotifyTrack(env, trackId);
+  if (!response.ok) return null;
+  return normalizeCatalogTrack(await response.json());
 }
