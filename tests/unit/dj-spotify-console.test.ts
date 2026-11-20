@@ -30,7 +30,7 @@ function fakeElement() {
 function setup() {
   const selectors = [
     "#spotify-connection-state", "#spotify-device", "#spotify-now-playing", "#spotify-now-playing-link",
-    "#spotify-connect", "#partyqueue-booth", "#booth-play-state", "#booth-track-link-left",
+    "#spotify-connect", "#spotify-disconnect", "#partyqueue-booth", "#booth-play-state", "#booth-track-link-left",
     "#booth-track-title-left", "#booth-track-artist-left", "#booth-track-image-left", "#booth-track-placeholder-left",
     "#partyqueue-next", "#master-volume", "#master-volume-value",
     "#master-volume-leds", "#master-volume-status",
@@ -60,7 +60,7 @@ function setup() {
     api,
     getPlayback: () => playback,
     documentRef,
-    windowRef: { location: {} },
+    windowRef: { location: {}, confirm: () => true },
   });
   return { spotify, api, playback, elements, documentRef };
 }
@@ -72,6 +72,8 @@ describe("DJ Spotify console", () => {
 
     expect(api).toHaveBeenCalledWith("/api/dj/spotify/status");
     expect(elements["#spotify-connection-state"].textContent).toBe("CONNECTED");
+    expect(elements["#spotify-disconnect"].hidden).toBe(false);
+    expect(elements["#spotify-connect"].hidden).toBe(true);
     expect(elements["#spotify-device"].textContent).toBe("ACTIVE DEVICE · Living Room (Speaker)");
     expect(elements["#spotify-now-playing"].textContent).toContain("Music Sounds Better With You — Stardust");
     expect(elements["#spotify-now-playing-link"].href).toBe("https://open.spotify.com/track/track-1");
@@ -81,6 +83,16 @@ describe("DJ Spotify console", () => {
     expect(playback.completeStatus).toHaveBeenCalledWith(7);
   });
 
+  it("disconnects Spotify and removes the saved DJ connection", async () => {
+    const { spotify, api, elements } = setup();
+    await spotify.refreshStatus();
+    await elements["#spotify-disconnect"].listeners.click();
+    expect(api).toHaveBeenCalledWith("/api/dj/spotify/connection", { method: "DELETE" });
+    expect(elements["#spotify-connection-state"].textContent).toBe("NOT CONNECTED");
+    expect(elements["#spotify-connect"].hidden).toBe(false);
+    expect(elements["#spotify-disconnect"].hidden).toBe(true);
+  });
+
   it("ignores a stale Spotify status response", async () => {
     const { api, playback, elements, documentRef } = setup();
     playback.isStatusCurrent.mockReturnValue(false);
@@ -88,7 +100,7 @@ describe("DJ Spotify console", () => {
       api,
       getPlayback: () => playback,
       documentRef,
-      windowRef: { location: {} },
+      windowRef: { location: {}, confirm: () => true },
     });
     await stale.refreshStatus();
 

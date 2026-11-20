@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   claimSpotifyRefreshLock,
+  deleteEncryptedSpotifyTokens,
   invalidateSpotifyAccessToken,
   readEncryptedSpotifyTokens,
   releaseSpotifyRefreshLock,
@@ -54,6 +55,24 @@ describe("Spotify user-auth repository", () => {
     await releaseSpotifyRefreshLock(db, "owner-3");
     expect(calls[0].sql).toContain("DELETE FROM settings");
     expect(calls[0].values).toEqual(["owner-3"]);
+  });
+
+  it("deletes stored Spotify credentials and the refresh lease on disconnect", async () => {
+    const { db, calls } = fakeDb({ changes: 1 });
+    await expect(deleteEncryptedSpotifyTokens(db)).resolves.toBe(true);
+    expect(calls[0].sql).toContain("DELETE FROM spotify_auth");
+    expect(calls[0].sql).toContain("NOT EXISTS");
+    expect(calls[1].sql).toBe("DELETE FROM settings WHERE key='spotify_token_refresh_lock'");
+  });
+
+  it("does not disconnect while a token refresh lease is active", async () => {
+    const { db, calls } = fakeDb({
+      changes: 0,
+      first: { access_token_enc: "a", refresh_token_enc: "r", expires_at: 123 },
+    });
+    await expect(deleteEncryptedSpotifyTokens(db)).resolves.toBe(false);
+    expect(calls).toHaveLength(2);
+    expect(calls[1].sql).toContain("SELECT access_token_enc");
   });
 
   it("invalidates the access-token expiry after a Spotify 401", async () => {

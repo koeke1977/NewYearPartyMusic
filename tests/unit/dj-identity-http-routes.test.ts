@@ -65,6 +65,11 @@ describe("DJ identity HTTP routes", () => {
     expect((await app.request("/api/dj/spotify/connect", { method: "POST" }, env)).status).toBe(401);
   });
 
+  it("rejects Spotify disconnect without a valid DJ session", async () => {
+    const { app, env } = create();
+    expect((await app.request("/api/dj/spotify/connection", { method: "DELETE" }, env)).status).toBe(401);
+  });
+
   it("rejects a callback with missing or mismatched OAuth state", async () => {
     const { app, env } = create();
     const response = await app.request("/auth/spotify/callback?state=attacker&code=code", {}, env);

@@ -48,6 +48,21 @@ export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {},
       documentRef.querySelector("#master-volume-status").textContent = "SETTING SPOTIFY VOLUME…";
       volumeWrites.enqueue(value).catch(() => {});
     });
+    documentRef.querySelector("#spotify-disconnect")?.addEventListener("click", async () => {
+      const button = documentRef.querySelector("#spotify-disconnect");
+      if (typeof windowRef.confirm === "function" &&
+          !windowRef.confirm("Spotify ontkoppelen? De opgeslagen Spotify-tokens worden uit PartyQueue verwijderd.")) return;
+      button.disabled = true;
+      try {
+        await api("/api/dj/spotify/connection", { method: "DELETE" });
+        view.renderOffline(new Error("Spotify-account disconnected."));
+        onMessage("Spotify-account ontkoppeld. De opgeslagen tokens zijn verwijderd.");
+      } catch (error) {
+        onMessage(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    });
     documentRef.querySelector("#spotify-connect").addEventListener("click", async () => {
       const button = documentRef.querySelector("#spotify-connect");
       button.disabled = true;

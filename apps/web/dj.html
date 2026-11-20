@@ -40,7 +40,7 @@
       <div class="dj-stats" id="dj-stats"></div>
       <div class="booth-queue-layout">
 <section id="partyqueue-booth" class="partyqueue-booth" aria-label="Animated DJ turntable console">
-        <div class="booth-topline"><span><i class="booth-live-led"></i> DJ#DATUUR · TURNTABLE SYSTEM</span><div class="booth-top-actions"><span id="booth-play-state">STANDBY</span><button id="spotify-connect" class="booth-connect">CONNECT SPOTIFY</button><span id="spotify-connection-state" class="booth-connect-state">NOT CONNECTED</span></div></div>
+        <div class="booth-topline"><span><i class="booth-live-led"></i> DJ#DATUUR · TURNTABLE SYSTEM</span><div class="booth-top-actions"><span id="booth-play-state">STANDBY</span><button id="spotify-connect" class="booth-connect">CONNECT SPOTIFY</button><button id="spotify-disconnect" class="booth-connect" type="button" hidden>DISCONNECT SPOTIFY</button><span id="spotify-connection-state" class="booth-connect-state">NOT CONNECTED</span></div></div>
         <div class="booth-device-line"><span id="spotify-device">Connect your Spotify Premium account and keep a Spotify device active.</span><span id="spotify-now-playing">Waiting for Spotify connection…</span><a id="spotify-now-playing-link" class="spotify-content-link" target="_blank" rel="noopener noreferrer" hidden>OPEN IN SPOTIFY ↗</a></div>
         <div class="booth-hardware">
           <div class="booth-deck booth-deck-left">
@@ -109,7 +109,7 @@
       </section>
     </div>
     </section>
-    <footer><span>POWERED BY <strong class="datuur-footer">#DATUUR</strong></span><span>DJ CONSOLE <span class="accent">→</span></span></footer>
+    <footer><span>POWERED BY <strong class="datuur-footer">#DATUUR</strong></span><span><a href="/privacy.html">PRIVACY</a> · DJ CONSOLE <span class="accent">→</span></span></footer>
   </main>
   <script type="module" src="/dj.js"></script>
 </body>

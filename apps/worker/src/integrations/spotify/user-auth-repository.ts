@@ -54,3 +54,22 @@ export async function releaseSpotifyRefreshLock(
 export async function invalidateSpotifyAccessToken(db: SpotifyAuthDatabase): Promise<void> {
   await db.prepare("UPDATE spotify_auth SET expires_at=0 WHERE id='main'").run();
 }
+
+
+/**
+ * Deletes the stored DJ Spotify credentials. A live token-refresh lease blocks
+ * the deletion so an in-flight refresh cannot silently recreate the connection.
+ */
+export async function deleteEncryptedSpotifyTokens(db: SpotifyAuthDatabase): Promise<boolean> {
+  const result = await db.prepare(
+    "DELETE FROM spotify_auth WHERE id='main' AND NOT EXISTS (" +
+    "SELECT 1 FROM settings WHERE key='spotify_token_refresh_lock' " +
+    "AND updated_at >= datetime('now','-30 seconds'))",
+  ).run();
+  if (!result.meta.changes) {
+    const remaining = await readEncryptedSpotifyTokens(db);
+    if (remaining) return false;
+  }
+  await db.prepare("DELETE FROM settings WHERE key='spotify_token_refresh_lock'").run();
+  return true;
+}

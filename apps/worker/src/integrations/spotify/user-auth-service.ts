@@ -2,6 +2,7 @@ import type { Env } from "../../platform/env";
 import { decryptSecret, encryptSecret } from "../../platform/security/crypto";
 import {
   claimSpotifyRefreshLock,
+  deleteEncryptedSpotifyTokens,
   invalidateSpotifyAccessToken,
   readEncryptedSpotifyTokens,
   releaseSpotifyRefreshLock,
@@ -15,6 +16,11 @@ type SpotifyTokenResponse = {
 };
 
 type SpotifyFetch = typeof fetch;
+
+/** Removes the DJ account's encrypted Spotify credentials from PartyQueue. */
+export function disconnectSpotifyAccount(env: Env): Promise<boolean> {
+  return deleteEncryptedSpotifyTokens(env.DB);
+}
 
 export async function saveSpotifyTokens(
   env: Env,

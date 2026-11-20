@@ -71,7 +71,10 @@ export function createDjSpotifyConsoleView({ documentRef = document } = {}) {
     const nowLink=documentRef.querySelector("#spotify-now-playing-link");
     const booth=documentRef.querySelector("#partyqueue-booth");
     if(state){state.textContent=summary.connection;state.classList.toggle("accent",!!data.connected);}
-    documentRef.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);
+    const connectButton=documentRef.querySelector("#spotify-connect");
+    const disconnectButton=documentRef.querySelector("#spotify-disconnect");
+    if(connectButton){connectButton.hidden=!!data.connected;connectButton.classList.toggle("is-connected",!!data.connected);}
+    if(disconnectButton)disconnectButton.hidden=!data.connected;
     syncPlaybackButtons(!!data.connected,!!data.playing);
     if(booth){
       booth.classList.toggle("is-playing",!!data.playing);
@@ -101,7 +104,10 @@ export function createDjSpotifyConsoleView({ documentRef = document } = {}) {
     const now=documentRef.querySelector("#spotify-now-playing");
     const nowLink=documentRef.querySelector("#spotify-now-playing-link");
     if(state){state.textContent="NOT CONNECTED";state.classList.remove("accent");}
-    documentRef.querySelector("#spotify-connect")?.classList.remove("is-connected");
+    const connectButton=documentRef.querySelector("#spotify-connect");
+    const disconnectButton=documentRef.querySelector("#spotify-disconnect");
+    if(connectButton){connectButton.hidden=false;connectButton.classList.remove("is-connected");}
+    if(disconnectButton)disconnectButton.hidden=true;
     syncPlaybackButtons(false,false);
     const booth=documentRef.querySelector("#partyqueue-booth");
     if(booth){booth.classList.remove("is-playing");const boothState=documentRef.querySelector("#booth-play-state");if(boothState)boothState.textContent="OFFLINE";setDeck("left",null);updateTrackProgress(0,0,false);}

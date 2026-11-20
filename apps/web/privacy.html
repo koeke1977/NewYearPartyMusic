@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b0a">
+  <meta name="description" content="Privacyverklaring voor PartyQueue — New Year's Eve 2026.">
+  <title>PartyQueue — Privacy</title>
+  <link rel="stylesheet" href="/styles/tokens.css">
+  <link rel="stylesheet" href="/styles/base.css">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles/guest.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div><div class="ambient ambient-two"></div>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand datuur-brand" href="/" aria-label="Terug naar PartyQueue"><span class="brand-mark">#</span><span class="datuur-word">DJ<span>#DATUUR</span></span></a>
+      <span class="event-pill">PRIVACY</span>
+    </header>
+    <section class="hero">
+      <p class="eyebrow">PARTYQUEUE · NEW YEAR'S EVE 2026</p>
+      <h1>Privacy &<br><span class="accent">jouw gegevens</span></h1>
+      <p class="intro">PartyQueue verwerkt alleen gegevens die nodig zijn om muziekaanvragen en de DJ-console voor dit evenement te laten werken.</p>
+    </section>
+    <article class="join-card">
+      <h2>Wie is verantwoordelijk?</h2>
+      <p>De organisator van New Year's Eve 2026 beheert PartyQueue en is verantwoordelijk voor de gegevens die via deze evenementapp worden verwerkt. Voor privacyvragen of verzoeken tot inzage, verbetering of verwijdering kan je de organisator bereiken via de contactgegevens die bij de evenementuitnodiging zijn meegedeeld.</p>
+
+      <h2>Welke gegevens gebruiken we?</h2>
+      <ul>
+        <li>Je gekozen nickname en een tijdelijke sessie om je toegang tot de muziekaanvraagfunctie te geven.</li>
+        <li>Je muziekaanvragen: Spotify-track-ID, titel, artiest, aanvraagstatus en tijdstip.</li>
+        <li>Een gehashte IP-identificatie voor bescherming tegen misbruik van de toegangs- en DJ-login. PartyQueue bewaart hiervoor geen onbewerkte IP-adressen in de applicatiedatabase.</li>
+        <li>Voor de DJ-console: de Spotify OAuth-toegangstokens van het gekoppelde DJ-account. Deze tokens worden versleuteld opgeslagen. Gasten hoeven geen Spotify-account te koppelen.</li>
+      </ul>
+      <p>De feestcode wordt gecontroleerd om toegang te verlenen en wordt niet als platte tekst aan je muziekaanvraag gekoppeld.</p>
+
+      <h2>Waarom en met wie delen we gegevens?</h2>
+      <p>We gebruiken de gegevens om deelnemers toegang te geven, muziekaanvragen te tonen en te beheren en de Spotify-bediening voor de DJ mogelijk te maken. Spotify wordt gebruikt voor cataloguszoekopdrachten, trackinformatie en de DJ-playbackintegratie. De DJ-Spotify-tokens zijn alleen voor het gekoppelde DJ-account.</p>
+      <p>De DJ kan vrijwillig een vraag aan de PartyQueue AI-assistent stellen. De assistent krijgt algemene evenementcontext en de tekst van de vraag, maar geen Spotify-trackcatalogus, trackmetadata of live wachtrij. Een eventuele overdracht naar ChatGPT gebeurt alleen wanneer de DJ daar zelf op klikt.</p>
+      <p>PartyQueue draait op Cloudflare Workers en Cloudflare D1. De productiedatabase is ingesteld op EU-jurisdictie. Cloudflare verwerkt netwerkverzoeken aan de edge. Spotify en, wanneer de DJ de ChatGPT-overdracht gebruikt, OpenAI verwerken gegevens volgens hun eigen privacyvoorwaarden.</p>
+
+      <h2>Bewaartermijnen</h2>
+      <ul>
+        <li>Afgehandelde muziekaanvragen ouder dan 30 dagen worden automatisch verwijderd.</li>
+        <li>Openstaande, goedgekeurde en ingeplande aanvragen worden niet door die automatische opschoning verwijderd.</li>
+        <li>Beveiligingspogingen voor toegangs- en DJ-login worden na één dag opgeschoond.</li>
+        <li>De DJ kan de Spotify-koppeling verbreken in de DJ-console. PartyQueue verwijdert dan de lokaal opgeslagen Spotify OAuth-tokens.</li>
+      </ul>
+      <p>Cloudflare D1 gebruikt automatische Time Travel-herstelpunten. Back-upretentie is afhankelijk van het Workers-plan (7 dagen op Free of 30 dagen op Paid). Verwijderde gegevens kunnen daardoor tijdelijk nog in herstelpunten aanwezig zijn.</p>
+
+      <h2>Jouw keuzes en rechten</h2>
+      <p>Deelname is vrijwillig. Je kan je gastensessie beëindigen met de afmeldknop in PartyQueue. De DJ kan de Spotify-koppeling verbreken via de DJ-console. Voor inzage, correctie, verwijdering of andere privacyvragen neem je contact op met de organisator via de contactgegevens op de evenementuitnodiging.</p>
+
+      <h2>Cookies en lokale opslag</h2>
+      <p>PartyQueue gebruikt lokale browseropslag om je gastensessie te onthouden. Je kan die sessie beëindigen via de afmeldknop of door de sitegegevens van je browser te wissen. Er worden geen advertentieprofielen of marketingcookies gebruikt.</p>
+
+      <p class="fine-print">Laatst bijgewerkt: 20 november 2026.</p>
+      <a class="text-button" href="/">← TERUG NAAR PARTYQUEUE</a>
+    </article>
+    <footer><span class="site-credit">POWERED BY <strong class="datuur-mark">#DATUUR</strong></span><span>31.12.2026 <span class="accent">→</span> 01.01.2027</span></footer>
+  </main>
+</body>
+</html>

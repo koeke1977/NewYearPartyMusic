@@ -5,6 +5,7 @@ import { allowAuthAttempt } from "../platform/composition/auth-attempt-guard";
 import { createSpotifyAuthorizationUrl, spotifyOAuthRedirectUri } from "../modules/identity/spotify-oauth";
 import {
   completeSpotifyAuthorizationFromEnvironment,
+  disconnectSpotifyFromEnvironment,
 } from "../platform/composition/spotify-oauth";
 import { loginDjFromEnvironment } from "../platform/composition/dj-identity-workflows";
 import { requireDJ } from "./dj-auth";
@@ -42,6 +43,15 @@ djIdentityRoutes.post("/api/dj/spotify/connect", async (c) => {
       "Set-Cookie": "pq_spotify_state=" + state + "; HttpOnly; Secure; SameSite=Lax; Path=/auth/spotify/callback; Max-Age=600",
     },
   });
+});
+
+djIdentityRoutes.delete("/api/dj/spotify/connection", async (c) => {
+  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
+  const disconnected = await disconnectSpotifyFromEnvironment(c.env);
+  if (!disconnected) {
+    return c.json({ error: "Spotify wordt momenteel vernieuwd. Probeer binnen enkele seconden opnieuw." }, 409);
+  }
+  return c.json({ ok: true });
 });
 
 djIdentityRoutes.get("/auth/spotify/callback", async (c) => {
