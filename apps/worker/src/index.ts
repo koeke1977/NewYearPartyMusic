@@ -9,7 +9,8 @@ import { createDailyAssistantNeuronBudget, ASSISTANT_MAX_OUTPUT_TOKENS } from ".
 import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
 import { buildEventMoment } from "./modules/ai/context/event-moment";
 import { buildDJAssistantContext, parseAcceptedSetHistory, parseSavedQueueOrder } from "./modules/ai/context/assistant-context";
-import { parseDJPreferences, rememberDJPreference } from "./modules/ai/memory/dj-preferences";
+import { parseDJPreferences } from "./modules/ai/memory/dj-preferences";
+import { claimAssistantRateLimit, readAssistantAnswerCache, rememberDJPreferenceInDatabase, writeAssistantAnswerCache } from "./modules/ai/infrastructure/assistant-settings-repository";
 
 
 const app = new Hono<{ Bindings: Env }>();
@@ -121,17 +122,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
   const profileKey = "dj_ai_profile_" + c.env.EVENT_ID;
   const historyKey = "dj_ai_history_" + c.env.EVENT_ID;
-  let memoryUpdated = false;
-  // Avoid a D1 read for ordinary prompts; only explicit memory requests touch the profile.
-  if (rememberDJPreference(undefined, prompt).updated) {
-    const existingProfile = await c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(profileKey).first<{value:string}>();
-    const preferenceUpdate = rememberDJPreference(existingProfile?.value, prompt);
-    if (preferenceUpdate.updated) {
-      await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
-        .bind(profileKey, JSON.stringify(preferenceUpdate.preferences)).run();
-      memoryUpdated = true;
-    }
-  }
+  const memoryUpdated = await rememberDJPreferenceInDatabase(c.env.DB, c.env.EVENT_ID, prompt);
   const [rows, playedRows, countRows, orderSetting, profileSetting, historySetting] = await Promise.all([
     c.env.DB.prepare("SELECT id,track_name,artist_name,duration_ms,status,queued_at,requested_at FROM requests WHERE event_id=? AND status IN ('pending','approved','queued') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, requested_at DESC LIMIT 100").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string;duration_ms:number|null;status:string;queued_at:string|null;requested_at:string}>(),
     c.env.DB.prepare("SELECT track_name,artist_name FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 8").bind(c.env.EVENT_ID).all<{track_name:string;artist_name:string}>(),
@@ -154,23 +145,17 @@ app.post("/api/dj/ai/assistant", async (c) => {
   // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
   const provider = "cloudflare";
   const cacheKey = await sha256(provider + "\n" + system + "\n" + user + "\nspotify-tools-v1");
-  const cachedRow = await c.env.DB.prepare("SELECT value,updated_at FROM settings WHERE key='dj_ai_answer_cache'").first<{value:string;updated_at:string}>();
-  if (cachedRow?.updated_at && Date.now() - Date.parse(cachedRow.updated_at + "Z") < 10 * 60 * 1000) {
-    try {
-      const cached = JSON.parse(cachedRow.value) as {key:string;answer:string;spotifyMatches?:Array<{query:string;tracks:any[]}>};
-      if (cached.key === cacheKey && cached.answer) return c.json({
-        ok:true,provider,answer:cached.answer,spotifyMatches:cached.spotifyMatches||[],cached:true,memoryUpdated
-      });
-    } catch { /* Ignore an invalid cache entry and generate a fresh answer. */ }
-  }
+  const cached = await readAssistantAnswerCache(c.env.DB, cacheKey);
+  if (cached) return c.json({
+    ok:true,provider,answer:cached.answer,spotifyMatches:cached.spotifyMatches,cached:true,memoryUpdated
+  });
   // Keep the free Workers AI usage below the account's 10,000 daily Neurons.
   // Reserve 2,500 Neurons for other Workers AI usage outside PartyQueue.
   const neuronBudget = await createDailyAssistantNeuronBudget(c.env.DB);
   if (!neuronBudget.canAfford(system.length + user.length, ASSISTANT_MAX_OUTPUT_TOKENS)) {
     return c.json({error:"DJ#DATUUR AI heeft zijn veilige dagbudget bereikt. Er worden geen extra AI-aanroepen gedaan; morgen vanaf 00:00 UTC is er opnieuw gratis budget."},429);
   }
-  const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
-  if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
+  if (!await claimAssistantRateLimit(c.env.DB)) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
   try {
     if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
 
@@ -183,7 +168,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
       user,
       neuronBudget,
     );
-    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer,spotifyMatches})).run();
+    await writeAssistantAnswerCache(c.env.DB, cacheKey, finalAnswer, spotifyMatches);
     return c.json({ok:true,provider,answer:finalAnswer,spotifyMatches,cached:false,memoryUpdated});
   } catch(error) {
     const errorMessage = error instanceof Error ? error.message : "AI-assistent is tijdelijk niet beschikbaar.";
