@@ -361,15 +361,16 @@ app.post("/api/dj/ai/music/add", async (c) => {
 });
 app.get("/api/dj/overview", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  const [requests, settings] = await Promise.all([
-    c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, r.queued_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? ORDER BY CASE r.status WHEN 'pending' THEN 0 WHEN 'approved' THEN 1 WHEN 'queued' THEN 2 WHEN 'played' THEN 3 ELSE 4 END, r.requested_at ASC LIMIT 100").bind(c.env.EVENT_ID).all(),
+  const [activeRequests, recentPlayed, settings] = await Promise.all([
+    c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, r.queued_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? AND r.status IN ('pending','approved','queued') ORDER BY r.requested_at ASC").bind(c.env.EVENT_ID).all(),
+    c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, r.queued_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? AND r.status = 'played' ORDER BY r.played_at DESC LIMIT 100").bind(c.env.EVENT_ID).all(),
     c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve','auto_queue','partyqueue_order')").all<{key:string;value:string}>()
   ]);
   const config = Object.fromEntries((settings.results || []).map(x => [x.key, x.value]));
   let savedOrder: string[] = [];
   try { savedOrder = JSON.parse(config.partyqueue_order || "[]"); } catch { savedOrder = []; }
   const orderIndex = new Map(savedOrder.map((id, index) => [id, index]));
-  const rows = (requests.results || []) as Array<Record<string, any>>;
+  const rows = [...(activeRequests.results || []), ...(recentPlayed.results || [])] as Array<Record<string, any>>;
   rows.sort((a,b) => {
     const rank = (status: string) => status === "pending" ? 0 : status === "approved" ? 1 : status === "queued" ? 2 : status === "played" ? 3 : 4;
     const statusDiff = rank(a.status) - rank(b.status);
