@@ -7,7 +7,11 @@ const SPOTIFY_SCOPES = [
   "user-modify-playback-state",
 ].join(" ");
 
-export function spotifyOAuthRedirectUri(env: Pick<Env, "PUBLIC_ORIGIN">): string {\n  return env.PUBLIC_ORIGIN.replace(/\\/$/, "") + "/auth/spotify/callback";\n}\n\nexport function createSpotifyAuthorizationUrl(env: Pick<Env, "PUBLIC_ORIGIN" | "SPOTIFY_CLIENT_ID">, state: string): {
+export function spotifyOAuthRedirectUri(env: Pick<Env, "PUBLIC_ORIGIN">): string {
+  return env.PUBLIC_ORIGIN.replace(/\/$/, "") + "/auth/spotify/callback";
+}
+
+export function createSpotifyAuthorizationUrl(env: Pick<Env, "PUBLIC_ORIGIN" | "SPOTIFY_CLIENT_ID">, state: string): {
   url: string;
   redirectUri: string;
 } {
