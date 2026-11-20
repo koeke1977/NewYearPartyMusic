@@ -3,9 +3,6 @@ name: Worker validation
 on:
   pull_request:
     branches: [main]
-  push:
-    branches:
-      - "refactor/**"
 
 permissions:
   contents: read
