@@ -375,8 +375,9 @@ async function askDJAI(prompt,mode="advice"){
         return title&&artist?{title:norm(title),artist:norm(artist)}:null;
       };
       const unused=new Set(queued.map(track=>track.id));
+      const unmatchedLines=[];
       const ids=lines.map(line=>{
-        const parsed=parseLine(line);if(!parsed)return null;
+        const parsed=parseLine(line);if(!parsed){unmatchedLines.push(line);return null;}
         let best=null,bestScore=0;
         for(const track of queued){
           if(!unused.has(track.id))continue;
@@ -387,6 +388,7 @@ async function askDJAI(prompt,mode="advice"){
           if(titleMatch&&artistMatch&&score>bestScore){best=track;bestScore=score;}
         }
         if(best){unused.delete(best.id);return best.id;}
+        unmatchedLines.push(line);
         return null;
       }).filter(Boolean);
       if(queued.length&&ids.length===queued.length&&new Set(ids).size===queued.length){
@@ -398,7 +400,7 @@ async function askDJAI(prompt,mode="advice"){
         output.textContent=answer+"\n\n✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen.";
         await refresh();
       }else{
-        output.textContent=answer+"\n\n⚠️ Ik kon slechts "+ids.length+" van de "+queued.length+" nummers eenduidig koppelen. Er is niets gewijzigd. Controleer of de AI alle titels en artiesten correct heeft overgenomen.";
+        output.textContent=answer+"\n\n⚠️ Ik kon slechts "+ids.length+" van de "+queued.length+" nummers eenduidig koppelen. Er is niets gewijzigd. Niet herkend: "+(unmatchedLines.length?unmatchedLines.join(" | "):"controleer of de AI alle wachtrijtracks heeft opgenomen.");
       }
     }else if(mode==="starter"||mode==="fill"||mode==="import"){
       const normalizedAnswer=answer.replace(/\\n/g,"\n").replace(/\\r/g,"");
