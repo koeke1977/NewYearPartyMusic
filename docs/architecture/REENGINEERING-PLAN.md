@@ -302,3 +302,13 @@ This audit is intentionally explicit about remaining mixed boundaries. Green CI 
 - dispatch-next-track.ts now depends on the repository port and Spotify playback callback only. It no longer imports D1 types or infrastructure functions.
 - Reworked dispatch characterization tests to use a fake application port. They verify lock contention, empty queue, saved ordering, successful side-effect order, Spotify rejection and concurrent state change without D1 or real Spotify.
 - The lock lease, 30-second expiry, queue order, HTTP success criteria, request state transition and playback state persistence remain unchanged.
+
+
+### Follow-up: application-owned Spotify catalogue and playback-control ports — 2026-11-20
+
+- The guest/DJ catalogue use cases now depend on an application-owned `SpotifyCatalogSearchGateway` and normalized `CatalogTrack` DTO. The Worker application layer no longer imports Spotify wire types or consumes Fetch `Response` objects for catalogue search.
+- Spotify response parsing, required-field validation and HTTP status normalization are owned by `integrations/spotify/catalog-api.ts`.
+- DJ playback device, volume and transport use cases now depend on `SpotifyPlaybackControlGateway`; `integrations/spotify/playback-control-gateway.ts` owns Spotify HTTP response parsing and error-body truncation.
+- Existing API response shapes and user-visible behaviour are preserved, including Spotify rate-limit mapping, device field names, 204 command success and 400-character command error detail.
+- Focused tests cover both application ports and integration adapters.
+- Remaining dependency-boundary work should be driven by a fresh source audit; do not repeat extractions already completed in request, queue dispatch, AI and playback status modules.
