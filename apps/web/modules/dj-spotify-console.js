@@ -1,5 +1,6 @@
 import { createLatestTaskQueue } from "./dj-latest-task-queue.js";
 import { createDjSpotifyConsoleView } from "./dj-spotify-console-view.js";
+import { normalizeSpotifyVolume } from "./dj-playback-state.js";
 
 // Owns the Spotify-facing DJ console UI, status refresh and playback control bindings.
 export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {}, onQueuePreview = () => {}, documentRef = document, windowRef = window }) {
@@ -27,28 +28,13 @@ export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {},
     const playback = getPlayback();
     const requestId = playback.beginStatus();
     if (requestId === null) return;
-    const state = documentRef.querySelector("#spotify-connection-state");
-    const device = documentRef.querySelector("#spotify-device");
-    const now = documentRef.querySelector("#spotify-now-playing");
     try {
       const data = await api("/api/dj/spotify/status");
       if (!playback.isStatusCurrent(requestId)) return;
       view.renderStatus(data,onQueuePreview);
     } catch (error) {
       if (!playback.isStatusCurrent(requestId)) return;
-      state.textContent = "NOT CONNECTED";
-      documentRef.querySelector("#spotify-connect")?.classList.remove("is-connected");
-      syncPlaybackButtons(false, false);
-      const booth = documentRef.querySelector("#partyqueue-booth");
-      if (booth) {
-        booth.classList.remove("is-playing");
-        const boothState = documentRef.querySelector("#booth-play-state");
-        if (boothState) boothState.textContent = "OFFLINE";
-        setDeck("left", null);
-        updateTrackProgress(0, 0, false);
-      }
-      device.textContent = error.message;
-      now.textContent = "Connect your Spotify account to enable live playback.";
+      view.renderOffline(error);
     } finally {
       playback.completeStatus(requestId);
     }
