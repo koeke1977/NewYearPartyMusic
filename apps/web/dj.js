@@ -6,6 +6,7 @@ import { matchDjQueueProposal } from "./modules/dj-ai-queue-parser.js";
 import { createDjPollingController } from "./modules/dj-polling.js";
 import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
 import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./modules/dj-playback-display.js";
+import { createLatestRequestController } from "./modules/dj-request-guard.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -16,8 +17,7 @@ const message=document.querySelector("#dj-message");
 let token=getSavedDjToken();
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
-let spotifyStatusRequest=0;
-let spotifyStatusInFlight=false;
+const spotifyStatusRequests=createLatestRequestController();
 let queueDragId=null;
 let queueReorderBusy=false;
 let latestDJOverview=null;
@@ -26,7 +26,7 @@ const polling=createDjPollingController(refresh,refreshSpotify);
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
   if(on)polling.start();
-  else polling.stop();
+  else { polling.stop(); spotifyStatusRequests.invalidate(); }
 }
 function stat(label,value,icon){const box=el("div","dj-stat");box.append(el("span","dj-stat-icon",icon));const copy=el("div","dj-stat-copy");copy.append(el("span","dj-muted",label),el("strong","",String(value)));box.append(copy);return box;}
 function formatMusicTime(ms){
@@ -276,16 +276,15 @@ document.querySelector("#approval-toggle").addEventListener("click",()=>updateSe
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>updateSetting("auto_queue",!currentSettings.autoQueue));
 
 async function refreshSpotify(){
-  // The five-second poll must not stack another Spotify status call while one is still running.
-  if(spotifyStatusInFlight)return;
-  spotifyStatusInFlight=true;
-  const requestId=++spotifyStatusRequest;
+  // Avoid overlapping polls; invalidate stale responses when the DJ session ends.
+  const requestId=spotifyStatusRequests.begin();
+  if(requestId===null)return;
   const state=document.querySelector("#spotify-connection-state");
   const device=document.querySelector("#spotify-device");
   const now=document.querySelector("#spotify-now-playing");
   try{
     const data=await api("/api/dj/spotify/status");
-    if(requestId!==spotifyStatusRequest)return;
+    if(!spotifyStatusRequests.isCurrent(requestId))return;
     state.textContent=data.connected?"CONNECTED":"NOT CONNECTED";
     const booth=document.querySelector("#partyqueue-booth");
     if(booth){
@@ -305,7 +304,7 @@ async function refreshSpotify(){
     else{device.textContent="Spotify is connected. Open Spotify on a device to make it active.";document.querySelector("#master-volume-status").textContent="NO ACTIVE SPOTIFY DEVICE";}
     now.textContent=data.autoAdvanceError?"AUTO NEXT ERROR · "+data.autoAdvanceError:data.fallbackError?"FALLBACK ERROR · "+data.fallbackError:data.track?(data.playing?"▶ NOW PLAYING · ":"Ⅱ PAUSED · ")+data.track.name+" — "+data.track.artists.join(", "):"No track is currently playing.";
   }catch(e){
-    if(requestId!==spotifyStatusRequest)return;
+    if(!spotifyStatusRequests.isCurrent(requestId))return;
     state.textContent="NOT CONNECTED";
     document.querySelector("#spotify-connect")?.classList.remove("is-connected");
     syncPlaybackButtons(false,false);
@@ -314,7 +313,7 @@ async function refreshSpotify(){
     device.textContent=e.message;
     now.textContent="Connect your Spotify account to enable live playback.";
   }finally{
-    spotifyStatusInFlight=false;
+    spotifyStatusRequests.complete(requestId);
   }
 }
 const masterVolume=document.querySelector("#master-volume");
