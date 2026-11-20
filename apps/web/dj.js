@@ -501,7 +501,7 @@ aiForm.addEventListener("submit",async event=>{
 document.querySelectorAll("[data-ai-action]").forEach(button=>button.addEventListener("click",async()=>{
   const action=button.dataset.aiAction;
   if(action==="optimize"){
-    await askDJAI("Optimaliseer de volledige huidige PartyQueue wachtrij voor een vloeiende opbouw van rustig naar energiek. Geef ALLEEN een genummerde lijst, exact in het formaat Titel — Artiest, gebruik elke track uit UP NEXT precies één keer en voeg niets toe. Geen intro of uitleg. Als er minder dan twee tracks zijn, zeg dat.","optimize");
+    await askDJAI("Optimaliseer de volledige huidige PartyQueue wachtrij als een creatieve DJ-set. Je mag bewust van stijl, genre, tempo en decennium veranderen: zet gerust een herkenbaar 90s-blok tussen ballades, bouw disco/dance-blokken of maak een onverwachte energieboost. Forceer geen vloeiende overgangen en behoud niet automatisch de huidige stijl. Gebruik de volledige tracklijst exact één keer per nummer; voeg geen tracks toe en laat er geen weg. Geef ALLEEN een genummerde lijst in het formaat Titel — Artiest, zonder intro of uitleg. Als er minder dan twee tracks zijn, zeg dat.","optimize");
   }else if(action==="starter"){
     await askDJAI("Maak een gevarieerde basisselectie van 12 bekende, feestgeschikte nummers voor een Oud & Nieuw-feest in België. Bouw op van warm-up naar dansvloer en meezingers. Geef een genummerde lijst met exact Titel — Artiest en vermeld kort waarom de set werkt.","starter");
   }else{
