@@ -81,6 +81,7 @@ These are infrastructure composition adapters, not domain/application modules.
 
 1. **Playback status remains a compatibility seam.** `GET /api/dj/spotify/status` may advance PartyQueue or start fallback playback. Preserve and test these existing side effects; do not silently turn the endpoint into a read-only operation.
 2. **Automated dependency-boundary enforcement is not yet present.** Add checks only after module ownership/ports are stable; avoid brittle rules that simply whitelist today's violations.
+3. **Public code-entry endpoints need edge throttling before go-live.** `/api/guests/join` and `/api/dj/login` have no application-level attempt throttle and no configured Cloudflare rate-limiting binding. Configure and verify Cloudflare edge limits for both routes before exposing the event publicly.
 
 ## Behaviour and safety invariants
 
@@ -94,4 +95,4 @@ These are infrastructure composition adapters, not domain/application modules.
 
 ## Validation status
 
-The previous full CI run for commit `4b13b02fc188c995e49bd56aa7a2eead9cb5b935` passed type checking, unit/security tests, Worker dry-run, browser journeys and screenshot capture. The documentation updates in this audit triggered a new CI run (run 181); at the time of this snapshot, type checking had passed while the security tests, Worker dry-run and browser/screenshot job were still running. A green result on the earlier commit does not mean the remaining composition and dependency-inversion work above is complete.
+For application-code commit `d820d1e27cdb7d7ca9305fae92fd27755c726e87`, Worker validation run #201 passed TypeScript validation, security characterization tests, Cloudflare Worker dry-run, guest/DJ browser journeys and screenshot baseline capture. The follow-up commits `3b1ac3b6d33e4be77df7b051df96667b09dedbe0` and the current documentation snapshot only update architecture/risk documentation; they do not change application code. No production deployment or production data change was performed. A green validation run does not mean the remaining architecture work above is complete.
