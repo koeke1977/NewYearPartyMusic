@@ -7,6 +7,7 @@ import type { SpotifyTrack } from "./integrations/spotify/types";
 import { claimSpotifyRefreshLock, invalidateSpotifyAccessToken, readEncryptedSpotifyTokens, releaseSpotifyRefreshLock, saveEncryptedSpotifyTokens } from "./integrations/spotify/user-auth-repository";
 import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
+import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
 
 
 
@@ -371,61 +372,22 @@ async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;busy?:b
 }
 
 async function maybeAdvancePartyQueue(env: Env, playing: boolean): Promise<{advanced:boolean;error?:string}> {
-  if (playing) return {advanced:false};
-  const manualPause = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_manual_pause'").first<{value:string}>();
-  if (manualPause?.value === "true") return {advanced:false};
-  const lastState = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_last_partyqueue_track'").first<{value:string}>();
-  if (!lastState?.value) return {advanced:false};
-  let last: {uri:string;durationMs:number;startedAt:number};
-  try { last=JSON.parse(lastState.value); } catch { return {advanced:false}; }
-  if (!last.uri || !last.durationMs || !last.startedAt) return {advanced:false};
-  // Wait until the expected end of the last PartyQueue track; tolerate Spotify's end-of-track reporting delay.
-  if (Date.now()-last.startedAt < Math.max(0,last.durationMs-2500)) return {advanced:false};
-  const queued = await env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(env.EVENT_ID).first<{count:number}>();
-  if (!(queued?.count||0)) return {advanced:false};
-  const result=await startNextPartyQueueRequest(env);
-  if(result.ok)return {advanced:true};
-  // A simultaneous manual/automatic NEXT is expected contention, not an autoplay failure.
-  if(result.busy)return {advanced:false};
-  return {advanced:false,error:result.error};
+  return runQueueAdvancement({
+    db: env.DB,
+    eventId: env.EVENT_ID,
+    dispatchNext: async () => {
+      const result = await startNextPartyQueueRequest(env);
+      return { ok: result.ok, busy: result.busy, error: result.error };
+    },
+  }, playing);
 }
 
-async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, progressMs: number, currentDurationMs: number): Promise<boolean> {
-  const manualPause = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_manual_pause'").first<{value:string}>();
-  if (manualPause?.value === "true") return false;
-  const state = await env.DB.prepare("SELECT value,updated_at FROM settings WHERE key='spotify_fallback_active'").first<{value:string;updated_at:string}>();
-  if (state?.value === "true") return true;
-  if (state?.value === "starting" && Date.now() - Date.parse(state.updated_at + "Z") < 60000) return false;
-  const retry = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_retry_after'").first<{value:string}>();
-  if (Number(retry?.value || 0) > Date.now()) return false;
-  const queued = await env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE event_id=? AND status='queued'").bind(env.EVENT_ID).first<{count:number}>();
-  if ((queued?.count || 0) > 0) return false;
-  const lastState = await env.DB.prepare("SELECT value FROM settings WHERE key='spotify_last_partyqueue_track'").first<{value:string}>();
-  if (!lastState?.value) return false;
-  let last: { uri: string; durationMs: number; startedAt: number };
-  try { last = JSON.parse(lastState.value); } catch { return false; }
-  if (!last.uri || !last.durationMs || !last.startedAt) return false;
-  const elapsed = Date.now() - last.startedAt;
-  if (elapsed < Math.max(0, last.durationMs - 4000)) return false;
-  // The PartyQueue track must have had enough time to finish.
-  // Spotify can keep the last track metadata after it ends and reset progress_ms to 0.
-  // Once the expected duration has elapsed, only an actively playing copy should block fallback.
-  if (currentTrackUri === last.uri && playing) return false;
-  const claim = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','starting',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='starting',updated_at=CURRENT_TIMESTAMP WHERE settings.value NOT IN ('true','starting') OR settings.updated_at < datetime('now','-1 minute')").run();
-  if (!claim.meta.changes) return false;
-  try {
-    await startSpotifyFallback(env);
-    await env.DB.prepare("DELETE FROM settings WHERE key='spotify_fallback_retry_after'").run();
-    await env.DB.prepare("DELETE FROM settings WHERE key='spotify_fallback_error'").run();
-    return true;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Onbekende Spotify-fout";
-    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_error',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(message).run();
-    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
-    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_retry_after',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
-      .bind(String(Date.now() + 60000)).run();
-    return false;
-  }
+async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, _progressMs: number, _currentDurationMs: number): Promise<boolean> {
+  return runSpotifyFallbackPolicy({
+    db: env.DB,
+    eventId: env.EVENT_ID,
+    startFallback: () => startSpotifyFallback(env),
+  }, currentTrackUri, playing);
 }
 
 app.get("/api/dj/spotify/status",async(c)=>{
