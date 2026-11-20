@@ -51,22 +51,18 @@ export async function searchDjSpotifyTracks(input: {
   }
   try {
     const results = await Promise.all(queries.map(async query => {
-      try {
-        const response = await input.search(query, 3);
-        if (!response.ok) return { query, tracks: [] };
-        const data = await response.json() as SearchResponse;
-        return {
-          query,
-          tracks: (data.tracks?.items || []).map(track => ({
-            id: track.id, uri: track.uri, name: track.name,
-            artists: track.artists.map(artist => artist.name),
-            durationMs: track.duration_ms,
-            albumImageUrl: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null,
-          })),
-        };
-      } catch {
-        return { query, tracks: [] };
-      }
+      const response = await input.search(query, 3);
+      if (!response.ok) return { query, tracks: [] };
+      const data = await response.json() as SearchResponse;
+      return {
+        query,
+        tracks: (data.tracks?.items || []).map(track => ({
+          id: track.id, uri: track.uri, name: track.name,
+          artists: track.artists.map(artist => artist.name),
+          durationMs: track.duration_ms,
+          albumImageUrl: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null,
+        })),
+      };
     }));
     return { status: 200, body: { ok: true, results } };
   } catch (error) {
