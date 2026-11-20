@@ -23,7 +23,7 @@ The route handlers are substantially thinner than the original Worker entrypoint
 
 | Capability | Current owner | Boundary |
 |---|---|---|
-| DJ and guest sessions | `modules/identity/*` | Session signing/validation policy, event binding and DJ login policy; cryptographic implementation is currently supplied by platform security |
+| DJ and guest sessions | `modules/identity/*` | Session-token policy, event binding and DJ login policy; token cryptography is injected through an application-owned port |
 | Spotify OAuth policy | `modules/identity/spotify-oauth.ts` | Pure authorization URL, callback URI and scope policy; code exchange is provided by the platform composition adapter |
 | Guest and DJ request lifecycle | `modules/requests/application/guest-request-lifecycle.ts` | Join, submit, add, moderate and queue-approved workflows |
 | DJ queue management | `modules/requests/application/dj-queue-management.ts` | Overview composition, queue ordering and setting validation |
@@ -39,7 +39,8 @@ The route handlers are substantially thinner than the original Worker entrypoint
 
 - `platform/env.ts`: Cloudflare Worker binding contract.
 - `platform/security/crypto.ts`: hashing, HMAC, base64url and constant-time comparison; token encryption primitives.
-- `modules/identity/session-token.ts`: signed session-token creation and validation.
+- `modules/identity/session-token.ts`: pure signed session-token policy; consumes an injected cryptographic port.
+- `platform/composition/session-token.ts`: binds session-token policy to the platform HMAC/base64url primitives.
 - `modules/requests/infrastructure/guest-request-d1-repository.ts`: D1 implementation of the guest/request repository port.
 - `modules/requests/infrastructure/dj-queue-d1-repository.ts`: DJ overview, saved queue order and settings persistence.
 - `modules/requests/infrastructure/request-retention-repository.ts`: completed-request retention persistence.
@@ -63,6 +64,7 @@ Concrete Cloudflare bindings and provider/repository implementations are current
 - `platform/composition/dj-request-workflows.ts`: D1 repository wiring for DJ overview, queue ordering, moderation, settings and approved-request queueing.
 - `platform/composition/dj-identity-workflows.ts`: DJ login policy wired to platform hashing and signed-token services.
 - `platform/composition/spotify-oauth.ts`: OAuth authorization-code exchange wired to encrypted Spotify token persistence.
+- `platform/composition/session-token.ts`: platform crypto adapter for signed session-token creation and validation.
 
 These are infrastructure composition adapters, not domain/application modules.
 
@@ -77,10 +79,8 @@ These are infrastructure composition adapters, not domain/application modules.
 
 ## Verified remaining architecture work
 
-1. **Session-token cryptography still crosses a layer boundary.** `modules/identity/session-token.ts` currently imports signing and base64 primitives from `platform/security/crypto.ts`. Decide whether to invert this with a narrow cryptographic port or explicitly classify session-token signing as a platform security adapter. Preserve the current token format and signature contract.
-2. **Playback status remains a compatibility seam.** `GET /api/dj/spotify/status` may advance PartyQueue or start fallback playback. Preserve and test these existing side effects; do not silently turn the endpoint into a read-only operation.
-3. **Guest session verification remains directly called from the HTTP route.** Confirm whether this is an intentional authentication-adapter responsibility or move it behind a small identity composition helper. Avoid unnecessary pass-through wrappers.
-4. **Automated dependency-boundary enforcement is not yet present.** Add checks only after module ownership/ports are stable; avoid brittle rules that simply whitelist today's violations.
+1. **Playback status remains a compatibility seam.** `GET /api/dj/spotify/status` may advance PartyQueue or start fallback playback. Preserve and test these existing side effects; do not silently turn the endpoint into a read-only operation.
+2. **Automated dependency-boundary enforcement is not yet present.** Add checks only after module ownership/ports are stable; avoid brittle rules that simply whitelist today's violations.
 
 ## Behaviour and safety invariants
 
