@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createSessionToken } from "../../apps/worker/src/modules/identity/session-token";
+import { createSessionToken, readSession } from "../../apps/worker/src/platform/composition/session-token";
 import { loginDj, readDjSession } from "../../apps/worker/src/modules/identity/dj-session";
 
 describe("DJ session", () => {
@@ -35,8 +35,8 @@ describe("DJ session", () => {
     const request = new Request("https://party.example/api/dj/overview", {
       headers: { Authorization: "Bearer " + token },
     });
-    expect(await readDjSession(request, "secret", "event-1")).toMatchObject({ role: "dj", eventId: "event-1" });
-    expect(await readDjSession(request, "secret", "event-2")).toBeNull();
+    expect(await readDjSession(request, "secret", "event-1", readSession)).toMatchObject({ role: "dj", eventId: "event-1" });
+    expect(await readDjSession(request, "secret", "event-2", readSession)).toBeNull();
 
     const guestToken = await createSessionToken({
       sub: "guest-1", eventId: "event-1", nickname: "Guest",
@@ -45,6 +45,6 @@ describe("DJ session", () => {
     const guestRequest = new Request("https://party.example/api/dj/overview", {
       headers: { Authorization: "Bearer " + guestToken },
     });
-    expect(await readDjSession(guestRequest, "secret", "event-1")).toBeNull();
+    expect(await readDjSession(guestRequest, "secret", "event-1", readSession)).toBeNull();
   });
 });
