@@ -9,7 +9,7 @@ Private, QR-based music request and DJ playback application for New Year's Eve 2
 - One host-owned Spotify Premium account controls playback.
 - Guests can search Spotify and request tracks; the DJ can moderate requests, manage queue order and control playback.
 - AI provides general DJ advice and unverified track ideas only. Spotify metadata and the live queue are excluded from AI; the DJ searches Spotify separately and explicitly adds tracks. AI does not reorder the queue.
-- Initial limits: 2 open requests per guest and 5 requests per 30 minutes.
+- Guest request policy: unlimited active/queued tracks per guest, with a rolling limit of 20 requests per guest per 60 minutes. Duplicate active tracks remain blocked.
 - Visual direction: dark club / neon green.
 
 ## Stack
