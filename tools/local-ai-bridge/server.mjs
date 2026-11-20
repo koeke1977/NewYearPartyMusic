@@ -48,12 +48,13 @@ async function runClaude(system, user) {
 
   try {
     return await new Promise((resolve, reject) => {
-      const args = ["-p", "--output-format", "text", "--system-prompt-file", systemPromptPath, "--tools", ""];
+      const args = ["-p", "--output-format", "text", "--no-session-persistence", "--system-prompt-file", systemPromptPath, "--tools", "", "--disallowedTools", "mcp__*"];
       const child = spawn(CLI, args, {
         shell: process.platform === "win32",
         windowsHide: true,
+        cwd: tempDir,
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
+        env: { ...process.env },
       });
       let stdout = "";
       let stderr = "";
