@@ -8,6 +8,7 @@ import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
 import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./modules/dj-playback-display.js";
 import { createLatestRequestController } from "./modules/dj-request-guard.js";
 import { createLatestTaskQueue } from "./modules/dj-latest-task-queue.js";
+import { createSerialTaskQueue } from "./modules/dj-serial-task-queue.js";
 import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackSummary } from "./modules/dj-playback-state.js";
 
 const loginCard=document.querySelector("#dj-login-card");
@@ -20,6 +21,7 @@ let token=getSavedDjToken();
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
 const spotifyStatusRequests=createLatestRequestController();
+const playbackCommands=createSerialTaskQueue();
 let queueDragId=null;
 let queueReorderBusy=false;
 let latestDJOverview=null;
@@ -41,7 +43,7 @@ const polling=createDjPollingController(refresh,refreshSpotify);
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
   if(on)polling.start();
-  else { polling.stop(); spotifyStatusRequests.invalidate(); volumeWrites.invalidate(); }
+  else { polling.stop(); spotifyStatusRequests.invalidate(); volumeWrites.invalidate(); playbackCommands.invalidate(); }
 }
 function stat(label,value,icon){const box=el("div","dj-stat");box.append(el("span","dj-stat-icon",icon));const copy=el("div","dj-stat-copy");copy.append(el("span","dj-muted",label),el("strong","",String(value)));box.append(copy);return box;}
 function formatMusicTime(ms){
@@ -292,7 +294,8 @@ document.querySelector("#approval-toggle").addEventListener("click",()=>updateSe
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>updateSetting("auto_queue",!currentSettings.autoQueue));
 
 async function refreshSpotify(){
-  // Avoid overlapping polls; invalidate stale responses when the DJ session ends.
+  // Never let a poll race an active transport command; the final command refreshes state.
+  if(playbackCommands.isBusy())return;
   const requestId=spotifyStatusRequests.begin();
   if(requestId===null)return;
   const state=document.querySelector("#spotify-connection-state");
@@ -347,10 +350,26 @@ document.querySelector("#spotify-connect").addEventListener("click",async()=>{
   catch(e){message.textContent=e.message;button.disabled=false;}
 });
 document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEventListener("click",async()=>{
-  const action=button.dataset.spotifyCommand;button.disabled=true;
-  try{await api("/api/dj/spotify/"+action,{method:"POST"});if(action==="play")syncPlaybackButtons(true,true);if(action==="pause")syncPlaybackButtons(true,false);message.textContent="Spotify command sent.";/* Keep the immediate hardware feedback; the regular status poll will reconcile with Spotify. */}
-  catch(e){message.textContent=e.message;}
-  finally{button.disabled=false;}
+  const action=button.dataset.spotifyCommand;
+  const commandToken=token;
+  button.disabled=true;
+  // A status request started before this command must not repaint stale playback state.
+  spotifyStatusRequests.invalidate();
+  try{
+    await playbackCommands.enqueue(async({isCurrent})=>{
+      if(!isCurrent()||!commandToken||token!==commandToken)return {skipped:true};
+      await api("/api/dj/spotify/"+action,{method:"POST"});
+      if(!isCurrent()||token!==commandToken)return {skipped:true};
+      if(action==="play")syncPlaybackButtons(true,true);
+      if(action==="pause")syncPlaybackButtons(true,false);
+      message.textContent="Spotify command sent.";
+    });
+  }catch(e){
+    if(token===commandToken)message.textContent=e.message;
+  }finally{
+    button.disabled=false;
+    if(!playbackCommands.isBusy()&&token===commandToken&&commandToken)await refreshSpotify();
+  }
 }));
 
 const aiForm=document.querySelector("#dj-ai-form");
