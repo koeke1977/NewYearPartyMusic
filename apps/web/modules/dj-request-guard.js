@@ -2,6 +2,8 @@ export function createLatestRequestController() {
   let generation = 0;
   let activeRequest = null;
 
+  const isCurrent = (request) => request !== null && request === activeRequest;
+
   return {
     begin() {
       if (activeRequest !== null) return null;
@@ -9,11 +11,9 @@ export function createLatestRequestController() {
       activeRequest = request;
       return request;
     },
-    isCurrent(request) {
-      return request !== null && request === activeRequest;
-    },
+    isCurrent,
     complete(request) {
-      if (!this.isCurrent(request)) return false;
+      if (!isCurrent(request)) return false;
       activeRequest = null;
       return true;
     },
