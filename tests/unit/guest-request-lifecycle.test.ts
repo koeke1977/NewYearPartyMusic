@@ -56,6 +56,16 @@ describe("guest request lifecycle", () => {
     expect(createToken).toHaveBeenCalledWith({sub:"guest-new",eventId:"event-1",nickname:"Koen",exp:44200},"secret");
   });
 
+  it("does not persist a guest when session signing fails", async () => {
+    const {db,calls}=fakeDb();
+    await expect(joinPartyGuest({
+      repository:createGuestRequestRepository(db),eventId:"event-1",nickname:"Koen",eventCode:"party-code",
+      expectedCodeHash:"hash",sessionSecret:"secret",hashCode:async()=>"hash",
+      createToken:async()=>{throw new Error("signing unavailable");},createId:()=>"guest-new",nowSeconds:()=>1000,
+    })).rejects.toThrow("signing unavailable");
+    expect(calls.some(call=>call.sql.startsWith("INSERT INTO guests"))).toBe(false);
+  });
+
   it("rejects an incorrect event code before touching the database", async () => {
     const {db,calls}=fakeDb();
     const result=await joinPartyGuest({
