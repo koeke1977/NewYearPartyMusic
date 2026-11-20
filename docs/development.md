@@ -26,7 +26,8 @@ This checklist describes the current application and the next safe engineering s
 - [x] Add and pass initial crypto/session compatibility characterization tests before further implementation
 - [x] Extract Worker environment type, cryptographic primitives and session-token service
 - [ ] Extract D1 repositories and application use cases
-- [ ] Extract Spotify OAuth/token/API adapter
+- [x] Extract Spotify catalogue token cache, track type and catalogue API adapter
+- [ ] Extract Spotify OAuth token store, refresh lifecycle and authenticated user API adapter
 - [ ] Extract queue and playback services
 - [ ] Split AI orchestration, providers, context, memory, prompts and use cases
 - [ ] Split Hono routes into transport-only modules
@@ -42,6 +43,9 @@ This checklist describes the current application and the next safe engineering s
 - `apps/worker/src/platform/env.ts` owns Worker binding types.
 - `apps/worker/src/platform/security/crypto.ts` owns SHA-256, HMAC, base64url, constant-time comparison and AES-GCM token encryption.
 - `apps/worker/src/modules/identity/session-token.ts` owns signed bearer-session creation and validation.
+- `apps/worker/src/integrations/spotify/catalog-token.ts` owns the isolate-local client-credentials token cache.
+- `apps/worker/src/integrations/spotify/catalog-api.ts` owns Spotify catalogue search and track lookup HTTP requests.
+- `apps/worker/src/integrations/spotify/types.ts` owns the Spotify track response contract.
 - The existing Worker entrypoint now consumes those modules; API paths and token/encryption formats are intentionally unchanged.
 - Vitest security compatibility tests cover legacy session tokens and legacy encrypted Spotify-token compatibility.
 
