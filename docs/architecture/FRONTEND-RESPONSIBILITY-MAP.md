@@ -18,7 +18,7 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-latest-task-queue.js`: serializes asynchronous DJ control writes, skips queued values superseded by newer input, and invalidates pending work when the DJ session ends.
 - `modules/dj-serial-task-queue.js`: low-level serial task primitive that preserves command order and invalidates queued work after a session change.
 - `modules/dj-playback-coordinator.js`: coordinates Spotify status reads and transport commands, rejects stale status responses, prevents polling during commands, reports command errors and refreshes status after the final queued command. It deliberately does not retry `next`/`previous` commands.
-- `modules/dj-chatgpt-handoff.js`: builds the current Spotify/UP NEXT context prompt for the optional handoff to the user\u2019s regular ChatGPT account; opening the tab and clipboard interaction remain in the page controller.
+- `modules/dj-chatgpt-handoff.js`: builds the current Spotify/UP NEXT context prompt and owns opening the user\u2019s regular ChatGPT tab plus clipboard transfer.
 - `modules/dj-playback-state.js`: pure Spotify UI-state mapping for volume normalization, play/pause/booth state, device/track summary and playback error priority.
 - `modules/dj-ai-intent.js`: resolves free-text DJ prompts into the existing advice, import, fill or optimize modes and recovers numbered suggestions from the previous AI answer with real line breaks.
 - `modules/dj-overview-model.js`: pure projection of the DJ overview response into lifecycle counts, requested/remaining durations, saved queue order, next track, live requests and queue positions.
@@ -29,7 +29,7 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-auth-controller.js`: owns DJ login submission, persisted-token lifecycle, login/logout and authenticated-console visibility. Polling and playback invalidation are injected through one state-change callback.
 - `modules/dj-overview-view.js`: owns dashboard stats, request cards, moderation action wiring and UP NEXT rendering. It consumes the pure overview model and receives queue, command and Spotify view dependencies explicitly; it also preserves request cards while a drag reorder is active.
 - `modules/guest-music-api.js`: owns the guest Spotify search and track-request HTTP contracts, including authorization headers, URL encoding, request payloads and server-error handling.
-- `dj.js` remains the page composition/controller for page-level event composition and ChatGPT hand-off. Login/session lifecycle, dashboard/request rendering, Spotify presentation/control bindings, AI assistant interactions, command workflows, pure overview projection, prompt intent, playback coordination, queue ordering and drag-and-drop interaction are separated.
+- `dj.js` remains the page composition/controller for page-level event composition. Login/session lifecycle, dashboard/request rendering, Spotify presentation/control bindings, AI assistant interactions, command workflows, pure overview projection, prompt intent, playback coordination, queue ordering and drag-and-drop interaction are separated.
 
 `index.html` and `dj.html` load their entrypoints as native ES modules; no bundler or new runtime dependency was introduced.
 
@@ -50,7 +50,7 @@ The remaining DJ entrypoint still owns several separate concerns:
 | AI request lifecycle | prompt submission, loading/error state, answer display, suggestion selection and queue proposal confirmation | `modules/dj-ai-assistant.js` (AI interaction flow extracted), `modules/dj-ai-intent.js` (prompt intent), `modules/dj-ai-queue-parser.js` (proposal validation), `modules/dj-ai-suggestions.js` (track extraction) |
 | AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `modules/dj-ai-queue-parser.js` (pure matching extracted), then `dj/features/ai-assistant/queue-proposal-parser.ts` |
 | AI Spotify suggestions | numbered title/artist extraction, search result groups, selected tracks, add-to-queue actions | `modules/dj-ai-suggestions.js` (pure suggestion extraction), then `dj/features/ai-assistant/track-suggestions-view.ts` |
-| ChatGPT hand-off | opening ChatGPT and clipboard interaction | `modules/dj-chatgpt-handoff.js` (pure context/prompt builder extracted), then `dj/features/ai-assistant/chatgpt-handoff.ts` |
+| ChatGPT hand-off | live context prompt, opening ChatGPT and clipboard transfer | `modules/dj-chatgpt-handoff.js` (prompt builder and browser hand-off controller extracted) |
 
 ## Guest application — current `apps/web/app.js`
 
