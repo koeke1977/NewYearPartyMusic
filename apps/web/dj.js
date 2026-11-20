@@ -489,6 +489,7 @@ async function askDJAI(prompt,mode="advice"){
     }else{
       output.textContent=(result.cached?"↻ Eerder advies (wachtrij ongewijzigd)\n\n":"")+answer;
     }
+    if(result.memoryUpdated)output.append(el("p","dj-ai-results-hint","✓ DJ-voorkeur opgeslagen in het geheugen van dit event."));
     input.value="";
   }catch(error){output.textContent=error.message;}
   finally{button.disabled=false;actionButtons.forEach(b=>b.disabled=false);}
