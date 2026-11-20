@@ -7,6 +7,7 @@ import { createDjPollingController } from "./modules/dj-polling.js";
 import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
 import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./modules/dj-playback-display.js";
 import { createLatestRequestController } from "./modules/dj-request-guard.js";
+import { createLatestTaskQueue } from "./modules/dj-latest-task-queue.js";
 import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackSummary } from "./modules/dj-playback-state.js";
 
 const loginCard=document.querySelector("#dj-login-card");
@@ -23,11 +24,24 @@ let queueDragId=null;
 let queueReorderBusy=false;
 let latestDJOverview=null;
 const api=createDjApi(()=>token);
+const volumeWrites=createLatestTaskQueue(async(value,{isCurrent})=>{
+  const status=document.querySelector("#master-volume-status");
+  try{
+    await api("/api/dj/spotify/volume",{method:"PUT",body:JSON.stringify({volume:value})});
+    if(!isCurrent())return;
+    status.textContent="SPOTIFY MASTER OUTPUT";
+    updateMasterVolumeDisplay(value);
+  }catch(e){
+    if(!isCurrent())return;
+    status.textContent=e.message;
+    await refreshSpotify();
+  }
+});
 const polling=createDjPollingController(refresh,refreshSpotify);
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
   if(on)polling.start();
-  else { polling.stop(); spotifyStatusRequests.invalidate(); }
+  else { polling.stop(); spotifyStatusRequests.invalidate(); volumeWrites.invalidate(); }
 }
 function stat(label,value,icon){const box=el("div","dj-stat");box.append(el("span","dj-stat-icon",icon));const copy=el("div","dj-stat-copy");copy.append(el("span","dj-muted",label),el("strong","",String(value)));box.append(copy);return box;}
 function formatMusicTime(ms){
@@ -322,15 +336,10 @@ async function refreshSpotify(){
 }
 const masterVolume=document.querySelector("#master-volume");
 masterVolume.addEventListener("input",()=>updateMasterVolumeDisplay(masterVolume.value));
-masterVolume.addEventListener("change",async()=>{
-  const value=Number(masterVolume.value);
-  const status=document.querySelector("#master-volume-status");
-  status.textContent="SETTING SPOTIFY VOLUME…";
-  try{
-    await api("/api/dj/spotify/volume",{method:"PUT",body:JSON.stringify({volume:value})});
-    status.textContent="SPOTIFY MASTER OUTPUT";
-    updateMasterVolumeDisplay(value);
-  }catch(e){status.textContent=e.message;await refreshSpotify();}
+masterVolume.addEventListener("change",()=>{
+  const value=normalizeSpotifyVolume(masterVolume.value);
+  document.querySelector("#master-volume-status").textContent="SETTING SPOTIFY VOLUME…";
+  volumeWrites.enqueue(value).catch(()=>{});
 });
 document.querySelector("#spotify-connect").addEventListener("click",async()=>{
   const button=document.querySelector("#spotify-connect");button.disabled=true;message.textContent="Opening Spotify authorization…";
