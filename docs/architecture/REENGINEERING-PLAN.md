@@ -285,3 +285,14 @@ This audit is intentionally explicit about remaining mixed boundaries. Green CI 
 - Existing application use cases, D1 repository calls, Spotify catalogue endpoints, event scoping, rate limits, duplicate checks and request status policy are unchanged.
 - This is a composition-boundary improvement, not yet full dependency inversion: the request and music application modules still depend on concrete repository/provider shapes. Those ports and typed provider DTOs remain explicit follow-up work.
 
+
+
+### Follow-up: typed playback gateway and DJ console ownership — 2026-11-20
+
+- Added an application-owned SpotifyPlaybackGateway contract with typed current-playback and queue results. The playback application no longer consumes Fetch Response objects or Spotify wire DTOs.
+- Added integrations/spotify/playback-status-gateway.ts to own Spotify HTTP paths, wire DTO parsing, normalization and the special HTTP 204/no-active-device result.
+- Kept the existing /api/dj/spotify/status response contract, including the existing no-device, fallback, auto-advance, queue-preview and error semantics. Characterization tests cover these branches without making real Spotify requests.
+- Extracted modules/dj-ai-actions.js: sequential suggestion additions, duplicate handling, per-track failures and complete queue-permutation validation now live outside the AI DOM controller. Reordering still requires explicit DJ confirmation.
+- Extracted modules/dj-spotify-console-view.js: DOM-only Spotify console rendering now owns status, device, track, volume, progress, transport-button, fallback-preview and offline presentation. The console controller retains API calls, stale-response coordination, volume-write sequencing and event binding.
+- Added focused unit coverage for the AI action workflows and the typed Spotify gateway. The existing console controller tests exercise the extracted view through its public integration.
+- No production Worker, Spotify playback, secrets or Cloudflare D1 data were touched. The architecture allows disposable/local D1 reconstruction during future migration work; production resources remain behind a separately approved release step.

@@ -121,3 +121,13 @@ Run locally with `npm run test:browser` after installing the Playwright Chromium
 ## Current DJ CSS ownership
 
 The original DJ stylesheet has been separated into five ordered feature stylesheets without rewriting selectors or declaration values. `dj.html` loads them in the same order as the source declarations. The Playwright visual-baseline workflow is the required regression gate for this move.
+
+
+## Follow-up ownership refinements — 2026-11-20
+
+The DJ AI and Spotify console boundaries have been narrowed further:
+
+- modules/dj-ai-actions.js owns sequential selected-track insertion, duplicate detection, per-track failure aggregation and validation that a proposed queue order is an exact permutation of the current queue. dj-ai-assistant.js retains prompt lifecycle, suggestion selection UI and the explicit DJ confirmation surface; it delegates the write workflow.
+- modules/dj-spotify-console-view.js owns DOM-only rendering of Spotify connection/device/track state, deck artwork, volume/progress LEDs, transport button state, fallback queue preview and offline state. It performs no network calls.
+- modules/dj-spotify-console.js now coordinates API status requests, stale-response checks, serialized volume writes and control event binding, delegating all presentation to the view.
+- The DJ AI assistant still requires an explicit confirmation click before a queue reorder is sent. The AI action module rejects incomplete, duplicate or foreign track-ID proposals before any save callback can run.
