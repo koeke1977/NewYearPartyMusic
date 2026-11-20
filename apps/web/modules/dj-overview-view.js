@@ -10,15 +10,16 @@ export function createDjOverviewView({
   spotifyConsole,
   getQueuePreview = () => null,
   documentRef = document,
+  elementFactory = el,
 }) {
   let currentSettings = { requestsPaused: false, autoApprove: true, autoQueue: false };
   let latestDJOverview = null;
 
   function stat(label, value, icon) {
-    const box = el("div", "dj-stat");
-    box.append(el("span", "dj-stat-icon", icon));
-    const copy = el("div", "dj-stat-copy");
-    copy.append(el("span", "dj-muted", label), el("strong", "", String(value)));
+    const box = elementFactory("div", "dj-stat");
+    box.append(elementFactory("span", "dj-stat-icon", icon));
+    const copy = elementFactory("div", "dj-stat-copy");
+    copy.append(elementFactory("span", "dj-muted", label), elementFactory("strong", "", String(value)));
     box.append(copy);
     return box;
   }
@@ -32,7 +33,7 @@ export function createDjOverviewView({
 
   function addCover(parent, url, className) {
     if (!url) return;
-    const image = el("img", className);
+    const image = elementFactory("img", className);
     image.src = url;
     image.alt = "Album artwork";
     image.loading = "lazy";
@@ -40,12 +41,12 @@ export function createDjOverviewView({
   }
 
   function trackLine(request, index) {
-    const row = el("div", "queue-track");
-    row.append(el("span", "queue-position", String(index + 1).padStart(2, "0")));
+    const row = elementFactory("div", "queue-track");
+    row.append(elementFactory("span", "queue-position", String(index + 1).padStart(2, "0")));
     addCover(row, request.album_image_url, "");
-    const info = el("div", "queue-track-info");
-    info.append(el("strong", "", request.track_name), el("span", "", request.artist_name));
-    row.append(info, row.appendChild(el("span", "queue-state", "QUEUED")));
+    const info = elementFactory("div", "queue-track-info");
+    info.append(elementFactory("strong", "", request.track_name), elementFactory("span", "", request.artist_name));
+    row.append(info, row.appendChild(elementFactory("span", "queue-state", "QUEUED")));
     return row;
   }
 
@@ -58,7 +59,7 @@ export function createDjOverviewView({
     const total = documentRef.querySelector("#queue-total");
     if (total) total.textContent = queued.length + " TRACKS";
     if (!upcoming.length) {
-      list.append(el("p", "dj-empty", "The queue is waiting for its first track."));
+      list.append(elementFactory("p", "dj-empty", "The queue is waiting for its first track."));
       return;
     }
     upcoming.forEach((request, index) => list.append(trackLine(request, index)));
@@ -81,7 +82,7 @@ export function createDjOverviewView({
     documentRef.querySelector("#pause-state").textContent = currentSettings.requestsPaused ? "PAUSED" : "ACCEPTING";
     documentRef.querySelector("#approval-state").textContent = currentSettings.autoApprove ? "AUTO" : "DJ";
 
-    const overview = createDjOverviewModel(data);
+    const overview = createDjOverviewModelementFactory(data);
     const { requests, queueOrder, queued, liveRequests, queuePositions, nextQueued } = overview;
     const stats = documentRef.querySelector("#dj-stats");
     stats.replaceChildren(
@@ -113,34 +114,34 @@ export function createDjOverviewView({
     if (queueReorder.isDragging()) return;
     requestList.replaceChildren();
     if (!liveRequests.length) {
-      requestList.append(el("p", "dj-empty", "No incoming requests. The dancefloor is waiting…"));
+      requestList.append(elementFactory("p", "dj-empty", "No incoming requests. The dancefloor is waiting…"));
       return;
     }
     for (const request of liveRequests) {
       const isQueued = request.status === "queued";
-      const card = el("article", "dj-request" + (isQueued ? " dj-request-queued" : ""));
+      const card = elementFactory("article", "dj-request" + (isQueued ? " dj-request-queued" : ""));
       card.dataset.requestId = request.id;
       if (isQueued) {
         card.draggable = true;
         card.dataset.queueIndex = String(queuePositions.get(request.id));
-        const grip = el("span", "queue-drag-handle", "⠿");
+        const grip = elementFactory("span", "queue-drag-handle", "⠿");
         grip.title = "Sleep om de afspeelvolgorde te wijzigen";
         grip.setAttribute("aria-hidden", "true");
         card.append(grip);
       }
       addCover(card, request.album_image_url, "dj-cover");
-      const info = el("div", "dj-track");
-      if (isQueued) card.append(el("span", "queue-position", String(queuePositions.get(request.id) + 1).padStart(2, "0")));
+      const info = elementFactory("div", "dj-track");
+      if (isQueued) card.append(elementFactory("span", "queue-position", String(queuePositions.get(request.id) + 1).padStart(2, "0")));
       info.append(
-        el("strong", "dj-track-name", request.track_name),
-        el("span", "dj-muted", request.artist_name),
-        el("span", "dj-requester", "REQUESTED BY " + (request.nickname || "GUEST").toUpperCase())
+        elementFactory("strong", "dj-track-name", request.track_name),
+        elementFactory("span", "dj-muted", request.artist_name),
+        elementFactory("span", "dj-requester", "REQUESTED BY " + (request.nickname || "GUEST").toUpperCase())
       );
-      info.append(el("span", "dj-status status-" + request.status, request.status.replace("_", " ").toUpperCase()));
+      info.append(elementFactory("span", "dj-status status-" + request.status, request.status.replace("_", " ").toUpperCase()));
       card.append(info);
-      const actions = el("div", "dj-actions");
+      const actions = elementFactory("div", "dj-actions");
       const addAction = (action, label, className) => {
-        const button = el("button", className, label);
+        const button = elementFactory("button", className, label);
         button.type = "button";
         button.addEventListener("click", () => commands.runRequestAction(request.id, action, button));
         actions.append(button);
