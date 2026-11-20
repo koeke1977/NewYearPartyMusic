@@ -8,6 +8,7 @@ import { claimSpotifyRefreshLock, invalidateSpotifyAccessToken, readEncryptedSpo
 import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
 import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
+import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist, playTrack, sendPlaybackCommand, setPlaybackShuffle, setPlaybackVolume } from "./integrations/spotify/playback-api";
 
 
 
@@ -345,13 +346,9 @@ app.get("/auth/spotify/callback", async (c) => {
 const SPOTIFY_FALLBACK_PLAYLIST_URI = "spotify:playlist:37i9dQZF1DXa2PvUpywmrr";
 
 async function startSpotifyFallback(env: Env): Promise<void> {
-  const shuffle = await spotifyFetch(env, "/me/player/shuffle?state=true", { method: "PUT" });
+  const shuffle = await setPlaybackShuffle(spotifyFetch.bind(null, env), true);
   if (!shuffle.ok && shuffle.status !== 204) throw new Error("Spotify shuffle inschakelen mislukt (HTTP " + shuffle.status + ").");
-  const play = await spotifyFetch(env, "/me/player/play", {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ context_uri: SPOTIFY_FALLBACK_PLAYLIST_URI })
-  });
+  const play = await playPlaylist(spotifyFetch.bind(null, env), SPOTIFY_FALLBACK_PLAYLIST_URI);
   if (!play.ok && play.status !== 204) throw new Error("Spotify Party Hits starten mislukt (HTTP " + play.status + ").");
   await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
 }
@@ -361,11 +358,7 @@ async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;busy?:b
     db: env.DB,
     eventId: env.EVENT_ID,
     playTrack: async (trackUri) => {
-      const response = await spotifyFetch(env, "/me/player/play", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uris: [trackUri] }),
-      });
+      const response = await playTrack(spotifyFetch.bind(null, env), trackUri);
       return { ok: response.ok, status: response.status };
     },
   });
@@ -393,7 +386,7 @@ async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | nul
 app.get("/api/dj/spotify/status",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
   try{
-    const response=await spotifyFetch(c.env,"/me/player");
+    const response=await getCurrentPlayback(spotifyFetch.bind(null, c.env));
     if(response.status===204){
       const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0,0);
       const autoAdvance=await maybeAdvancePartyQueue(c.env,false);
@@ -413,7 +406,7 @@ app.get("/api/dj/spotify/status",async(c)=>{
     const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
     let nextTrack=null;
     if(fallbackActive){
-      const queueResponse=await spotifyFetch(c.env,"/me/player/queue");
+      const queueResponse=await getPlaybackQueue(spotifyFetch.bind(null, c.env));
       if(queueResponse.ok){
         const queueData=await queueResponse.json() as any;
         const upcoming=queueData.queue?.[0];
@@ -425,7 +418,7 @@ app.get("/api/dj/spotify/status",async(c)=>{
 });
 app.get("/api/dj/spotify/devices",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
-  try{const r=await spotifyFetch(c.env,"/me/player/devices");if(!r.ok)return c.json({error:"Spotify-apparaten ophalen mislukt (HTTP "+r.status+")."},502);return c.json(await r.json());}
+  try{const r=await getPlaybackDevices(spotifyFetch.bind(null, c.env));if(!r.ok)return c.json({error:"Spotify-apparaten ophalen mislukt (HTTP "+r.status+")."},502);return c.json(await r.json());}
   catch(e){return c.json({error:e instanceof Error?e.message:"Spotify niet beschikbaar."},503);}
 });
 app.post("/api/dj/spotify/next-request",async(c)=>{
@@ -441,7 +434,7 @@ app.put("/api/dj/spotify/volume",async(c)=>{
   try{body=await c.req.json();}catch{return c.json({error:"Ongeldige aanvraag."},400);}
   if(typeof body.volume!=="number"||!Number.isInteger(body.volume)||body.volume<0||body.volume>100)return c.json({error:"Volume moet een geheel getal tussen 0 en 100 zijn."},400);
   try{
-    const response=await spotifyFetch(c.env,"/me/player/volume?volume_percent="+body.volume,{method:"PUT"});
+    const response=await setPlaybackVolume(spotifyFetch.bind(null, c.env),body.volume);
     if(!response.ok&&response.status!==204)return c.json({error:"Spotify kon het volume niet aanpassen (HTTP "+response.status+"). Controleer of een actief Spotify-apparaat beschikbaar is."},502);
     return c.json({ok:true,volume:body.volume});
   }catch(error){return c.json({error:error instanceof Error?error.message:"Spotify-volume aanpassen is mislukt."},503);}
@@ -449,10 +442,10 @@ app.put("/api/dj/spotify/volume",async(c)=>{
 app.post("/api/dj/spotify/:action",async(c)=>{
   if(!await requireDJ(c.req.raw,c.env)) return c.json({error:"DJ-sessie verlopen."},401);
   const action=c.req.param("action");
-  const paths:Record<string,{method:string;path:string}>={play:{method:"PUT",path:"/me/player/play"},pause:{method:"PUT",path:"/me/player/pause"},next:{method:"POST",path:"/me/player/next"},previous:{method:"POST",path:"/me/player/previous"}};
-  const command=paths[action];if(!command)return c.json({error:"Onbekend Spotify-commando."},400);
+  const allowedActions = ["play","pause","next","previous"] as const;
+  if (!(allowedActions as readonly string[]).includes(action)) return c.json({error:"Onbekend Spotify-commando."},400);
   try{
-    const r=await spotifyFetch(c.env,command.path,{method:command.method});
+    const r=await sendPlaybackCommand(spotifyFetch.bind(null, c.env),action as "play"|"pause"|"next"|"previous");
     if(!r.ok&&r.status!==204){
       const detail=(await r.text()).slice(0,400);
       return c.json({error:"Spotify-commando geweigerd (HTTP "+r.status+"). "+detail},502);
