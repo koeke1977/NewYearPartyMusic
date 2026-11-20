@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createSessionToken, readSession, type Session } from "../../apps/worker/src/modules/identity/session-token";
+import { createSessionToken, readSession } from "../../apps/worker/src/platform/composition/session-token";
+import type { Session } from "../../apps/worker/src/modules/identity/session-token";
 
 const encoder = new TextEncoder();
 
