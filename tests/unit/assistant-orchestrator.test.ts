@@ -106,7 +106,7 @@ describe("DJ assistant orchestration", () => {
 
   it("rejects empty model output", async () => {
     runCloudflareAI.mockResolvedValueOnce({ response: "  " });
-    await expect(runDJAssistantTurn(ai, env, "model", "system", "vraag"))
+    await expect(runDJAssistantTurn(ai, env, "model", "system", "vraag", makeBudget()))
       .rejects.toThrow("Cloudflare AI gaf geen antwoordtekst terug.");
   });
 });
