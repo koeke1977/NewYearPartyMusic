@@ -8,6 +8,7 @@ import { readSpotifyFallbackError, setSpotifyManualPause } from "../modules/play
 import { queueApprovedPartyRequest } from "../modules/requests/application/guest-request-lifecycle";
 import { maybeAdvancePartyQueue, maybeStartSpotifyFallback, startNextPartyQueueRequest } from "../platform/composition/dj-playback-workflows";
 import { requireDJSession } from "./dj-auth";
+import { createGuestRequestRepository } from "../modules/requests/infrastructure/guest-request-d1-repository";
 export const djPlaybackRoutes = new Hono<{ Bindings: Env }>();
 djPlaybackRoutes.use("/api/dj/*", requireDJSession());
 djPlaybackRoutes.get("/api/dj/spotify/status", async (c) => {

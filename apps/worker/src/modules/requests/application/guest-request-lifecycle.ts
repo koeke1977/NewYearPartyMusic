@@ -5,19 +5,6 @@ type Result = { status: number; body: Record<string, unknown> };
 export type GuestRequestTrack = { id:string; uri:string; name:string; artists:Array<{name:string}>; album?:{images?:Array<{url:string}>}; duration_ms:number };
 export type GuestRequestTrackGateway = { getTrack(trackId:string):Promise<GuestRequestTrack|null> };
 
-export type GuestRequestTrack = {
-  id: string;
-  uri: string;
-  name: string;
-  artists: Array<{ name: string }>;
-  album?: { images?: Array<{ url: string }> };
-  duration_ms: number;
-};
-
-export type GuestRequestTrackGateway = {
-  getTrack(trackId: string): Promise<GuestRequestTrack | null>;
-};
-
 export async function joinPartyGuest(input: {
   repository: GuestRequestRepository;
   eventId: string;
