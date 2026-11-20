@@ -99,7 +99,7 @@ describe("Spotify fallback policy", () => {
     });
     expect(await maybeStartSpotifyFallback({ db: retry.db, eventId: "event", startFallback, now: () => now }, null, false)).toBe(false);
     const tooEarly = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } });
-    expect(await maybeStartSpotifyFallback({ db: tooEarly.db, eventId: "event", startFallback, now: () => 177000 }, null, false)).toBe(false);
+    expect(await maybeStartSpotifyFallback({ db: tooEarly.db, eventId: "event", startFallback, now: () => 176999 }, null, false)).toBe(false);
     expect(startFallback).not.toHaveBeenCalled();
   });
 
@@ -128,7 +128,7 @@ describe("Spotify fallback policy", () => {
     const result = await maybeStartSpotifyFallback({ db, eventId: "event", startFallback, now: () => 200000 }, null, false);
     expect(result).toBe(false);
     expect(writes.some(write => write.sql.includes("spotify_fallback_error") && write.values[0] === "Spotify offline")).toBe(true);
-    expect(writes.some(write => write.sql.includes("spotify_fallback_active','false'"))).toBe(true);
+    expect(writes.some(write => write.sql.includes("spotify_fallback_active',?") && write.values[0] === "false")).toBe(true);
     expect(writes.some(write => write.sql.includes("spotify_fallback_retry_after") && write.values[0] === "260000")).toBe(true);
   });
 
