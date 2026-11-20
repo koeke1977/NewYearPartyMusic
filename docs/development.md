@@ -34,7 +34,7 @@ This checklist reflects the current implementation on `refactor/architecture-fou
 - [x] API inventory and Worker/frontend/AI responsibility maps
 - [x] Release guard and test-environment runbook
 - [x] TypeScript, security characterization tests, Worker dry-run and browser journeys green on the validated code head
-- [x] Automated Worker application dependency-boundary check integrated into CI
+- [x] Automated Worker and browser dependency/transport/storage boundary check integrated into CI
 - [x] Spotify catalogue and playback-control application ports with typed provider adapters
 - [x] DJ AI workflow controller separated from DOM-only view rendering
 
