@@ -9,6 +9,7 @@ import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistan
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
 import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
 import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist, playTrack, sendPlaybackCommand, setPlaybackShuffle, setPlaybackVolume } from "./integrations/spotify/playback-api";
+import { joinPartyGuest, submitGuestTrackRequest } from "./modules/requests/application/guest-request-lifecycle";
 
 
 
@@ -30,20 +31,17 @@ app.get("/api/config", (c) => c.json({
 }));
 
 app.post("/api/guests/join", async (c) => {
-  if (!c.env.EVENT_ACCESS_CODE_HASH || !c.env.SESSION_SECRET) return c.json({ error: "PartyQueue is not configured yet. Please contact the DJ." }, 503);
   let body: { nickname?: unknown; eventCode?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const nickname = typeof body.nickname === "string" ? body.nickname.trim() : "";
-  const eventCode = typeof body.eventCode === "string" ? body.eventCode.trim() : "";
-  if (nickname.length < 2 || nickname.length > 24 || !eventCode || eventCode.length > 32) return c.json({ error: "Vul een nickname (2–24 tekens) en de feestcode in." }, 400);
-  if ((await sha256(eventCode)) !== c.env.EVENT_ACCESS_CODE_HASH.trim().toLowerCase()) return c.json({ error: "Die feestcode klopt niet. Vraag de DJ om de juiste code." }, 401);
-  const event = await c.env.DB.prepare("SELECT id FROM events WHERE id = ? AND is_active = 1 LIMIT 1").bind(c.env.EVENT_ID).first<{ id: string }>();
-  if (!event) return c.json({ error: "Dit feest is momenteel niet actief." }, 403);
-  const guestId = crypto.randomUUID();
-  await c.env.DB.prepare("INSERT INTO guests (id, event_id, nickname) VALUES (?, ?, ?)").bind(guestId, event.id, nickname).run();
-  const expiresAt = Math.floor(Date.now() / 1000) + 60 * 60 * 12;
-  const token = await createSessionToken({ sub: guestId, eventId: event.id, nickname, exp: expiresAt }, c.env.SESSION_SECRET);
-  return c.json({ ok: true, guest: { id: guestId, nickname }, sessionToken: token, expiresAt }, 201);
+  const result = await joinPartyGuest({
+    db: c.env.DB, eventId: c.env.EVENT_ID,
+    nickname: typeof body.nickname === "string" ? body.nickname.trim() : "",
+    eventCode: typeof body.eventCode === "string" ? body.eventCode.trim() : "",
+    expectedCodeHash: c.env.EVENT_ACCESS_CODE_HASH, sessionSecret: c.env.SESSION_SECRET,
+    hashCode: sha256, createToken: createSessionToken, createId: () => crypto.randomUUID(),
+    nowSeconds: () => Math.floor(Date.now() / 1000),
+  });
+  return c.json(result.body, result.status as 200);
 });
 
 app.get("/api/spotify/search", async (c) => {
@@ -75,33 +73,11 @@ app.post("/api/requests", async (c) => {
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const trackId = typeof body.trackId === "string" ? body.trackId.trim() : "";
   if (!/^[A-Za-z0-9]{22}$/.test(trackId)) return c.json({ error: "Ongeldig Spotify-nummer." }, 400);
-
-  const guest = await c.env.DB.prepare("SELECT id FROM guests WHERE id = ? AND event_id = ?").bind(session.sub, session.eventId).first();
-  if (!guest) return c.json({ error: "Gast niet gevonden. Meld je opnieuw aan." }, 401);
-
-  const settings = await c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','max_requests_per_hour','auto_approve','auto_queue')").all<{ key: string; value: string }>();
-  const config = Object.fromEntries((settings.results || []).map((row) => [row.key, row.value]));
-  if (config.requests_paused === "true") return c.json({ error: "De DJ heeft aanvragen tijdelijk gepauzeerd." }, 403);
-
-  const rateLimit = Number(config.max_requests_per_hour || 20);
-  const recentCount = await c.env.DB.prepare("SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-1 hour')").bind(session.sub).first<{ count: number }>();
-  if ((recentCount?.count || 0) >= rateLimit) return c.json({ error: "Je maximum van " + rateLimit + " aanvragen per uur is bereikt." }, 429);
-  const duplicate = await c.env.DB.prepare("SELECT id FROM requests WHERE event_id = ? AND spotify_track_id = ? AND status IN ('pending','approved','queued') LIMIT 1").bind(session.eventId, trackId).first();
-  if (duplicate) return c.json({ error: "Dit nummer staat al in de wachtrij." }, 409);
-
-  try {
-    const trackResponse = await getSpotifyTrack(c.env, trackId);
-    if (!trackResponse.ok) return c.json({ error: "We konden dit nummer niet meer ophalen bij Spotify." }, 400);
-    const track = await trackResponse.json() as SpotifyTrack;
-    const requestId = crypto.randomUUID();
-    const status = config.auto_approve === "true" ? (config.auto_queue === "true" ? "queued" : "approved") : "pending";
-    await c.env.DB.prepare(
-      "INSERT INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) VALUES (?,?,?,?,?,?,?,?,?,?,CASE WHEN ? IN ('approved','queued') THEN CURRENT_TIMESTAMP ELSE NULL END,CASE WHEN ? = 'queued' THEN CURRENT_TIMESTAMP ELSE NULL END)",
-    ).bind(requestId, session.eventId, session.sub, track.id, track.uri, track.name, track.artists.map((artist) => artist.name).join(", "), track.album.images?.[1]?.url || track.album.images?.[0]?.url || null, track.duration_ms, status, status, status).run();
-    return c.json({ ok: true, request: { id: requestId, name: track.name, artists: track.artists.map((artist) => artist.name), status } }, 201);
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : "Aanvraag kon niet worden opgeslagen." }, 503);
-  }
+  const result = await submitGuestTrackRequest({
+    db: c.env.DB, eventId: session.eventId, guestId: session.sub, trackId,
+    createId: () => crypto.randomUUID(), getSpotifyTrack: (id) => getSpotifyTrack(c.env, id),
+  });
+  return c.json(result.body, result.status as 200);
 });
 
 
