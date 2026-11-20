@@ -10,6 +10,7 @@
     "db:remote": "wrangler d1 execute partyqueue-db --remote --file=./db/schema.sql",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:browser": "node scripts/test-browser-flows.mjs",
     "screenshots:baseline": "node scripts/capture-ui-baseline.mjs"
   },
   "dependencies": {

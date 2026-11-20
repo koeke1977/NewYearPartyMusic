@@ -105,3 +105,14 @@ Avoid changing the visual design while splitting CSS. Compare screenshots at the
 - AI queue proposals must be validated against the latest DJ overview and require explicit confirmation.
 - A stale poll response must never overwrite a newer playback state.
 - Abort outstanding searches and stop polling on logout.
+
+## Browser-level characterization
+
+The Playwright browser journey suite runs against the real static frontend with deterministic API stubs. It protects the end-to-end browser contracts without calling Spotify or Cloudflare production services:
+
+- Guest join: form validation handoff, event-code submission, session handoff and authenticated search.
+- Guest request: Spotify result rendering, bearer-token forwarding and successful request feedback.
+- DJ access: login submission, persisted DJ session, authenticated overview/playback polling and logout cleanup.
+- Browser runtime errors fail the journey tests.
+
+Run locally with `npm run test:browser` after installing the Playwright Chromium browser. The CI browser job runs these journeys before capturing the existing visual baselines. These are frontend integration tests with stubbed API responses; they do not replace Worker/API integration tests or production acceptance testing.
