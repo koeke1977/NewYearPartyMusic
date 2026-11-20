@@ -21,14 +21,21 @@ export async function findEventGuest(db: GuestRequestDatabase, guestId: string, 
 
 export async function readGuestRequestSettings(db: GuestRequestDatabase): Promise<GuestRequestSettings> {
   const result = await db.prepare(
-    "SELECT key, value FROM settings WHERE key IN ('requests_paused','max_requests_per_hour','auto_approve','auto_queue')",
+    "SELECT key, value FROM settings WHERE key IN ('requests_paused','max_open_requests_per_guest','max_requests_per_30_minutes','auto_approve','auto_queue')",
   ).all<{ key: string; value: string }>();
   return Object.fromEntries((result.results || []).map(row => [row.key, row.value]));
 }
 
 export async function countRecentGuestRequests(db: GuestRequestDatabase, guestId: string): Promise<number> {
   const row = await db.prepare(
-    "SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-1 hour')",
+    "SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-30 minutes')",
+  ).bind(guestId).first<{ count: number }>();
+  return row?.count || 0;
+}
+
+export async function countOpenGuestRequests(db: GuestRequestDatabase, guestId: string): Promise<number> {
+  const row = await db.prepare(
+    "SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND status IN ('pending','approved','queued')",
   ).bind(guestId).first<{ count: number }>();
   return row?.count || 0;
 }

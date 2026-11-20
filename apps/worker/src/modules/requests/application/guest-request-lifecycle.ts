@@ -54,10 +54,16 @@ export async function submitGuestTrackRequest(input: {
     return { status: 403, body: { error: "De DJ heeft aanvragen tijdelijk gepauzeerd." } };
   }
 
-  const rateLimit = Number(config.max_requests_per_hour || 20);
+  const openRequestLimit = Number(config.max_open_requests_per_guest || 2);
+  const openRequestCount = await input.repository.countOpenGuestRequests(input.guestId);
+  if (Number.isInteger(openRequestLimit) && openRequestLimit > 0 && openRequestCount >= openRequestLimit) {
+    return { status: 429, body: { error: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
+  }
+
+  const rateLimit = Number(config.max_requests_per_30_minutes || 5);
   const recentCount = await input.repository.countRecentGuestRequests(input.guestId);
-  if (recentCount >= rateLimit) {
-    return { status: 429, body: { error: "Je maximum van " + rateLimit + " aanvragen per uur is bereikt." } };
+  if (Number.isInteger(rateLimit) && rateLimit > 0 && recentCount >= rateLimit) {
+    return { status: 429, body: { error: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
   }
 
   const duplicate = await input.repository.findActiveTrackRequest(input.eventId, input.trackId);

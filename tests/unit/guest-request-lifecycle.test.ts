@@ -4,7 +4,7 @@ import { joinPartyGuest, submitGuestTrackRequest } from "../../apps/worker/src/m
 
 function fakeDb(options: {
   event?: unknown; guest?: unknown; settings?: Array<{key:string;value:string}>;
-  count?: number; duplicate?: unknown;
+  count?: number; openCount?: number; duplicate?: unknown;
 } = {}) {
   const calls: Array<{sql:string;values:unknown[]}> = [];
   const db = {
@@ -16,6 +16,7 @@ function fakeDb(options: {
           calls.push({sql,values:[...values]});
           if (sql.includes("FROM events")) return options.event === undefined ? {id:"event-1"} : options.event;
           if (sql.includes("FROM guests")) return options.guest === undefined ? {id:"guest-1"} : options.guest;
+          if (sql.includes("COUNT(*)") && sql.includes("status IN")) return {count:options.openCount ?? 0};
           if (sql.includes("COUNT(*)")) return {count:options.count ?? 0};
           if (sql.includes("FROM requests") && sql.includes("spotify_track_id")) return options.duplicate ?? null;
           return null;
@@ -64,7 +65,7 @@ describe("guest request lifecycle", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("enforces event-scoped guest, pause, hourly limit and duplicate checks", async () => {
+  it("enforces event-scoped guest, pause, open-request and 30-minute rate limits, and duplicate checks", async () => {
     const missing=fakeDb({guest:null});
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(missing.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
@@ -77,7 +78,15 @@ describe("guest request lifecycle", () => {
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:403});
 
-    const limited=fakeDb({count:20});
+    const openLimited=fakeDb({openCount:2,settings:[{key:"max_open_requests_per_guest",value:"2"}]});
+    const openLimitGateway=vi.fn();
+    expect(await submitGuestTrackRequest({
+      repository:createGuestRequestRepository(openLimited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      createId:()=>"request",trackGateway:{getTrack:openLimitGateway},
+    })).toMatchObject({status:429,body:{error:"Je hebt het maximum van 2 openstaande aanvragen bereikt."}});
+    expect(openLimitGateway).not.toHaveBeenCalled();
+
+    const limited=fakeDb({count:5,settings:[{key:"max_requests_per_30_minutes",value:"5"}]});
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(limited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
