@@ -22,23 +22,10 @@ input:focus{border-color:var(--green);box-shadow:0 0 0 3px rgba(30,215,96,.1)}in
 footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;padding:28px 0 22px;color:#758078;font-size:9px;font-weight:700;letter-spacing:.08em}
 @media(max-width:420px){.shell{width:min(100% - 28px,680px)}.topbar{min-height:68px}.event-pill{font-size:8px;padding:7px 8px}.hero{padding-top:45px}.join-card{padding:20px}footer{font-size:8px}}
 
-/* Spotify search and request UI */
-.search-form{display:grid;grid-template-columns:1fr auto;gap:9px}
-.search-form .button{margin-top:0;padding:0 15px}
-.button:disabled,.request-button:disabled{opacity:.55;cursor:wait}
-.track-results{display:grid;gap:10px;margin-top:14px}
-.track-item{display:flex;align-items:center;gap:12px;min-width:0;padding:10px;border:1px solid var(--border);border-radius:13px;background:rgba(7,11,8,.65)}
-.track-cover{width:54px;height:54px;flex:0 0 54px;object-fit:cover;border-radius:7px;background:#18221b}
-.track-cover-empty{display:grid;place-items:center;color:var(--green);font-size:24px}
-.track-details{display:grid;gap:4px;min-width:0;flex:1}
-.track-name{overflow:hidden;color:var(--text);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
-.track-artist{overflow:hidden;color:var(--muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap}
-.track-duration{color:#748078;font-size:9px}
-.request-button{min-height:35px;padding:0 11px;border:1px solid rgba(30,215,96,.5);border-radius:8px;background:rgba(30,215,96,.1);color:var(--green);font:inherit;font-size:9px;font-weight:900;letter-spacing:.07em;cursor:pointer}
-.request-button:hover,.request-button.request-sent{background:var(--green);color:#061009}
+/* Shared text-button control */
+.button:disabled{opacity:.55;cursor:wait}
 .text-button{display:block;margin:17px auto 0;padding:7px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:10px;cursor:pointer}
 .text-button:hover{color:var(--green)}
-@media(max-width:440px){.search-form{grid-template-columns:1fr}.search-form .button{min-height:45px}.track-item{gap:9px;padding:8px}.track-cover{width:46px;height:46px;flex-basis:46px}.request-button{padding:0 8px;font-size:8px}}
 
 
 
