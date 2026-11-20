@@ -40,9 +40,8 @@ function fakeDb(options:{
 
 const track={
   id:"1234567890123456789012",uri:"spotify:track:1234567890123456789012",
-  name:"AI selected song",artists:[{name:"Artist"}],
-  album:{images:[{url:"https://image.example/large"},{url:"https://image.example/small"}]},
-  duration_ms:180000,
+  name:"AI selected song",artists:["Artist"],
+  albumImageUrl:"https://image.example/small.jpg",durationMs:180000,
 };
 
 describe("DJ request lifecycle",()=>{
