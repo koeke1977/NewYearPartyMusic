@@ -23,7 +23,7 @@ This checklist describes the current application and the next safe engineering s
 - [x] Record production data safety constraints
 - [x] Inventory every API route, method, auth rule and response contract
 - [ ] Map each existing function/file to a single responsibility
-- [ ] Add and pass characterization tests before moving further implementation code (initial crypto/session compatibility tests added)
+- [x] Add and pass initial crypto/session compatibility characterization tests before further implementation
 - [x] Extract Worker environment type, cryptographic primitives and session-token service
 - [ ] Extract D1 repositories and application use cases
 - [ ] Extract Spotify OAuth/token/API adapter
