@@ -21,3 +21,4 @@ export interface AssistantRepository {
 }
 
 export type CloudflareAIClient = { run(model: string, input: Record<string, unknown>): Promise<unknown> };
+\nexport type LocalAIAssistantClient = { complete(system: string, user: string): Promise<string> };\n
