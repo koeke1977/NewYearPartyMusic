@@ -1,8 +1,7 @@
 import { createDjApi } from "./modules/dj-api.js";
-import { orderedQueued } from "./modules/dj-queue.js";
 import { createDjPollingController } from "./modules/dj-polling.js";
 import { createDjPlaybackCoordinator } from "./modules/dj-playback-coordinator.js";
-import { buildDjChatGptPrompt } from "./modules/dj-chatgpt-handoff.js";
+import { bindDjChatGptHandoff } from "./modules/dj-chatgpt-handoff.js";
 import { createDjOverviewView } from "./modules/dj-overview-view.js";
 import { createDjQueueReorderController } from "./modules/dj-queue-reorder.js";
 import { createDjCommandService } from "./modules/dj-command-service.js";
@@ -62,27 +61,11 @@ document.querySelector("#auto-queue-toggle").addEventListener("click",()=>comman
 
 createDjAiAssistant({api,refresh:()=>refresh()});
 
-const chatGPTButton=document.querySelector("#dj-chatgpt-help");
-chatGPTButton?.addEventListener("click",async()=>{
-  const output=document.querySelector("#dj-ai-answer");
-  const overview=overviewView.getLatestOverview();
-  if(!overview){
-    output.textContent="De actuele DJ-consolegegevens zijn nog niet geladen. Probeer opnieuw zodra UP NEXT zichtbaar is.";
-    return;
-  }
-  const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
-  const nowPlaying=(document.querySelector("#spotify-now-playing")?.textContent||"Niet beschikbaar").trim();
-  const prompt=buildDjChatGptPrompt({queuedTracks:queued,nowPlaying});
-  window.open("https://chatgpt.com/","_blank","noopener,noreferrer");
-  chatGPTButton.disabled=true;
-  try{
-    await navigator.clipboard.writeText(prompt);
-    output.textContent="✓ De actuele UP NEXT-lijst en Spotify-status zijn gekopieerd. ChatGPT is in een apart tabblad geopend: plak daar de context met Ctrl+V. Dit gebruikt je gewone ChatGPT-account, geen API.";
-  }catch(error){
-    output.textContent="ChatGPT is geopend, maar het kopiëren naar het klembord is geblokkeerd. Fout: "+(error?.message||"onbekend")+".";
-  }finally{
-    chatGPTButton.disabled=false;
-  }
+bindDjChatGptHandoff({
+  button:document.querySelector("#dj-chatgpt-help"),
+  getOverview:()=>overviewView.getLatestOverview(),
+  getNowPlaying:()=>document.querySelector("#spotify-now-playing")?.textContent||"Niet beschikbaar",
+  output:document.querySelector("#dj-ai-answer"),
 });
 
 if(auth.hasToken())auth.setLoggedIn(true);
