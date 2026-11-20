@@ -4,7 +4,7 @@ import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackS
 import { element as el } from "./dom.js";
 
 // Owns the Spotify-facing DJ console UI, status refresh and playback control bindings.
-export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {}, documentRef = document, windowRef = window }) {
+export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {}, onQueuePreview = () => {}, documentRef = document, windowRef = window }) {
   function setDeck(side, track) {
     const title = documentRef.querySelector("#booth-track-title-" + side);
     const artist = documentRef.querySelector("#booth-track-artist-" + side);
@@ -117,6 +117,7 @@ export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {},
         if (boothState) boothState.textContent = data.fallbackActive ? "SPOTIFY MIX" : data.playing ? "ON AIR" : "STANDBY";
         setDeck("left", data.track ? { name: data.track.name, artists: data.track.artists, image: data.track.image } : null);
         const nextTrack = data.fallbackActive ? data.nextTrack : null;
+      onQueuePreview(nextTrack);
         const nextButton = documentRef.querySelector("#partyqueue-next");
         if (nextButton?.disabled) setDeck("right", nextTrack);
         updateTrackProgress(data.progressMs, data.track?.durationMs, data.playing);
