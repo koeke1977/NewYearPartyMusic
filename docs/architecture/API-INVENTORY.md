@@ -18,7 +18,7 @@ This inventory records the existing Hono HTTP contracts, access rules and side e
 | GET | `/api/config` | Public | Returns public event configuration and guest access mode. |
 | POST | `/api/guests/join` | Public + event code | Applies an atomic D1 per-IP attempt bucket (120 per 15 minutes), validates event code hash and active event, inserts guest, issues 12-hour signed guest token. |
 | GET | `/api/spotify/search` | Guest bearer | Searches Spotify tracks; returns normalized track metadata and Spotify attribution. |
-| POST | `/api/requests` | Guest bearer | Validates event-scoped guest, pause state, configured maximum of open requests per guest (default 2), configured request rate over 30 minutes (default 5), and active duplicates; verifies track against Spotify and inserts with configured initial status. |
+| POST | `/api/requests` | Guest bearer | Validates event-scoped guest and pause state, allows an unlimited number of active requests per guest, enforces a rolling limit of 20 requests per guest per 60 minutes, and blocks duplicate active tracks; verifies track against Spotify and inserts with configured initial status. |
 | POST | `/api/dj/login` | Public + DJ code | Applies an atomic D1 per-IP attempt bucket (10 per 15 minutes), validates DJ code hash and issues an 8-hour signed DJ token. |
 | POST | `/api/dj/ai/assistant` | DJ bearer | Builds Spotify-independent context from event timing and DJ-authored preferences only, calls Cloudflare Workers AI without Spotify tools or request metrics, and caches general advice/track ideas; it cannot inspect or reorder the live queue. |
 | POST | `/api/dj/ai/music/search` | DJ bearer | Performs a separate DJ-initiated Spotify search for up to 20 supplied queries; returns up to 3 matches per query to the browser only. Results are never sent to an AI model. |
@@ -55,7 +55,7 @@ During extraction, preserve:
 
 1. Session token creation/verification, expiry, tampering and event binding.
 2. Existing encrypted Spotify OAuth token compatibility. Encryption format is AES-GCM with a 12-byte IV prefixed to ciphertext, encoded as base64url; key derivation is SHA-256 of `SESSION_SECRET`.
-3. Guest open-request limit, 30-minute rate limit, duplicate checks and auto-approve/auto-queue decisions.
+3. Unlimited active requests per guest, rolling 60-minute rate limit (20 per guest), duplicate checks and auto-approve/auto-queue decisions.
 4. Request state transition allow-list and timestamps.
 5. Queue reorder validation, saved order and DJ accepted-set history.
 6. Spotify NEXT lock acquisition/release and only marking a request played after a successful Spotify response.
