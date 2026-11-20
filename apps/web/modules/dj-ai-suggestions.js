@@ -1,6 +1,6 @@
-export function extractDjTrackSuggestions(answer, spotifyMatches = []) {
+export function extractDjTrackSuggestions(answer) {
   const normalizedAnswer = answer.replace(/\\n/g, "\n").replace(/\\r/g, "");
-  const suggestions = [...normalizedAnswer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)]
+  return [...normalizedAnswer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)]
     .map((match) => match[1]
       .replace(/\*+/g, "")
       .replace(/\s*\([^)]*\)\s*$/, "")
@@ -11,9 +11,4 @@ export function extractDjTrackSuggestions(answer, spotifyMatches = []) {
     .map((line) => line.replace(/^\s*[-•]\s*/, "").trim().slice(0, 140))
     .filter((line) => line.length > 2)
     .slice(0, 20);
-
-  if (!suggestions.length && spotifyMatches.length) {
-    for (const group of spotifyMatches) suggestions.push(group.query);
-  }
-  return suggestions;
 }

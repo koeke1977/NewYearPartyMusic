@@ -7,6 +7,9 @@ function fakeElement() {
   return {
     textContent: "",
     value: "",
+    href: "",
+    target: "",
+    rel: "",
     hidden: false,
     disabled: false,
     listeners,
@@ -26,8 +29,10 @@ function fakeElement() {
 
 function setup() {
   const selectors = [
-    "#spotify-connection-state", "#spotify-device", "#spotify-now-playing",
-    "#spotify-connect", "#master-volume", "#master-volume-value",
+    "#spotify-connection-state", "#spotify-device", "#spotify-now-playing", "#spotify-now-playing-link",
+    "#spotify-connect", "#partyqueue-booth", "#booth-play-state", "#booth-track-link-left",
+    "#booth-track-title-left", "#booth-track-artist-left", "#booth-track-image-left", "#booth-track-placeholder-left",
+    "#partyqueue-next", "#master-volume", "#master-volume-value",
     "#master-volume-leds", "#master-volume-status",
     '[data-spotify-command="play"]', '[data-spotify-command="pause"]',
   ];
@@ -49,7 +54,7 @@ function setup() {
     connected: true,
     playing: true,
     device: { name: "Living Room", type: "Speaker", volume: 65 },
-    track: { name: "Music Sounds Better With You", artists: ["Stardust"] },
+    track: { id: "track-1", name: "Music Sounds Better With You", artists: ["Stardust"], image: "https://img.example/cover.jpg" },
   } : {});
   const spotify = createDjSpotifyConsole({
     api,
@@ -69,6 +74,8 @@ describe("DJ Spotify console", () => {
     expect(elements["#spotify-connection-state"].textContent).toBe("CONNECTED");
     expect(elements["#spotify-device"].textContent).toBe("ACTIVE DEVICE · Living Room (Speaker)");
     expect(elements["#spotify-now-playing"].textContent).toContain("Music Sounds Better With You — Stardust");
+    expect(elements["#spotify-now-playing-link"].href).toBe("https://open.spotify.com/track/track-1");
+    expect(elements["#booth-track-link-left"].href).toBe("https://open.spotify.com/track/track-1");
     expect(elements["#master-volume-value"].textContent).toBe("65%");
     expect(elements['[data-spotify-command="play"]'].classList.contains("is-selected")).toBe(true);
     expect(playback.completeStatus).toHaveBeenCalledWith(7);
@@ -86,6 +93,7 @@ describe("DJ Spotify console", () => {
     await stale.refreshStatus();
 
     expect(elements["#spotify-now-playing"].textContent).toBe("");
+    expect(elements["#spotify-now-playing-link"].href).toBe("");
     expect(playback.completeStatus).toHaveBeenCalledWith(7);
   });
 });

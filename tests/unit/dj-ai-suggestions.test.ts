@@ -11,11 +11,6 @@ describe("DJ AI track suggestions", () => {
     ]);
   });
 
-  it("falls back to Spotify query groups when no numbered tracks are present", () => {
-    expect(extractDjTrackSuggestions("A short explanation", [{ query: "Madonna" }, { query: "Stardust" }]))
-      .toEqual(["Madonna", "Stardust"]);
-  });
-
   it("caps suggestions at twenty and each suggestion at 140 characters", () => {
     const answer = Array.from({ length: 25 }, (_, index) => (index + 1) + ". " + "X".repeat(150) + " — Artist").join("\n");
     const suggestions = extractDjTrackSuggestions(answer);

@@ -1,6 +1,6 @@
 import { rememberDJPreference } from "../memory/dj-preferences";
-import type { CachedAssistantAnswer, CachedSpotifyMatch } from "../application/assistant-ports";
-export type { CachedAssistantAnswer, CachedSpotifyMatch } from "../application/assistant-ports";
+import type { CachedAssistantAnswer } from "../application/assistant-ports";
+export type { CachedAssistantAnswer } from "../application/assistant-ports";
 
 export type AssistantSettingsDatabase = Pick<D1Database, "prepare">;
 
@@ -40,15 +40,9 @@ export async function readAssistantAnswerCache(
     const cached = JSON.parse(row.value) as {
       key?: unknown;
       answer?: unknown;
-      spotifyMatches?: unknown;
     };
     if (cached.key !== cacheKey || typeof cached.answer !== "string" || !cached.answer) return null;
-    return {
-      answer: cached.answer,
-      spotifyMatches: Array.isArray(cached.spotifyMatches)
-        ? cached.spotifyMatches as CachedSpotifyMatch[]
-        : [],
-    };
+    return { answer: cached.answer };
   } catch {
     return null;
   }
@@ -58,12 +52,11 @@ export async function writeAssistantAnswerCache(
   db: AssistantSettingsDatabase,
   cacheKey: string,
   answer: string,
-  spotifyMatches: CachedSpotifyMatch[],
 ): Promise<void> {
   await db.prepare(
     "INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) " +
     "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
-  ).bind(JSON.stringify({ key: cacheKey, answer, spotifyMatches })).run();
+  ).bind(JSON.stringify({ key: cacheKey, answer })).run();
 }
 
 /** Atomically claims the existing eight-second cooldown in D1. */

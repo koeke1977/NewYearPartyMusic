@@ -9,6 +9,9 @@ function element() {
     value: "",
     checked: false,
     disabled: false,
+    href: "",
+    target: "",
+    rel: "",
     children: [],
     listeners,
     append(...items) { this.children.push(...items); },
@@ -24,32 +27,14 @@ function setup() {
 }
 
 describe("DJ AI assistant view", () => {
-  it("renders a queue proposal and invokes explicit confirmation before completion", async () => {
+  it("explains that general AI advice has no Spotify or live queue context", () => {
     const { view, output } = setup();
-    const onConfirm = vi.fn(async () => {});
-    view.renderQueueProposal(output, { answer: "1. Song — Artist", queueLength: 1, onConfirm });
-
-    const panel = output.children[1];
-    const confirmButton = panel.children[1];
-    await confirmButton.listeners.click();
-
-    expect(onConfirm).toHaveBeenCalledOnce();
-    expect(output.children[1].textContent).toContain("Wachtrij effectief herschikt");
+    view.renderAdvice(output, "Bouw rustig op.");
+    expect(output.children[0].textContent).toBe("Bouw rustig op.");
+    expect(output.children[1].textContent).toContain("geen Spotify-trackdata of live wachtrij");
   });
 
-  it("keeps the current queue when a proposal is cancelled", () => {
-    const { view, output } = setup();
-    const onCancel = vi.fn();
-    view.renderQueueProposal(output, { answer: "1. Song — Artist", queueLength: 1, onConfirm: vi.fn(), onCancel });
-
-    const panel = output.children[1];
-    panel.children[2].listeners.click();
-
-    expect(onCancel).toHaveBeenCalledOnce();
-    expect(output.children[1].textContent).toContain("huidige wachtrij blijft ongewijzigd");
-  });
-
-  it("renders Spotify choices and passes only selected tracks to the controller", async () => {
+  it("renders Spotify choices with links back to Spotify and passes only selected tracks", async () => {
     const { view, output } = setup();
     const onAddSelected = vi.fn(async () => ({
       added: [{ track: { name: "Song B" } }],
@@ -71,8 +56,12 @@ describe("DJ AI assistant view", () => {
 
     const group = output.children[2];
     const secondOption = group.children[2];
-    const firstRadio = group.children[1].children[0];
-    const secondRadio = secondOption.children[0];
+    const firstRadio = group.children[1].children[0].children[0];
+    const secondRadio = secondOption.children[0].children[0];
+    const spotifyLink = secondOption.children[1];
+    expect(spotifyLink.href).toBe("https://open.spotify.com/track/track-b");
+    expect(spotifyLink.target).toBe("_blank");
+    expect(spotifyLink.rel).toContain("noopener");
     firstRadio.checked = false;
     secondRadio.checked = true;
     await output.children[3].listeners.click();
