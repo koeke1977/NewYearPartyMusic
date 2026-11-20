@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getDjOverview, reorderDjQueue, updateDjSetting } from "../../apps/worker/src/modules/requests/application/dj-queue-management";
+import { createDjQueueRepository } from "../../apps/worker/src/modules/requests/infrastructure/dj-queue-d1-repository";
 
 type StatementCall = { sql: string; values: unknown[] };
 function fakeDb(options: {
@@ -61,7 +62,7 @@ describe("DJ queue management", () => {
         { key: "auto_queue", value: "true" },
       ],
     });
-    const result = await getDjOverview({ db, eventId: "event-1" });
+    const result = await getDjOverview({ repository: createDjQueueRepository(db), eventId: "event-1" });
     expect((result.requests as Array<{ id: string }>).map(row => row.id)).toEqual(["p1", "a1", "q2", "q1", "done"]);
     expect(result.queueOrder).toEqual(["q2", "q1"]);
     expect(result.settings).toEqual({ requestsPaused: true, autoApprove: false, autoQueue: true });
@@ -79,7 +80,7 @@ describe("DJ queue management", () => {
       tracks: [{ id: "a", track_name: "First", artist_name: "One" }, { id: "b", track_name: "Second", artist_name: "Two" }],
       history: '[{"at":"old","tracks":["Old — Artist"]}]',
     });
-    const result = await reorderDjQueue({ db, eventId: "event-1", order: ["b", "a"], nowIso: () => "2026-11-20T10:00:00.000Z" });
+    const result = await reorderDjQueue({ repository: createDjQueueRepository(db), eventId: "event-1", order: ["b", "a"], nowIso: () => "2026-11-20T10:00:00.000Z" });
     expect(result).toEqual({ status: 200, body: { ok: true, order: ["b", "a"] } });
     const orderWrite = calls.find(call => call.sql.includes("partyqueue_order") && call.sql.startsWith("INSERT"));
     expect(JSON.parse(orderWrite?.values[0] as string)).toEqual(["b", "a"]);
@@ -109,7 +110,7 @@ describe("DJ queue management", () => {
 
   it("validates setting allow-list and boolean value before writing", async () => {
     const { db, calls } = fakeDb();
-    expect(await updateDjSetting({ db, key: "spotify_client_secret", enabled: true })).toMatchObject({ status: 400 });
+    expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "spotify_client_secret", enabled: true })).toMatchObject({ status: 400 });
     expect(await updateDjSetting({ db, key: "auto_queue", enabled: "true" })).toMatchObject({ status: 400 });
     expect(await updateDjSetting({ db, key: "auto_queue", enabled: false })).toEqual({ status: 200, body: { ok: true, enabled: false } });
     const write = calls.find(call => call.sql.startsWith("INSERT INTO settings"));
