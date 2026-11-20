@@ -1,4 +1,4 @@
-export type PlaybackPolicyDatabase = Pick<D1Database, "prepare">;
+export type PlaybackPolicyDatabase = Pick<D1Database, "prepare" | "batch">;
 
 export type LastPartyQueueTrack = {
   uri: string;
