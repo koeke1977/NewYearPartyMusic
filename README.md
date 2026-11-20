@@ -40,9 +40,9 @@ npm run test:browser
 For a disposable local D1 database only: `npm run db:local`.
 
 ## Validation and deployment safety
-Run `npm run release:preflight` only when checking the optional future production deployment configuration. It is not a prerequisite for local development or test-environment work.
+Run `npm run deploy` to deploy the current test configuration when needed. Run `npm run release:preflight` only when checking the optional future production configuration; it is not a prerequisite for local development or test-environment work.
 
-`npm run deploy` is currently guarded for a future production environment. That guard must not be confused with the current test environment or used as a reason to defer architecture changes. Test data and test resources are disposable.
+`npm run deploy` deploys the current default Wrangler configuration, which is the disposable test environment. `npm run deploy:production` is the separate, fail-closed path for a future dedicated real-event environment and requires the production configuration and explicit release latch. Test data and test resources are disposable.
 
 The current D1 database is test-only and may be rebuilt when needed. Review `db/schema.sql` before applying it; it is a bootstrap schema, not a versioned migration set.
 
