@@ -6,6 +6,8 @@ export type LocalAIBridgeClient = {
 export function createLocalAIBridgeClient(input: {
   url?: string;
   token?: string;
+  accessClientId?: string;
+  accessClientSecret?: string;
   fetcher?: typeof fetch;
 }): LocalAIBridgeClient | undefined {
   if (!input.url || !input.token) return undefined;
@@ -24,6 +26,7 @@ export function createLocalAIBridgeClient(input: {
         headers: {
           "authorization": "Bearer " + input.token,
           "content-type": "application/json",
+          ...(input.accessClientId && input.accessClientSecret ? { "CF-Access-Client-Id": input.accessClientId, "CF-Access-Client-Secret": input.accessClientSecret } : {}),
         },
         body: JSON.stringify({ system, user }),
         signal: AbortSignal.timeout(95000),
