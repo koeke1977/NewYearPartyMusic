@@ -362,6 +362,7 @@ async function askDJAI(prompt,mode="advice"){
   try{
     const result=mode==="import"?{answer:prompt,cached:false}:await api("/api/dj/ai/assistant",{method:"POST",body:JSON.stringify({prompt})});
     const answer=result.answer||"Geen advies ontvangen.";
+    if(mode==="advice"&&result.spotifyMatches?.length)mode="fill";
     if(mode==="optimize"){
       output.textContent=answer+"\n\nWachtrij wordt gecontroleerd…";
       const overview=await api("/api/dj/overview");
@@ -431,13 +432,16 @@ async function askDJAI(prompt,mode="advice"){
         .map(line=>line.replace(/^\s*[-•]\s*/,"").trim().slice(0,140))
         .filter(line=>line.length>2)
         .slice(0,20);
+      if(!suggestions.length&&result.spotifyMatches?.length)result.spotifyMatches.forEach(group=>suggestions.push(group.query));
       output.replaceChildren();
       const intro=el("p","",answer);
       output.append(intro);
       if(suggestions.length){
         const hint=el("p","dj-ai-results-hint",mode==="import"?"Je lijst is herkend. Kies per nummer de juiste Spotify-uitvoering om die rechtstreeks aan UP NEXT toe te voegen.":"Spotify-matches — kies de juiste uitvoering om die rechtstreeks aan UP NEXT toe te voegen.");
         output.append(hint);
-        const results=await api("/api/dj/ai/music/search",{method:"POST",body:JSON.stringify({queries:suggestions})});
+        const results=result.spotifyMatches?.length
+          ? {results:result.spotifyMatches}
+          : await api("/api/dj/ai/music/search",{method:"POST",body:JSON.stringify({queries:suggestions})});
         const selectedTracks=[];
       let groupIndex=0;
       for(const group of results.results||[]){
