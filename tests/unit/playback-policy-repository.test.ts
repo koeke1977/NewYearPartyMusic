@@ -22,7 +22,7 @@ function fakeDb() {
         async first() {
           calls.push({ sql, values: [...values] });
           if (sql.includes("COUNT(*)")) return { count: 3 };
-          if (sql.includes("spotify_fallback_error")) return { value: "Spotify offline" };
+          if (values[0] === "spotify_fallback_error") return { value: "Spotify offline" };
           if (sql.includes("SELECT value,updated_at")) return { value: "true", updated_at: "2026-11-20 10:00:00" };
           return null;
         },
@@ -55,8 +55,8 @@ describe("playback policy repository", () => {
     const { db, calls } = fakeDb();
     expect(await claimSpotifyFallbackStart(db)).toBe(true);
     expect(calls[0].sql).toContain("ON CONFLICT(key) DO UPDATE");
-    expect(calls[0].sql).toContain("settings.updated_at < datetime('now','-60 seconds')");
-    expect(calls[0].sql).toContain("settings.value!='true'");
+    expect(calls[0].sql).toContain("settings.value NOT IN ('true','starting')");
+    expect(calls[0].sql).toContain("settings.updated_at < datetime('now','-1 minute')");
   });
 
   it("persists fallback state, errors and retry timestamp", async () => {
@@ -65,7 +65,7 @@ describe("playback policy repository", () => {
     await setSpotifyFallbackActive(db);
     await setSpotifyFallbackError(db, "Spotify offline");
     await setSpotifyFallbackRetryAfter(db, 123456);
-    expect(calls.map(call => call.values)).toEqual([[], [], ["Spotify offline"], ["123456"]]);
+    expect(calls.map(call => call.values)).toEqual([["false"], ["true"], ["Spotify offline"], ["123456"]]);
     expect(calls[0].sql).toContain("'spotify_fallback_active'");
     expect(calls[1].sql).toContain("'spotify_fallback_active'");
     expect(calls[2].sql).toContain("'spotify_fallback_error'");
@@ -83,8 +83,8 @@ describe("playback policy repository", () => {
   it("clears both retry and error state together", async () => {
     const { db, calls } = fakeDb();
     await clearSpotifyFallbackFailure(db);
-    expect(calls).toHaveLength(1);
-    expect(calls[0].sql).toBe("BATCH");
-    expect(calls[0].values).toHaveLength(2);
+    expect(calls).toHaveLength(2);
+    expect(calls[0].sql).toContain("spotify_fallback_retry_after");
+    expect(calls[1].sql).toContain("spotify_fallback_error");
   });
 });
