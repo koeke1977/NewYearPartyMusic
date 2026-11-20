@@ -1,6 +1,7 @@
 import { element } from "./dom.js";
 import { clearGuestSession } from "./guest-session.js";
 import { searchGuestTracks, submitGuestTrackRequest } from "./guest-music-api.js";
+import { renderGuestTrackResults } from "./guest-track-results-view.js";
 
 export function showMusicSearch(card, session) {
   if (!card) return;
@@ -57,6 +58,22 @@ export function showMusicSearch(card, session) {
   let activeSearch = null;
   let latestSearch = 0;
 
+  async function submitTrackRequest(track, requestButton) {
+    requestButton.disabled = true;
+    requestButton.textContent = "BEZIG…";
+    try {
+      const requestData = await submitGuestTrackRequest(track.id, session.token);
+      requestButton.textContent = "AANGEVRAAGD ✓";
+      requestButton.classList.add("request-sent");
+      feedback.textContent = "Top! " + requestData.request.name + " is " +
+        (requestData.request.status === "approved" ? "goedgekeurd en klaar voor de DJ." : "doorgestuurd naar de DJ.");
+    } catch (error) {
+      requestButton.disabled = false;
+      requestButton.textContent = "AANVRAGEN";
+      feedback.textContent = error instanceof Error ? error.message : "Aanvragen is niet gelukt.";
+    }
+  }
+
   async function runSearch() {
     const query = searchInput.value.trim();
     const searchId = ++latestSearch;
@@ -77,42 +94,7 @@ export function showMusicSearch(card, session) {
         return;
       }
       feedback.textContent = data.tracks.length + " nummers gevonden — tik op jouw keuze.";
-      for (const track of data.tracks) {
-        const item = element("article", "track-item");
-        if (track.albumImageUrl) {
-          const image = element("img", "track-cover");
-          image.src = track.albumImageUrl;
-          image.alt = "Albumcover";
-          image.loading = "lazy";
-          item.append(image);
-        } else {
-          item.append(element("div", "track-cover track-cover-empty", "♪"));
-        }
-        const details = element("div", "track-details");
-        details.append(element("strong", "track-name", track.name));
-        details.append(element("span", "track-artist", track.artists.join(", ")));
-        const duration = Math.floor(track.durationMs / 60000) + ":" + String(Math.floor(track.durationMs / 1000) % 60).padStart(2, "0");
-        details.append(element("span", "track-duration", duration));
-        const requestButton = element("button", "request-button", "AANVRAGEN");
-        requestButton.type = "button";
-        requestButton.addEventListener("click", async () => {
-          requestButton.disabled = true;
-          requestButton.textContent = "BEZIG…";
-          try {
-            const requestData = await submitGuestTrackRequest(track.id, session.token);
-            requestButton.textContent = "AANGEVRAAGD ✓";
-            requestButton.classList.add("request-sent");
-            feedback.textContent = "Top! " + requestData.request.name + " is " +
-              (requestData.request.status === "approved" ? "goedgekeurd en klaar voor de DJ." : "doorgestuurd naar de DJ.");
-          } catch (error) {
-            requestButton.disabled = false;
-            requestButton.textContent = "AANVRAGEN";
-            feedback.textContent = error instanceof Error ? error.message : "Aanvragen is niet gelukt.";
-          }
-        });
-        item.append(details, requestButton);
-        results.append(item);
-      }
+      renderGuestTrackResults(results, data.tracks, submitTrackRequest);
     } catch (error) {
       if (error?.name === "AbortError" || searchId !== latestSearch) return;
       feedback.textContent = error instanceof Error ? error.message : "Muziek zoeken is tijdelijk niet beschikbaar.";
