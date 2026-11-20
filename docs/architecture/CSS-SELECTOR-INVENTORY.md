@@ -48,7 +48,11 @@ The first CSS foundation extraction is complete. Both HTML entrypoints now load 
 ## DJ stylesheet extraction
 
 - `apps/web/styles.css`: shared page shell and text-button foundations used by both guest and DJ pages.
-- `apps/web/styles/dj-console.css`: DJ-only console, stage, mixer, Spotify transport, turntable, request queue, reorder and AI assistant presentation.
+- `apps/web/styles/dj-layout.css`: DJ console shell, stage, deck and cockpit layout.
+- `apps/web/styles/dj-playback.css`: Spotify transport, turntables, mixer, volume and playback-state presentation.
+- `apps/web/styles/dj-request-search.css`: DJ-side guest search and request discovery.
+- `apps/web/styles/dj-queue.css`: request queue tiles, reordering and queue presentation.
+- `apps/web/styles/dj-ai.css`: DJ AI assistant presentation.
 - `apps/web/dj.html` loads `styles.css` followed by `styles/dj-console.css` to preserve the original cascade order. Guest page keeps its existing `styles.css` then `styles/guest.css` order.
 
 This extraction moves the existing declarations without rewriting selectors or values; visual baselines are required to validate that the page output remains unchanged.

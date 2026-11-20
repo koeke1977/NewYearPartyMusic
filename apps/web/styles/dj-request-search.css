@@ -1,0 +1,41 @@
+/* Guest search — instant, forgiving search experience */
+.search-form{display:block;position:relative;margin-bottom:8px}
+.search-form::before{content:"⌕";position:absolute;left:16px;top:50%;transform:translateY(-54%);z-index:1;color:var(--green);font-size:25px;pointer-events:none}
+.search-form .track-search-input{min-height:58px;padding:0 16px 0 48px;border-color:rgba(30,215,96,.28);border-radius:14px;background:linear-gradient(145deg,#111914,#0b100d);font-size:15px;box-shadow:inset 0 1px rgba(255,255,255,.035),0 8px 24px rgba(0,0,0,.16)}
+.search-form .track-search-input:focus{border-color:var(--green);box-shadow:0 0 0 4px rgba(30,215,96,.1),0 8px 24px rgba(0,0,0,.16)}
+.search-hint{margin:9px 1px 14px;color:#87938a;font-size:11px;line-height:1.55}
+.search-feedback{margin:12px 1px;color:#b9c5bc;font-size:11px}
+.track-results{margin-top:12px;gap:8px}
+.track-item{padding:9px 11px;border-radius:14px;transition:border-color .16s,background .16s}
+.track-item:hover{border-color:rgba(30,215,96,.28);background:rgba(20,31,23,.9)}
+.track-cover{width:58px;height:58px;flex-basis:58px;border-radius:9px}
+.track-name{font-size:13px}
+.track-artist{font-size:11px}
+.track-duration{font-size:10px}
+.request-button{min-width:76px;min-height:39px;font-size:9px}
+@media(max-width:440px){.search-form .track-search-input{min-height:55px;font-size:14px}.track-item{gap:9px;padding:8px}.track-cover{width:50px;height:50px;flex-basis:50px}.request-button{min-width:66px;min-height:36px;font-size:8px}}
+
+
+/* Clear guest search prompt and #DATUUR brand signature */
+.search-form{display:grid;gap:9px}
+.search-form .search-label{display:block;margin:2px 0 0;color:#d5ded7;font-size:10px;font-weight:900;letter-spacing:.13em}
+.search-form .track-search-input{padding-left:48px;background-image:radial-gradient(circle at 19px 50%,transparent 6px,transparent 7px);background-repeat:no-repeat}
+.search-form .track-search-input::placeholder{color:#87958b;opacity:1}
+.guest-brand-credit,.site-credit{margin:16px 0 0;text-align:center;color:#87938a;font-size:9px;font-weight:800;letter-spacing:.15em}
+.datuur-mark{color:var(--green);font-weight:900;letter-spacing:.08em}
+footer .site-credit{margin:0}
+
+
+/* Guest-facing console: Dutch copy, unmistakable search field and DJ#DATUUR identity */
+.datuur-brand{gap:12px}
+.datuur-brand .brand-mark{width:42px;height:42px;border-radius:12px;background:var(--green);border:0;color:#061009;font-size:20px;font-weight:1000;box-shadow:0 0 22px rgba(30,215,96,.25)}
+.datuur-brand .datuur-word{font-size:18px;letter-spacing:.06em}
+.datuur-brand .datuur-word span{color:var(--green)}
+.search-form{gap:12px;margin-top:4px}
+.search-form .search-label{font-size:12px;line-height:1.4;letter-spacing:.12em;color:#effff3}
+.search-form .track-search-input{min-height:76px!important;padding:0 18px 0 58px!important;border:2px solid #1ed760!important;border-radius:16px!important;background:#f1fff5!important;color:#071109!important;font-size:18px!important;font-weight:700!important;box-shadow:0 0 0 5px rgba(30,215,96,.13),0 10px 28px rgba(0,0,0,.22)!important}
+.search-form .track-search-input::placeholder{color:#52675a!important;opacity:1!important;font-weight:500}
+.search-form .track-search-input:focus{border-color:#8bffae!important;box-shadow:0 0 0 6px rgba(30,215,96,.2),0 10px 28px rgba(0,0,0,.22)!important}
+.search-form::before{left:18px;color:#087b39;font-size:31px;font-weight:900}
+.search-hint{margin:10px 2px 16px;color:#aab8ad;font-size:12px;line-height:1.55}
+@media(max-width:440px){.datuur-brand .brand-mark{width:38px;height:38px}.datuur-brand .datuur-word{font-size:16px}.search-form .search-label{font-size:11px}.search-form .track-search-input{min-height:70px!important;font-size:16px!important}}
