@@ -18,11 +18,12 @@ export async function searchGuestSpotifyTracks(input: {
   query: string;
   search(query: string, limit: number): Promise<Response>;
 }): Promise<Result> {
-  if (input.query.length < 2 || input.query.length > 100) {
+  const query = input.query.trim();
+  if (query.length < 2 || query.length > 100) {
     return { status: 400, body: { error: "Zoek op minstens 2 en maximaal 100 tekens." } };
   }
   try {
-    const response = await input.search(input.query, 8);
+    const response = await input.search(query, 8);
     if (response.status === 429) {
       return { status: 429, body: { error: "Spotify krijgt even veel zoekopdrachten. Probeer zo meteen opnieuw." } };
     }
