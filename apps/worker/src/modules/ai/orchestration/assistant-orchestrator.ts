@@ -2,16 +2,13 @@ import {
   extractCloudflareAssistantText,
   extractCloudflareToolCalls,
   runCloudflareAI,
-  type CloudflareAIClient,
 } from "../../../integrations/ai/cloudflare-ai";
 import {
-  searchSpotifyCatalogForAssistant,
   spotifyCatalogSearchTool,
-  type SpotifyCatalogMatch,
 } from "../../../integrations/ai/spotify-catalog-search";
-import type { Env } from "../../../platform/env";
+
 import { ASSISTANT_MAX_OUTPUT_TOKENS } from "../application/neuron-budget-policy";
-import type { AssistantNeuronBudget } from "../application/assistant-ports";
+import type { AssistantNeuronBudget, CloudflareAIClient, SpotifyCatalogMatch } from "../application/assistant-ports";
 
 export type DJAssistantRunResult = {
   answer: string;
@@ -24,11 +21,11 @@ export type DJAssistantRunResult = {
  */
 export async function runDJAssistantTurn(
   ai: CloudflareAIClient,
-  env: Env,
   model: string,
   system: string,
   user: string,
   neuronBudget: AssistantNeuronBudget,
+  searchSpotifyCatalog: (toolArguments: unknown) => Promise<SpotifyCatalogMatch[]>,
 ): Promise<DJAssistantRunResult> {
   const first = await runCloudflareAI(ai, model, {
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
@@ -48,7 +45,7 @@ export async function runDJAssistantTurn(
     .find((call) => call.name === spotifyCatalogSearchTool.name);
 
   if (searchCall) {
-    spotifyMatches = await searchSpotifyCatalogForAssistant(env, searchCall.arguments);
+    spotifyMatches = await searchSpotifyCatalog(searchCall.arguments);
     if (spotifyMatches.length) {
       // A single bounded follow-up lets the model explain only catalogue-verified options.
       const followupUser = user + "\n\nVERIFIED SPOTIFY SEARCH RESULTS:\n" + JSON.stringify(spotifyMatches);
