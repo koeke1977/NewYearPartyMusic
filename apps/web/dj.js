@@ -12,6 +12,7 @@ let spotifyStatusRequest=0;
 let spotifyStatusInFlight=false;
 let queueDragId=null;
 let queueReorderBusy=false;
+let latestDJOverview=null;
 const el=(tag,cls,txt)=>{const n=document.createElement(tag);if(cls)n.className=cls;if(txt!==undefined)n.textContent=txt;return n;};
 async function api(path,options={}){
   const response=await fetch(path,{...options,headers:{...(options.headers||{}),Authorization:"Bearer "+token,...(options.body?{"Content-Type":"application/json"}:{})}});
@@ -136,6 +137,7 @@ function syncPlaybackButtons(connected,playing){
   }
 }
 function render(data){
+  latestDJOverview=data;
   currentSettings=data.settings||currentSettings;
   document.querySelector("#pause-state").textContent=currentSettings.requestsPaused?"PAUSED":"ACCEPTING";
   document.querySelector("#approval-state").textContent=currentSettings.autoApprove?"AUTO-APPROVE":"DJ APPROVAL";
@@ -509,6 +511,44 @@ document.querySelectorAll("[data-ai-action]").forEach(button=>button.addEventLis
     await askDJAI("Stel 8 externe nummers voor die goed aansluiten op de huidige PartyQueue wachtrij en de energie geleidelijk verhogen richting een Oud & Nieuw-feest. Vermijd artiesten en tracks die al in UP NEXT of recent gespeeld staan. Geef een genummerde lijst met exact Titel — Artiest en markeer dit als suggesties buiten de wachtrij.","fill");
   }
 }));
+
+const chatGPTButton=document.querySelector("#dj-chatgpt-help");
+chatGPTButton?.addEventListener("click",async()=>{
+  const output=document.querySelector("#dj-ai-answer");
+  const overview=latestDJOverview;
+  if(!overview){
+    output.textContent="De actuele DJ-consolegegevens zijn nog niet geladen. Probeer opnieuw zodra UP NEXT zichtbaar is.";
+    return;
+  }
+  const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
+  const nowPlaying=(document.querySelector("#spotify-now-playing")?.textContent||"Niet beschikbaar").trim();
+  const queueText=queued.length
+    ? queued.map((track,index)=>(index+1)+". "+track.track_name+" — "+track.artist_name).join("\n")
+    : "(UP NEXT is momenteel leeg)";
+  const prompt=[
+    "Je bent mijn tweede DJ-adviseur voor DJ#DATUUR / PartyQueue, een Oud & Nieuw-feest in België.",
+    "Geef advies in het Nederlands. Denk creatief en durf bewust van genre, decennium en energie te wisselen. Forceer geen vloeiende overgangen.",
+    "Gebruik de live context hieronder. Beweer niet dat je de muziek of het publiek hoort of ziet. Voeg niets zelf toe aan Spotify of PartyQueue; geef alleen een voorstel dat ik zelf kan uitvoeren.",
+    "",
+    "MOMENTEEL OP SPOTIFY:",
+    nowPlaying,
+    "",
+    "UP NEXT ("+queued.length+" tracks):",
+    queueText,
+    "",
+    "Geef een concreet DJ-advies op basis van deze huidige set. Benoem eventuele zwakke plekken en geef bruikbare alternatieven. Bewaar alle bestaande tracks wanneer je een nieuwe volgorde voorstelt."
+  ].join("\n");
+  window.open("https://chatgpt.com/","_blank","noopener,noreferrer");
+  chatGPTButton.disabled=true;
+  try{
+    await navigator.clipboard.writeText(prompt);
+    output.textContent="✓ De actuele UP NEXT-lijst en Spotify-status zijn gekopieerd. ChatGPT is in een apart tabblad geopend: plak daar de context met Ctrl+V. Dit gebruikt je gewone ChatGPT-account, geen API.";
+  }catch(error){
+    output.textContent="ChatGPT is geopend, maar het kopiëren naar het klembord is geblokkeerd. Fout: "+(error?.message||"onbekend")+".";
+  }finally{
+    chatGPTButton.disabled=false;
+  }
+});
 
 if(token)setLoggedIn(true);
 
