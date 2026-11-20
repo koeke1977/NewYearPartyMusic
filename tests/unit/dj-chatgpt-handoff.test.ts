@@ -2,31 +2,31 @@ import { describe, expect, it, vi } from "vitest";
 import { bindDjChatGptHandoff, buildDjChatGptPrompt } from "../../apps/web/modules/dj-chatgpt-handoff.js";
 
 describe("DJ ChatGPT handoff prompt", () => {
-  it("includes the current Spotify track and exact queued track order", () => {
+  it("includes only event timing, DJ preferences and aggregate request counts", () => {
     const prompt = buildDjChatGptPrompt({
-      nowPlaying: "▶ NOW PLAYING · Track A — Artist A",
-      queuedTracks: [
-        { track_name: "Track B", artist_name: "Artist B" },
-        { track_name: "Track C", artist_name: "Artist C" },
-      ],
+      eventName: "New Year's Eve 2026",
+      localTime: "31 dec 2026 21:30",
+      djPreferences: ["disco", "90s"],
+      requestCounts: { queued: 2, pending: 1 },
     });
 
-    expect(prompt).toContain("▶ NOW PLAYING · Track A — Artist A");
-    expect(prompt).toContain("UP NEXT (2 tracks):\n1. Track B — Artist B\n2. Track C — Artist C");
-    expect(prompt).toContain("Voeg niets zelf toe aan Spotify of PartyQueue");
+    expect(prompt).toContain("New Year's Eve 2026");
+    expect(prompt).toContain("31 dec 2026 21:30");
+    expect(prompt).toContain("queued: 2, pending: 1");
+    expect(prompt).toContain("Spotify-trackmetadata, artiesten, albumhoezen");
+    expect(prompt).not.toContain("Track A");
+    expect(prompt).not.toContain("Artist A");
   });
 
-  it("handles an empty queue and missing playback state", () => {
-    const prompt = buildDjChatGptPrompt({ queuedTracks: null, nowPlaying: "" });
-
-    expect(prompt).toContain("Niet beschikbaar");
-    expect(prompt).toContain("UP NEXT (0 tracks):\n(UP NEXT is momenteel leeg)");
+  it("handles empty aggregate context without inventing a queue state", () => {
+    const prompt = buildDjChatGptPrompt({ requestCounts: {} });
+    expect(prompt).toContain("AANTALLEN AANVRAGEN PER STATUS: geen aanvragen");
+    expect(prompt).toContain("live wachtrij en playbackstatus zijn bewust niet meegestuurd");
   });
 });
 
-
 describe("DJ ChatGPT handoff controller", () => {
-  it("opens regular ChatGPT and copies the current ordered queue", async () => {
+  it("opens regular ChatGPT and copies aggregate context without Spotify metadata", async () => {
     const handlers = {};
     const button = {
       disabled: false,
@@ -42,9 +42,8 @@ describe("DJ ChatGPT handoff controller", () => {
           { id: "a", status: "queued", track_name: "Track A", artist_name: "Artist A" },
           { id: "b", status: "queued", track_name: "Track B", artist_name: "Artist B" },
         ],
-        queueOrder: ["b", "a"],
       }),
-      getNowPlaying: () => "Track live",
+      getLocalTime: () => "21:30",
       output,
       openWindow,
       clipboard,
@@ -53,8 +52,11 @@ describe("DJ ChatGPT handoff controller", () => {
     await handlers.click();
 
     expect(openWindow).toHaveBeenCalledWith("https://chatgpt.com/", "_blank", "noopener,noreferrer");
-    expect(clipboard.writeText).toHaveBeenCalledWith(expect.stringContaining("1. Track B — Artist B"));
-    expect(output.textContent).toContain("gekopieerd");
+    const prompt = clipboard.writeText.mock.calls[0][0];
+    expect(prompt).toContain("queued: 2");
+    expect(prompt).not.toContain("Track A");
+    expect(prompt).not.toContain("Artist B");
+    expect(output.textContent).toContain("geen Spotify-trackmetadata");
     expect(button.disabled).toBe(false);
   });
 
@@ -64,7 +66,6 @@ describe("DJ ChatGPT handoff controller", () => {
     bindDjChatGptHandoff({
       button: { addEventListener: (name, handler) => { handlers[name] = handler; } },
       getOverview: () => null,
-      getNowPlaying: () => "",
       output,
       openWindow: vi.fn(),
       clipboard: { writeText: vi.fn() },
