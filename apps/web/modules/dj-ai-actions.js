@@ -1,4 +1,10 @@
 // Application-facing actions for DJ AI suggestions and queue proposals.
+export function isCompleteDjQueueProposal(proposedIds, queuedIds) {
+  const uniqueIds = new Set(proposedIds);
+  return queuedIds.length > 0 && proposedIds.length === queuedIds.length &&
+    uniqueIds.size === queuedIds.length && queuedIds.every(id => uniqueIds.has(id));
+}
+
 // Keeps sequential writes, duplicate handling and partial failures out of DOM event handlers.
 export async function addSelectedDjTracks({ tracks, addTrack, onProgress = () => {} }) {
   const results = { added: [], alreadyQueued: [], failed: [] };
@@ -20,10 +26,7 @@ export async function addSelectedDjTracks({ tracks, addTrack, onProgress = () =>
 }
 
 export async function applyDjQueueProposal({ proposedIds, queuedIds, saveOrder }) {
-  const uniqueIds = new Set(proposedIds);
-  if (!queuedIds.length || proposedIds.length !== queuedIds.length ||
-      uniqueIds.size !== queuedIds.length ||
-      queuedIds.some(id => !uniqueIds.has(id))) {
+  if (!isCompleteDjQueueProposal(proposedIds, queuedIds)) {
     return { applied: false, reason: "incomplete-or-duplicate-proposal" };
   }
   await saveOrder(proposedIds);

@@ -2,7 +2,7 @@ import { orderedQueued } from "./dj-queue.js";
 import { matchDjQueueProposal } from "./dj-ai-queue-parser.js";
 import { extractDjTrackSuggestions } from "./dj-ai-suggestions.js";
 import { resolveDjAiPrompt } from "./dj-ai-intent.js";
-import { addSelectedDjTracks, applyDjQueueProposal } from "./dj-ai-actions.js";
+import { addSelectedDjTracks, applyDjQueueProposal, isCompleteDjQueueProposal } from "./dj-ai-actions.js";
 import { element as el } from "./dom.js";
 
 // Owns DJ#DATUUR AI prompt submission, proposal confirmation and Spotify suggestion UI.
@@ -24,11 +24,7 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
         const overview=await api("/api/dj/overview");
         const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
         const { ids, unmatchedLines } = matchDjQueueProposal(answer, queued);
-        const proposal = await applyDjQueueProposal({
-          proposedIds: ids, queuedIds: queued.map(track => track.id),
-          saveOrder: async () => {},
-        });
-        if(proposal.applied || (queued.length && ids.length===queued.length && new Set(ids).size===queued.length)){
+        if(isCompleteDjQueueProposal(ids, queued.map(track => track.id))){
           output.replaceChildren(el("p","",answer));
           const confirmPanel=el("div","dj-ai-confirm-panel");
           confirmPanel.append(el("p","dj-ai-results-hint","Alle "+queued.length+" nummers zijn herkend. Wil je deze nieuwe volgorde toepassen op UP NEXT?"));
