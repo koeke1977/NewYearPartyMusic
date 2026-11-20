@@ -10,7 +10,7 @@ A small Windows-friendly local service that lets the PartyQueue Worker request a
 - Requires a long bearer token, accepts only `system` and `user` text fields, serializes requests and applies a hard timeout/output limit.
 - Binds to `127.0.0.1` by default. Do not bind it to the LAN or expose it directly to the internet.
 
-The bridge does not make the Claude Pro quota unlimited. Claude's own subscription limits and Claude Code's current usage policy still apply. When Claude reports a usage limit, the bridge returns an error; it does not switch to API billing.
+The bridge does not make the Claude Pro quota unlimited. Claude's own subscription limits and Claude Code's current usage policy still apply. When Claude reports a usage limit, the bridge returns an error; it does not switch to API billing. The child process also strips inherited Anthropic API-key/base-URL variables so a developer-shell API key cannot silently override the signed-in subscription account.
 
 ## Requirements
 
