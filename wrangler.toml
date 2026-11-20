@@ -36,6 +36,9 @@ binding = "AI"
 
 # Dedicated real-event environment. Wrangler deploy --env production creates
 # partyqueue-production and uses only the resources declared below.
+[env.production]
+workers_dev = true
+
 [env.production.assets]
 directory = "./apps/web"
 binding = "ASSETS"
