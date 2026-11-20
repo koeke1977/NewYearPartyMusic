@@ -9,17 +9,11 @@ function fakeDb() {
       bind: (...args: unknown[]) => { values.push(...args); return statement; },
       all: async () => {
         calls.push({ sql, values: [...values] });
-        if (sql.includes("status='played'")) return { results: [{ track_name: "Played", artist_name: "Artist" }] };
-        if (sql.includes("COUNT(*)")) return { results: [{ status: "queued", count: 2 }] };
-        if (sql.includes("FROM requests")) return { results: [{ id: "q1", track_name: "Queued", artist_name: "Artist", duration_ms: 180000, status: "queued", queued_at: null, requested_at: "2026-12-31 20:00:00" }] };
-        return { results: [] };
+        return { results: [{ status: "queued", count: 2 }, { status: "played", count: 1 }] };
       },
       first: async () => {
         calls.push({ sql, values: [...values] });
-        if (sql.includes("partyqueue_order")) return { value: '["q1"]' };
-        if (values[0] === "dj_ai_profile_event-1") return { value: '["disco"]' };
-        if (values[0] === "dj_ai_history_event-1") return { value: '[{"at":"20:00","tracks":["Track"]}]' };
-        return null;
+        return { value: '["disco","90s"]' };
       },
     };
     return statement;
@@ -28,22 +22,20 @@ function fakeDb() {
 }
 
 describe("AI assistant context repository", () => {
-  it("loads bounded event-scoped queue, history and settings in parallel", async () => {
+  it("loads only aggregate request counts and DJ-authored preferences", async () => {
     const { db, calls, prepare } = fakeDb();
     const snapshot = await loadAssistantContextSnapshot(db, "event-1");
-    expect(prepare).toHaveBeenCalledTimes(6);
-    expect(snapshot.queue).toHaveLength(1);
-    expect(snapshot.playedTracks[0].track_name).toBe("Played");
-    expect(snapshot.requestCounts).toEqual([{ status: "queued", count: 2 }]);
-    expect(snapshot.savedQueueOrder).toBe('["q1"]');
-    expect(snapshot.djPreferences).toBe('["disco"]');
-    expect(snapshot.acceptedSetHistory).toContain("Track");
-    expect(calls.find(call => call.sql.includes("FROM requests"))?.values).toEqual(["event-1"]);
-    expect(calls.find(call => call.sql.includes("LIMIT 100"))?.sql).toContain("LIMIT 100");
-    expect(calls.find(call => call.sql.includes("LIMIT 8"))?.sql).toContain("LIMIT 8");
+
+    expect(prepare).toHaveBeenCalledTimes(2);
+    expect(snapshot).toEqual({
+      requestCounts: [{ status: "queued", count: 2 }, { status: "played", count: 1 }],
+      djPreferences: '["disco","90s"]',
+    });
+    expect(calls.every(call => !/track_name|artist_name|spotify|partyqueue_order|dj_ai_history/i.test(call.sql))).toBe(true);
+    expect(calls.every(call => call.values[0] === "event-1" || call.values[0] === "dj_ai_profile_event-1")).toBe(true);
   });
 
-  it("returns empty collections and null settings when D1 has no rows", async () => {
+  it("returns empty counts and null preferences when D1 has no rows", async () => {
     const prepare = vi.fn((sql: string) => {
       const statement = {
         bind: () => statement,
@@ -53,9 +45,6 @@ describe("AI assistant context repository", () => {
       return statement;
     });
     const snapshot = await loadAssistantContextSnapshot({ prepare } as never, "empty-event");
-    expect(snapshot).toEqual({
-      queue: [], playedTracks: [], requestCounts: [],
-      savedQueueOrder: null, djPreferences: null, acceptedSetHistory: null,
-    });
+    expect(snapshot).toEqual({ requestCounts: [], djPreferences: null });
   });
 });

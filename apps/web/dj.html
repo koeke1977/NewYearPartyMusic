@@ -41,11 +41,11 @@
       <div class="booth-queue-layout">
 <section id="partyqueue-booth" class="partyqueue-booth" aria-label="Animated DJ turntable console">
         <div class="booth-topline"><span><i class="booth-live-led"></i> DJ#DATUUR · TURNTABLE SYSTEM</span><div class="booth-top-actions"><span id="booth-play-state">STANDBY</span><button id="spotify-connect" class="booth-connect">CONNECT SPOTIFY</button><span id="spotify-connection-state" class="booth-connect-state">NOT CONNECTED</span></div></div>
-        <div class="booth-device-line"><span id="spotify-device">Connect your Spotify Premium account and keep a Spotify device active.</span><span id="spotify-now-playing">Waiting for Spotify connection…</span></div>
+        <div class="booth-device-line"><span id="spotify-device">Connect your Spotify Premium account and keep a Spotify device active.</span><a id="spotify-now-playing-link" class="spotify-content-link" target="_blank" rel="noopener noreferrer" hidden><span id="spotify-now-playing">Waiting for Spotify connection…</span></a></div>
         <div class="booth-hardware">
           <div class="booth-deck booth-deck-left">
             <div class="booth-jog"><div class="booth-vinyl"><div class="booth-grooves"></div><div class="booth-label"><img id="booth-track-image-left" alt="" hidden><span id="booth-track-placeholder-left">PQ</span></div></div><span class="booth-tonearm"></span></div>
-            <div class="booth-deck-meta"><div><span>NOW PLAYING</span><strong id="booth-track-title-left">Waiting for Spotify</strong><small id="booth-track-artist-left">Spotify deck</small></div><b>A</b></div>
+            <div class="booth-deck-meta"><div><span>NOW PLAYING</span><a id="booth-track-link-left" class="spotify-content-link" target="_blank" rel="noopener noreferrer" hidden><strong id="booth-track-title-left">Waiting for Spotify</strong><small id="booth-track-artist-left">Spotify deck</small></a></div><b>A</b></div>
           </div>
           <div class="booth-mixer">
             <div class="booth-mixer-brand">DJ<span>#DATUUR</span><small> DIGITAL DJ MIXER</small></div>
@@ -79,7 +79,7 @@
           </div>
           <div class="booth-deck booth-deck-right">
             <div class="booth-jog"><div class="booth-vinyl"><div class="booth-grooves"></div><div class="booth-label"><img id="booth-track-image-right" alt="" hidden><span id="booth-track-placeholder-right">PQ</span></div></div><span class="booth-tonearm"></span></div>
-            <div class="booth-deck-meta"><div><span>UP NEXT</span><strong id="booth-track-title-right">Queue is empty</strong><small id="booth-track-artist-right">No queued track</small></div><b>B</b></div>
+            <div class="booth-deck-meta"><div><span>UP NEXT</span><a id="booth-track-link-right" class="spotify-content-link" target="_blank" rel="noopener noreferrer" hidden><strong id="booth-track-title-right">Queue is empty</strong><small id="booth-track-artist-right">No queued track</small></a></div><b>B</b></div>
           </div>
         </div>
       </section>
@@ -89,18 +89,18 @@
       </section>
             <section class="dj-ai-panel" aria-label="DJ DATUUR AI assistant">
         <div class="dj-ai-heading"><div><p class="eyebrow">LIVE PARTY INTELLIGENCE</p><h2>DJ#DATUUR <span>AI ASSISTANT</span></h2></div><span class="dj-ai-status">CLOUDFLARE AI · FREE TIER</span></div>
-        <p class="dj-ai-intro">Vraag advies over de wachtrij, muzikale flow of volgende tracks. De ingebouwde AI draait op Cloudflare. Open ChatGPT apart voor een tweede mening met de actuele UP NEXT-context.</p>
+        <p class="dj-ai-intro">Vraag advies over energie, muziekstijlen of volgende tracks. De AI krijgt geen Spotify-trackdata of live wachtrij; trackideeën zijn algemene suggesties. Spotify zoekt pas nadat jij de suggesties hebt ontvangen.</p>
         <div class="dj-ai-actions">
-          <button type="button" class="dj-ai-action dj-ai-primary" data-ai-action="optimize">↗ OPTIMALISEER WACHTRIJ</button>
+          <button type="button" class="dj-ai-action dj-ai-primary" data-ai-action="plan">↗ MAAK EEN SETPLAN</button>
           <button type="button" class="dj-ai-action" data-ai-action="starter">♫ GENEREER BASISLIJST</button>
-          <button type="button" class="dj-ai-action" data-ai-action="fill">＋ VUL WACHTRIJ AAN</button>
+          <button type="button" class="dj-ai-action" data-ai-action="fill">＋ SUGGEREER EXTRA TRACKS</button>
         </div>
         <button type="button" id="dj-chatgpt-help" class="dj-ai-action dj-ai-chatgpt">↗ OPEN CHATGPT · TWEEDE MENING</button>
         <form id="dj-ai-form" class="dj-ai-form">
           <input id="dj-ai-prompt" type="text" maxlength="600" placeholder="Of stel zelf een muzikale vraag…" autocomplete="off">
           <button id="dj-ai-submit" type="submit">VRAAG AI ↗</button>
         </form>
-        <div id="dj-ai-answer" class="dj-ai-answer" role="status" aria-live="polite">Kies een actie. De AI doet voorstellen; jij bevestigt wijzigingen.</div>
+        <div id="dj-ai-answer" class="dj-ai-answer" role="status" aria-live="polite">AI geeft algemene DJ-adviezen; Spotify-wachtrij en trackmetadata blijven buiten de AI.</div>
       </section>
       <section class="request-panel">
       <div class="dj-list-heading"><div><p class="eyebrow">INCOMING TRANSMISSION</p><h2>Request booth</h2></div><span id="request-count" class="event-pill">0 REQUESTS</span></div>

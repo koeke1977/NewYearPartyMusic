@@ -8,8 +8,14 @@ export function createDjSpotifyConsoleView({ documentRef = document } = {}) {
     const artist=documentRef.querySelector("#booth-track-artist-"+side);
     const image=documentRef.querySelector("#booth-track-image-"+side);
     const placeholder=documentRef.querySelector("#booth-track-placeholder-"+side);
+    const link=documentRef.querySelector("#booth-track-link-"+side);
     if(title)title.textContent=track?.name||(side==="left"?"Waiting for Spotify":"SPOTIFY MIX");
     if(artist)artist.textContent=track?.artists?.join(", ")||track?.artist||(side==="left"?"Spotify deck":"Party Hits · SHUFFLE");
+    const trackId=track?.id||track?.spotify_track_id||track?.uri?.split(":").pop();
+    if(link){
+      if(trackId){link.href="https://open.spotify.com/track/"+encodeURIComponent(trackId);link.hidden=false;}
+      else{link.removeAttribute("href");link.hidden=true;}
+    }
     if(!image)return;
     if(track?.image||track?.album_image_url){
       image.src=track.image||track.album_image_url;image.hidden=false;if(placeholder)placeholder.hidden=true;
@@ -62,6 +68,7 @@ export function createDjSpotifyConsoleView({ documentRef = document } = {}) {
     const state=documentRef.querySelector("#spotify-connection-state");
     const device=documentRef.querySelector("#spotify-device");
     const now=documentRef.querySelector("#spotify-now-playing");
+    const nowLink=documentRef.querySelector("#spotify-now-playing-link");
     const booth=documentRef.querySelector("#partyqueue-booth");
     if(state){state.textContent=summary.connection;state.classList.toggle("accent",!!data.connected);}
     documentRef.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);
@@ -70,7 +77,11 @@ export function createDjSpotifyConsoleView({ documentRef = document } = {}) {
       booth.classList.toggle("is-playing",!!data.playing);
       const boothState=documentRef.querySelector("#booth-play-state");
       if(boothState)boothState.textContent=data.fallbackActive?"SPOTIFY MIX":data.playing?"ON AIR":"STANDBY";
-      setDeck("left",data.track?{name:data.track.name,artists:data.track.artists,image:data.track.image}:null);
+      setDeck("left",data.track?{id:data.track.id,name:data.track.name,artists:data.track.artists,image:data.track.image}:null);
+      if(nowLink){
+        if(data.track?.id){nowLink.href="https://open.spotify.com/track/"+encodeURIComponent(data.track.id);nowLink.hidden=false;}
+        else{nowLink.removeAttribute("href");nowLink.hidden=true;}
+      }
       const nextTrack=data.fallbackActive?data.nextTrack:null;
       onQueuePreview(nextTrack);
       const nextButton=documentRef.querySelector("#partyqueue-next");
@@ -88,11 +99,13 @@ export function createDjSpotifyConsoleView({ documentRef = document } = {}) {
     const state=documentRef.querySelector("#spotify-connection-state");
     const device=documentRef.querySelector("#spotify-device");
     const now=documentRef.querySelector("#spotify-now-playing");
+    const nowLink=documentRef.querySelector("#spotify-now-playing-link");
     if(state){state.textContent="NOT CONNECTED";state.classList.remove("accent");}
     documentRef.querySelector("#spotify-connect")?.classList.remove("is-connected");
     syncPlaybackButtons(false,false);
     const booth=documentRef.querySelector("#partyqueue-booth");
     if(booth){booth.classList.remove("is-playing");const boothState=documentRef.querySelector("#booth-play-state");if(boothState)boothState.textContent="OFFLINE";setDeck("left",null);updateTrackProgress(0,0,false);}
+    if(nowLink){nowLink.removeAttribute("href");nowLink.hidden=true;}
     if(device)device.textContent=error.message;
     if(now)now.textContent="Connect your Spotify account to enable live playback.";
   }

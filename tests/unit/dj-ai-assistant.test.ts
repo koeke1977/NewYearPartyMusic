@@ -9,9 +9,10 @@ function element() {
     innerText: "",
     disabled: false,
     listeners,
+    children: [],
     addEventListener(name, handler) { listeners[name] = handler; },
-    replaceChildren: vi.fn(),
-    append: vi.fn(),
+    replaceChildren(...items) { this.children = [...items]; },
+    append(...items) { this.children.push(...items); },
   };
 }
 
@@ -48,7 +49,8 @@ describe("DJ AI assistant", () => {
       method: "POST",
       body: JSON.stringify({ prompt: "Geef advies over de sfeer van de avond." }),
     });
-    expect(elements["#dj-ai-answer"].textContent).toBe("De sfeer zit goed: bouw rustig op.");
+    expect(elements["#dj-ai-answer"].children[0].textContent).toBe("De sfeer zit goed: bouw rustig op.");
+    expect(elements["#dj-ai-answer"].children[1].textContent).toContain("geen Spotify-trackdata of live wachtrij");
     expect(elements["#dj-ai-prompt"].value).toBe("");
     expect(elements["#dj-ai-submit"].disabled).toBe(false);
   });

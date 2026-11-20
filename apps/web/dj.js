@@ -64,7 +64,6 @@ createDjAiAssistant({api,refresh:()=>refresh()});
 bindDjChatGptHandoff({
   button:document.querySelector("#dj-chatgpt-help"),
   getOverview:()=>overviewView.getLatestOverview(),
-  getNowPlaying:()=>document.querySelector("#spotify-now-playing")?.textContent||"Niet beschikbaar",
   output:document.querySelector("#dj-ai-answer"),
 });
 

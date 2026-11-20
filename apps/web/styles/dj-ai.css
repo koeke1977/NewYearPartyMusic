@@ -31,3 +31,24 @@
 /* ChatGPT handoff uses the DJ session context but opens the user's own ChatGPT account. */
 .dj-ai-chatgpt{display:block;width:100%;margin:0 0 10px;text-align:center;background:rgba(0,0,0,.18);border-color:rgba(255,255,255,.16);color:#e5eee7}
 .dj-ai-chatgpt:hover:not(:disabled){border-color:#00e88a;background:rgba(0,232,138,.08)}
+
+.dj-ai-track-pick {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+}
+.dj-ai-track-link {
+  display: inline-block;
+  margin: 4px 0 0 51px;
+  color: #00e88a;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dj-ai-track-link:hover {
+  color: #fff;
+}
