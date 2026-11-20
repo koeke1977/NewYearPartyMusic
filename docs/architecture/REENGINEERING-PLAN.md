@@ -323,3 +323,11 @@ Application-owned ports cover guest request persistence and Spotify track lookup
 The DJ AI workflow has also been split: `dj-ai-assistant.js` owns API/workflow orchestration, `dj-ai-assistant-view.js` owns DOM rendering and confirmation UI, and `dj-ai-actions.js` owns queue/track mutation policy. Explicit DJ confirmation and sequential per-track failure reporting remain covered.
 
 The current Cloudflare Worker, D1 and Spotify OAuth state are test-only and disposable. `npm run deploy` targets that default test environment; `npm run deploy:production` is a separate guarded path for any future real-event release. This future release path is not a prerequisite for current engineering.
+
+
+### Follow-up: normalized individual Spotify track lookup — 2026-11-20
+
+- Added the shared `modules/music/domain/catalog-track.ts` DTO for normalized catalogue tracks.
+- The Spotify integration adapter now owns wire parsing for both search and individual track lookup.
+- Guest request submission and DJ track insertion consume that DTO through the request-owned track gateway; composition only wires the adapter and D1 repository.
+- Updated request lifecycle and Spotify adapter tests for normalized artist arrays, album images, missing tracks and malformed provider payloads.
