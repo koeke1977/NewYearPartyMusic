@@ -1,3 +1,6 @@
+import type { PlaybackCommand } from "../../modules/playback/application/playback-ports";
+export type { PlaybackCommand } from "../../modules/playback/application/playback-ports";
+
 export type SpotifyPlaybackRequest = (path: string, init?: RequestInit) => Promise<Response>;
 
 const jsonHeaders = { "Content-Type": "application/json" };
@@ -37,8 +40,6 @@ export function playPlaylist(client: SpotifyPlaybackRequest, playlistUri: string
     body: JSON.stringify({ context_uri: playlistUri }),
   });
 }
-
-export type PlaybackCommand = "play" | "pause" | "next" | "previous";
 
 const transportCommands: Record<PlaybackCommand, { method: string; path: string }> = {
   play: { method: "PUT", path: "/me/player/play" },
