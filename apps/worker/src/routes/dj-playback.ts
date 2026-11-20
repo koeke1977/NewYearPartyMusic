@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { Env } from "../platform/env";
 import { spotifyFetch } from "../integrations/spotify/user-auth-service";
-import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, sendPlaybackCommand, setPlaybackVolume } from "../integrations/spotify/playback-api";
+import { getPlaybackDevices, sendPlaybackCommand, setPlaybackVolume } from "../integrations/spotify/playback-api";
+import { createSpotifyPlaybackGateway } from "../integrations/spotify/playback-status-gateway";
 import { getDjSpotifyPlaybackStatus } from "../modules/playback/application/get-dj-spotify-playback-status";
 import { executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume } from "../modules/playback/application/dj-playback-controls";
 import { readSpotifyFallbackError, setSpotifyManualPause } from "../modules/playback/infrastructure/playback-policy-repository";
@@ -14,8 +15,7 @@ djPlaybackRoutes.use("/api/dj/*", requireDJSession());
 djPlaybackRoutes.get("/api/dj/spotify/status", async (c) => {
   const spotify = spotifyFetch.bind(null, c.env);
   const result = await getDjSpotifyPlaybackStatus({
-    getCurrentPlayback: () => getCurrentPlayback(spotify),
-    getPlaybackQueue: () => getPlaybackQueue(spotify),
+    gateway: createSpotifyPlaybackGateway(spotify),
     maybeAdvance: (playing) => maybeAdvancePartyQueue(c.env, playing),
     maybeStartFallback: (trackUri, playing, progressMs, durationMs) =>
       maybeStartSpotifyFallback(c.env, trackUri, playing, progressMs, durationMs),
@@ -57,4 +57,3 @@ djPlaybackRoutes.post("/api/dj/spotify/queue/:id",async(c)=>{
   const result=await queueApprovedPartyRequest({repository:createGuestRequestRepository(c.env.DB),eventId:c.env.EVENT_ID,requestId:c.req.param("id")});
   return c.json(result.body,result.status as 200);
 });
-
