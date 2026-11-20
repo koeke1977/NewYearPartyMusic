@@ -84,7 +84,7 @@ These are infrastructure composition adapters, not domain/application modules.
 ## Verified remaining architecture work
 
 1. **Playback status intentionally has side effects.** `GET /api/dj/spotify/status` may advance PartyQueue or start fallback playback. This is existing application behaviour, now behind a typed Spotify playback gateway. Preserve and characterize these side effects; do not silently make the endpoint read-only.
-2. **Dependency boundaries are now enforced in CI.** `npm run test:architecture` scans Worker application and identity policy modules and rejects direct imports from integrations, infrastructure, platform, routes, Hono/Cloudflare packages, plus direct D1/Fetch Response dependencies. Extend coverage only when a stable rule exists; do not create brittle path whitelists.
+2. **Dependency boundaries are now enforced in CI.** `npm run test:architecture` scans Worker application/domain/identity modules and browser JS/HTML. It rejects direct Worker infrastructure/provider/platform/route dependencies and D1/Fetch Response usage, and enforces browser API-client ownership for fetch, session ownership for localStorage, no direct Spotify API calls and no inline HTML styles/scripts/handlers. Extend coverage only when a stable rule exists; do not create brittle path whitelists.
 3. **Public code-entry endpoints need edge throttling before a real event.** `/api/guests/join` and `/api/dj/login` have no application-level attempt throttle and no configured Cloudflare rate-limiting binding. Configure and verify Cloudflare edge limits before exposing the event publicly.
 
 ## Behaviour and safety invariants
