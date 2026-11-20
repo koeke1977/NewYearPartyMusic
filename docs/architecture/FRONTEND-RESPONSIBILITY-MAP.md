@@ -1,133 +1,88 @@
 # Frontend responsibility map
 
-Based on the current `apps/web/dj.js`, `apps/web/app.js`, HTML entrypoints and shared stylesheet. This is an extraction map, not a redesign of the UI.
+**Snapshot:** `refactor/architecture-foundation`, reviewed 2026-11-20. This map describes the current native ES-module implementation, not the earlier monolithic baseline.
 
-## DJ console — `apps/web/dj.js` ES module entrypoint
+## Page composition roots
 
-The DJ entrypoint has started its first low-risk extraction. It now imports:
+- `apps/web/app.js`: guest page bootstrap and join-form lifecycle.
+- `apps/web/dj.js`: DJ page composition root. It locates page-level elements, constructs feature modules, injects dependencies and connects page-level events. It is intentionally small; it is not the former monolithic DJ controller.
+- `index.html` and `dj.html`: semantic structure, labels, accessibility attributes and stable DOM hooks. Both load external native ES modules and external stylesheets.
 
-- `modules/dj-api.js`: authenticated JSON API transport, with the current DJ token supplied at call time.
-- `modules/dj-session.js`: reads, writes and clears the existing `partyqueue_dj_token` localStorage key.
-- `modules/dom.js`: shared safe text-based DOM element factory, also used by the guest UI.
-- `modules/dj-queue.js`: pure ordering of queued requests using saved order and the existing chronological fallback.
-- `modules/dj-ai-queue-parser.js`: validates AI-proposed numbered lists against the live queued tracks and returns matched IDs plus unmatched lines; the existing unique-title fallback rule is preserved.
-- `modules/dj-ai-suggestions.js`: extracts bounded, normalized numbered track suggestions and preserves the Spotify-query fallback when the AI response contains no parseable list.
-- `modules/dj-polling.js`: owns the immediate refresh + five-second polling interval lifecycle and ensures a repeated start replaces the prior interval.
-- `modules/dj-playback-display.js`: pure playback display helpers for elapsed time, clamped progress percentage and playing/paused/waiting labels; DOM rendering remains in the DJ entrypoint.
-- `modules/dj-request-guard.js`: prevents overlapping status requests, invalidates in-flight responses when the DJ session ends, and prevents an old request's `finally` block from clearing a newer request's in-flight state.
-- `modules/dj-latest-task-queue.js`: serializes asynchronous DJ control writes, skips queued values superseded by newer input, and invalidates pending work when the DJ session ends.
-- `modules/dj-serial-task-queue.js`: low-level serial task primitive that preserves command order and invalidates queued work after a session change.
-- `modules/dj-playback-coordinator.js`: coordinates Spotify status reads and transport commands, rejects stale status responses, prevents polling during commands, reports command errors and refreshes status after the final queued command. It deliberately does not retry `next`/`previous` commands.
-- `modules/dj-chatgpt-handoff.js`: builds the current Spotify/UP NEXT context prompt and owns opening the user\u2019s regular ChatGPT tab plus clipboard transfer.
-- `modules/dj-playback-state.js`: pure Spotify UI-state mapping for volume normalization, play/pause/booth state, device/track summary and playback error priority.
-- `modules/dj-ai-intent.js`: resolves free-text DJ prompts into the existing advice, import, fill or optimize modes and recovers numbered suggestions from the previous AI answer with real line breaks.
-- `modules/dj-overview-model.js`: pure projection of the DJ overview response into lifecycle counts, requested/remaining durations, saved queue order, next track, live requests and queue positions.
-- `modules/dj-queue-reorder.js`: owns drag-and-drop interaction and calculates the new queue order; the page controller supplies the save callback.
-- `modules/dj-command-service.js`: owns the authenticated DJ mutation workflows for moderation, queue reordering, party settings and dispatching the next PartyQueue request, including success/error messaging and overview/playback refresh. The page controller supplies the API, refresh and message dependencies.
-- `modules/dj-spotify-console.js`: owns Spotify status refresh, connection/device/track/volume/progress presentation, fallback queue preview, volume-write lifecycle and Spotify control bindings. It receives the API, playback coordinator accessor, message callback and queue-preview callback explicitly.
-- `modules/dj-ai-assistant.js`: owns DJ AI prompt submission, advice/import/fill/starter/optimize flows, AI response rendering, safe queue reorder confirmation and Spotify suggestion selection/addition. It receives the API, overview refresh and document dependencies explicitly.
-- `modules/dj-auth-controller.js`: owns DJ login submission, persisted-token lifecycle, login/logout and authenticated-console visibility. Polling and playback invalidation are injected through one state-change callback.
-- `modules/dj-overview-view.js`: owns dashboard stats, request cards, moderation action wiring and UP NEXT rendering. It consumes the pure overview model and receives queue, command and Spotify view dependencies explicitly; it also preserves request cards while a drag reorder is active.
-- `modules/guest-music-api.js`: owns the guest Spotify search and track-request HTTP contracts, including authorization headers, URL encoding, request payloads and server-error handling.
-- `dj.js` remains the page composition/controller for page-level event composition. Login/session lifecycle, dashboard/request rendering, Spotify presentation/control bindings, AI assistant interactions, command workflows, pure overview projection, prompt intent, playback coordination, queue ordering and drag-and-drop interaction are separated.
+## Guest feature ownership
 
-`index.html` and `dj.html` load their entrypoints as native ES modules; no bundler or new runtime dependency was introduced.
+| Module | Responsibility |
+|---|---|
+| `modules/guest-session.js` | Guest token restoration, persistence and cleanup using the existing storage key/expiry behaviour |
+| `modules/guest-music-api.js` | Authenticated guest search and request HTTP contracts |
+| `modules/guest-music-search.js` | Search component lifecycle, debounce/abort, request workflow and guest UI interaction |
+| `modules/guest-track-results-view.js` | Safe DOM rendering of Spotify result cards and request-button activation |
+| `modules/dom.js` | Shared safe text-based DOM element factory |
 
-The remaining DJ entrypoint still owns several separate concerns:
+## DJ feature ownership
 
-| Current concern | Examples in current script | Target module |
-|---|---|---|
-| DOM bootstrap and element lookup | Global `querySelector` references, `el()` helper | `dj/bootstrap.ts`, `shared/dom/` |
-| DJ session lifecycle | login submission, persisted token, login/logout and console visibility | `modules/dj-session.js` (storage primitives) and `modules/dj-auth-controller.js` (authentication lifecycle extracted) |
-| HTTP/API transport | `api(path, options)`, bearer header, JSON/error parsing | `modules/dj-api.js` (extracted) |
-| DJ application state | token, poll handle, settings and latest overview | `dj/state/`; queue drag state is encapsulated by `modules/dj-queue-reorder.js` |
-| Dashboard rendering | stats, request cards, status labels and UP NEXT view | `modules/dj-overview-model.js` (pure response projection) and `modules/dj-overview-view.js` (DOM rendering and moderation action wiring extracted) |
-| Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()` | `modules/dj-queue.js` (ordering extracted), `modules/dj-queue-reorder.js` (drag/drop interaction extracted), `modules/dj-command-service.js` (save workflow extracted), then `dj/features/queue/` |
-| Request moderation and DJ commands | moderation, settings, queue reorder persistence and NEXT dispatch | `modules/dj-command-service.js` (mutation lifecycle extracted), then `dj/features/requests/` and `dj/features/queue/` |
-| Settings controls | pause, auto-approve and auto-queue toggles | `modules/dj-command-service.js` (mutation lifecycle extracted), then `dj/features/settings/` |
-| Polling lifecycle | overview refresh, Spotify status refresh, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle) and `modules/dj-request-guard.js` (stale-response/in-flight guard) extracted; then `dj/services/polling-service.ts` |
-| Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `modules/dj-spotify-console.js` (status, display, volume and control bindings extracted), `modules/dj-playback-coordinator.js` (command/status coordination), `modules/dj-playback-display.js` (pure time/progress calculations), `modules/dj-playback-state.js` (pure connection/device/volume/transport mapping) |
-| AI request lifecycle | prompt submission, loading/error state, answer display, suggestion selection and queue proposal confirmation | `modules/dj-ai-assistant.js` (AI interaction flow extracted), `modules/dj-ai-intent.js` (prompt intent), `modules/dj-ai-queue-parser.js` (proposal validation), `modules/dj-ai-suggestions.js` (track extraction) |
-| AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `modules/dj-ai-queue-parser.js` (pure matching extracted), then `dj/features/ai-assistant/queue-proposal-parser.ts` |
-| AI Spotify suggestions | numbered title/artist extraction, search result groups, selected tracks, add-to-queue actions | `modules/dj-ai-suggestions.js` (pure suggestion extraction), then `dj/features/ai-assistant/track-suggestions-view.ts` |
-| ChatGPT hand-off | live context prompt, opening ChatGPT and clipboard transfer | `modules/dj-chatgpt-handoff.js` (prompt builder and browser hand-off controller extracted) |
+| Module | Responsibility |
+|---|---|
+| `modules/dj-api.js` | Authenticated JSON API transport and normalized errors |
+| `modules/dj-session.js` | DJ token storage primitives |
+| `modules/dj-auth-controller.js` | Login/logout and authenticated-console visibility lifecycle |
+| `modules/dj-polling.js` | Overview and playback polling interval lifecycle |
+| `modules/dj-request-guard.js` | In-flight request and stale-response protection |
+| `modules/dj-latest-task-queue.js`, `dj-serial-task-queue.js` | Ordered async writes and invalidation of superseded/session-stale work |
+| `modules/dj-playback-coordinator.js` | Playback status sequencing and Spotify command coordination |
+| `modules/dj-playback-state.js`, `dj-playback-display.js` | Pure playback state projection and progress/time calculations |
+| `modules/dj-spotify-console.js` | Spotify API lifecycle, volume-write sequencing and control event binding |
+| `modules/dj-spotify-console-view.js` | DOM-only Spotify status, deck, volume, progress, transport and offline rendering |
+| `modules/dj-command-service.js` | DJ moderation, queue reorder persistence, settings updates and NEXT command workflows |
+| `modules/dj-queue.js`, `dj-queue-reorder.js` | Pure queue ordering and drag/drop interaction |
+| `modules/dj-overview-model.js` | Pure projection of API overview data into UI state |
+| `modules/dj-overview-view.js` | Dashboard stats, request cards, moderation action wiring and UP NEXT rendering |
+| `modules/dj-ai-intent.js` | Prompt intent resolution and recovery of numbered suggestions |
+| `modules/dj-ai-queue-parser.js` | Matching and validation of AI queue proposals against current queued tracks |
+| `modules/dj-ai-suggestions.js` | Bounded extraction of numbered track suggestions |
+| `modules/dj-ai-actions.js` | Sequential track-add workflow, duplicate handling, partial failure reporting and full queue-permutation validation |
+| `modules/dj-ai-assistant.js` | AI prompt lifecycle, mode orchestration, suggestion selection UI and explicit queue-reorder confirmation |
+| `modules/dj-chatgpt-handoff.js` | Current party/Spotify context prompt, clipboard transfer and regular ChatGPT tab handoff |
+| `modules/dom.js` | Shared safe DOM element factory |
 
-## Guest application — current `apps/web/app.js`
+## Remaining frontend responsibility boundaries
 
-The guest entrypoint has completed its first low-risk ES module extraction:
+The main page entrypoints are composition roots. Remaining mixed concerns are inside two feature controllers:
 
-- `app.js` is now a small page bootstrap and join-form controller.
-- `modules/guest-session.js` owns existing `partyqueue_session` restoration, persistence and cleanup; the storage key and expiry rule are unchanged.
-- `modules/guest-music-api.js` owns authenticated Spotify search and track-request transport; endpoint paths, headers and payloads are unchanged.
-- `modules/guest-music-search.js` owns the guest search component, debounce/abort lifecycle, search/request workflow and logout UI; it delegates transport, result rendering and session cleanup.
-- `modules/guest-track-results-view.js` owns Spotify result-card DOM rendering and delegates request-button activation back to the search controller.
-- `modules/dom.js` owns the shared safe text-based element factory.
-- `index.html` loads `app.js` as a native ES module; no bundler or new dependency is required.
+1. `dj-ai-assistant.js` still combines prompt submission/orchestration with suggestion and confirmation DOM rendering. The side-effecting track-add and queue-permutation workflows are already separated in `dj-ai-actions.js`. If further separation is needed, extract cohesive view functions without changing the current confirmation flow or per-track failure reporting.
+2. `dj-spotify-console.js` combines API/status coordination, volume-write lifecycle and event binding. Rendering is already isolated in `dj-spotify-console-view.js`, and playback sequencing is coordinated by `dj-playback-coordinator.js`. Further extraction should only occur if tests show a real responsibility seam; avoid another layer of pass-through wrappers.
 
-The guest search transport and Spotify result-card rendering are now separate from the search controller. Focused unit coverage protects the result-card contract; browser-level characterization remains the gate before changing the wider UI lifecycle or shared CSS.
-
-## HTML ownership
-
-- `index.html` and `dj.html` should own semantic structure, labels, accessibility attributes and stable component hooks only.
-- No inline JavaScript or embedded business rules.
-- Both `index.html` and `dj.html` load their entrypoints as native ES modules. The DJ page was converted as part of the DJ console module foundation.
-- Preserve existing IDs and data attributes during migration to avoid breaking DOM contracts.
+The guest and DJ feature modules should not import each other's private implementation files. Shared DOM behaviour belongs in `modules/dom.js` only while it remains genuinely shared.
 
 ## CSS ownership
 
-The stylesheet foundation is now layered: `styles/tokens.css` owns the six root design tokens, `styles/base.css` owns the font import and universal/html/body reset, `styles.css` retains shared page-shell and text-button foundations, while `styles/guest.css` owns guest search/results/request presentation. DJ-only presentation is split by feature into `styles/dj-layout.css`, `styles/dj-playback.css`, `styles/dj-request-search.css`, `styles/dj-queue.css` and `styles/dj-ai.css`. The guest page loads only the guest stylesheet; the DJ page loads the five DJ stylesheets in their original cascade order. Selector names and values are preserved. The measured selector clusters and shared-selector risks are recorded in `docs/architecture/CSS-SELECTOR-INVENTORY.md` (574 selector blocks, 32 media-query blocks). Do not split it by arbitrary file size. Capture desktop/mobile browser screenshots first, then separate:
+- `styles/tokens.css`: six shared root design tokens.
+- `styles/base.css`: font import and universal/html/body foundation rules.
+- `styles.css`: shared page shell and shared text-button foundations.
+- `styles/guest.css`: guest search/results/request presentation.
+- `styles/dj-layout.css`: DJ console shell, stage, deck and cockpit layout.
+- `styles/dj-playback.css`: Spotify transport, turntables, mixer, volume and playback-state presentation.
+- `styles/dj-request-search.css`: DJ-side guest search and request discovery.
+- `styles/dj-queue.css`: queue tiles, reordering and queue presentation.
+- `styles/dj-ai.css`: DJ AI assistant presentation.
 
-1. `styles/tokens.css`: color, spacing, typography, radii, shadows and motion tokens.
-2. `styles/base.css`: reset, body, accessibility and shared layout primitives.
-3. `styles.css`: shared page shell and text-button controls.
-4. `styles/guest.css`: guest search/results/request presentation.
-5. `styles/dj-*.css`: DJ layout, playback, request search, queue and AI presentation.
+The DJ stylesheet order in `dj.html` preserves the original cascade. Guest pages do not load DJ-only stylesheets. Selector ownership and extraction history are recorded in `CSS-SELECTOR-INVENTORY.md`. That inventory's early counts are historical snapshots; do not treat them as current counts without re-running the inventory against the current branch.
 
-Avoid changing the visual design while splitting CSS. Compare screenshots at the existing desktop and mobile breakpoints after each change.
+## Browser contracts and validation
 
-## Frontend migration sequence
+The Playwright browser journeys use deterministic API stubs and cover guest join/search/request, DJ login/session, overview/playback polling and logout. They do not call Spotify or production Cloudflare services. The screenshot workflow captures guest desktop/mobile and DJ desktop/responsive baselines.
 
-1. Add browser-level characterization coverage for guest join/search/request and DJ login/dashboard/playback/AI flows.
-2. Extract the API client and session storage without changing endpoint paths or localStorage keys.
-3. Extract polling lifecycle and shared application state.
-4. Finish guest search/request separation and add browser-level coverage.
-5. Extract DJ authentication, overview and moderation features; the API client, token storage and pure queue-ordering helper are already separated.
-6. Extract queue and Spotify playback features.
-7. Extract the AI assistant into independent prompt-action, proposal-validation, Spotify-suggestion and ChatGPT-handoff modules.
-8. Inventory and split CSS by actual selector ownership.
-9. Complete DJ module migration, then keep both HTML entrypoints on native ES modules; remove old monolithic code only after browser tests pass.
+Run:
+- `npm run test:browser`
+- `npm run screenshots:baseline`
 
-## Non-negotiable behaviour
+A green browser journey does not replace Worker/API contract tests or production smoke testing.
 
-- Preserve current visual identity and responsive behaviour.
-- Preserve localStorage keys until an explicit migration handles existing sessions.
-- Keep all Spotify and privileged API calls server-side; browser code calls only PartyQueue API routes.
-- AI queue proposals must be validated against the latest DJ overview and require explicit confirmation.
-- A stale poll response must never overwrite a newer playback state.
-- Abort outstanding searches and stop polling on logout.
+## Behaviour invariants
 
-## Browser-level characterization
-
-The Playwright browser journey suite runs against the real static frontend with deterministic API stubs. It protects the end-to-end browser contracts without calling Spotify or Cloudflare production services:
-
-- Guest join: form validation handoff, event-code submission, session handoff and authenticated search.
-- Guest request: Spotify result rendering, bearer-token forwarding and successful request feedback.
-- DJ access: login submission, persisted DJ session, authenticated overview/playback polling and logout cleanup.
-- Browser runtime errors fail the journey tests.
-
-Run locally with `npm run test:browser` after installing the Playwright Chromium browser. The CI browser job runs these journeys before capturing the existing visual baselines. These are frontend integration tests with stubbed API responses; they do not replace Worker/API integration tests or production acceptance testing.
-
-
-## Current DJ CSS ownership
-
-The original DJ stylesheet has been separated into five ordered feature stylesheets without rewriting selectors or declaration values. `dj.html` loads them in the same order as the source declarations. The Playwright visual-baseline workflow is the required regression gate for this move.
-
-
-## Follow-up ownership refinements — 2026-11-20
-
-The DJ AI and Spotify console boundaries have been narrowed further:
-
-- modules/dj-ai-actions.js owns sequential selected-track insertion, duplicate detection, per-track failure aggregation and validation that a proposed queue order is an exact permutation of the current queue. dj-ai-assistant.js retains prompt lifecycle, suggestion selection UI and the explicit DJ confirmation surface; it delegates the write workflow.
-- modules/dj-spotify-console-view.js owns DOM-only rendering of Spotify connection/device/track state, deck artwork, volume/progress LEDs, transport button state, fallback queue preview and offline state. It performs no network calls.
-- modules/dj-spotify-console.js now coordinates API status requests, stale-response checks, serialized volume writes and control event binding, delegating all presentation to the view.
-- The DJ AI assistant still requires an explicit confirmation click before a queue reorder is sent. The AI action module rejects incomplete, duplicate or foreign track-ID proposals before any save callback can run.
+- Preserve existing DOM IDs, localStorage keys, endpoint paths and payloads.
+- Browser code calls PartyQueue API routes; Spotify secrets/tokens remain server-side.
+- AI queue proposals must be matched against the latest queue and require explicit DJ confirmation.
+- Track additions are sequential, duplicate-aware and report partial failures.
+- Stale polling responses must never overwrite newer state.
+- Outstanding searches are aborted and polling/task queues are invalidated when the DJ session ends.
+- Preserve the current visual identity and responsive behaviour; no framework migration is required.
