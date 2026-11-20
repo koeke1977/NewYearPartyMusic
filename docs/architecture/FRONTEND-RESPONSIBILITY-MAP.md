@@ -15,10 +15,11 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-polling.js`: owns the immediate refresh + five-second polling interval lifecycle and ensures a repeated start replaces the prior interval.
 - `modules/dj-playback-display.js`: pure playback display helpers for elapsed time, clamped progress percentage and playing/paused/waiting labels; DOM rendering remains in the DJ entrypoint.
 - `modules/dj-request-guard.js`: prevents overlapping status requests, invalidates in-flight responses when the DJ session ends, and prevents an old request's `finally` block from clearing a newer request's in-flight state.
+- `modules/dj-latest-task-queue.js`: serializes asynchronous DJ control writes, skips queued values superseded by newer input, and invalidates pending work when the DJ session ends.
 - `modules/dj-playback-state.js`: pure Spotify UI-state mapping for volume normalization, play/pause/booth state, device/track summary and playback error priority.
 - `dj.js` remains the page composition/controller for login, rendering, moderation, playback and AI interactions until those flows have dedicated tests.
 
-`dj.html` now loads `dj.js` as a native ES module; no bundler or new runtime dependency was introduced.
+`index.html` and `dj.html` load their entrypoints as native ES modules; no bundler or new runtime dependency was introduced.
 
 The remaining DJ entrypoint still owns several separate concerns:
 
