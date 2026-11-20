@@ -92,4 +92,4 @@ These are infrastructure composition adapters, not domain/application modules.
 
 ## Validation status
 
-The latest known CI run for commit `4b13b02fc188c995e49bd56aa7a2eead9cb5b935` passed type checking, unit/security tests, Worker dry-run, browser journeys and screenshot capture. That verifies the tested behaviour at that commit; it does not mean the remaining composition and dependency-inversion work above is complete.
+The previous full CI run for commit `4b13b02fc188c995e49bd56aa7a2eead9cb5b935` passed type checking, unit/security tests, Worker dry-run, browser journeys and screenshot capture. The documentation updates in this audit triggered a new CI run (run 181); at the time of this snapshot, type checking had passed while the security tests, Worker dry-run and browser/screenshot job were still running. A green result on the earlier commit does not mean the remaining composition and dependency-inversion work above is complete.
