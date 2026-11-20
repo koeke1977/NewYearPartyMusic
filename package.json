@@ -5,13 +5,13 @@
   "description": "Private single-event Spotify music request queue for New Year's Eve 2026",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "node scripts/release-guard.mjs deploy",
     "db:local": "wrangler d1 execute partyqueue-db --local --file=./db/schema.sql",
-    "db:remote": "wrangler d1 execute partyqueue-db --remote --file=./db/schema.sql",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:browser": "node scripts/test-browser-flows.mjs",
-    "screenshots:baseline": "node scripts/capture-ui-baseline.mjs"
+    "screenshots:baseline": "node scripts/capture-ui-baseline.mjs",
+    "release:preflight": "node scripts/release-guard.mjs preflight"
   },
   "dependencies": {
     "hono": "^4.10.0"
