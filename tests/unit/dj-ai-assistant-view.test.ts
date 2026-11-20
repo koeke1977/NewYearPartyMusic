@@ -71,7 +71,9 @@ describe("DJ AI assistant view", () => {
 
     const group = output.children[2];
     const secondOption = group.children[2];
+    const firstRadio = group.children[1].children[0];
     const secondRadio = secondOption.children[0];
+    firstRadio.checked = false;
     secondRadio.checked = true;
     await output.children[3].listeners.click();
 
