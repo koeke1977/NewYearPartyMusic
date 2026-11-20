@@ -1,5 +1,4 @@
 import { createDjApi } from "./modules/dj-api.js";
-import { clearDjToken, getSavedDjToken, saveDjToken } from "./modules/dj-session.js";
 import { element as el } from "./modules/dom.js";
 import { orderedQueued } from "./modules/dj-queue.js";
 import { createDjPollingController } from "./modules/dj-polling.js";
@@ -10,6 +9,7 @@ import { createDjQueueReorderController } from "./modules/dj-queue-reorder.js";
 import { createDjCommandService } from "./modules/dj-command-service.js";
 import { createDjSpotifyConsole } from "./modules/dj-spotify-console.js";
 import { createDjAiAssistant } from "./modules/dj-ai-assistant.js";
+import { createDjAuthController } from "./modules/dj-auth-controller.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -17,16 +17,24 @@ const loginMessage=document.querySelector("#dj-login-message");
 const consoleView=document.querySelector("#dj-console");
 const requestList=document.querySelector("#dj-requests");
 const message=document.querySelector("#dj-message");
-let token=getSavedDjToken();
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
 let latestDJOverview=null;
-const api=createDjApi(()=>token);
-const commands=createDjCommandService({api,refresh:()=>refresh(),onMessage:text=>{message.textContent=text;}});
 let playback;
-const spotifyConsole=createDjSpotifyConsole({api,getPlayback:()=>playback,onMessage:text=>{message.textContent=text;},onQueuePreview:track=>{spotifyQueuePreview=track;}});
+let polling;
+let spotifyConsole;
+const auth=createDjAuthController({
+  loginCard,loginForm,loginMessage,consoleView,
+  onStateChange:enabled=>{
+    if(enabled)polling?.start();
+    else { polling?.stop(); playback?.invalidate(); spotifyConsole?.invalidate(); }
+  },
+});
+const api=createDjApi(()=>auth.getToken());
+const commands=createDjCommandService({api,refresh:()=>refresh(),onMessage:text=>{message.textContent=text;}});
+spotifyConsole=createDjSpotifyConsole({api,getPlayback:()=>playback,onMessage:text=>{message.textContent=text;},onQueuePreview:track=>{spotifyQueuePreview=track;}});
 playback=createDjPlaybackCoordinator({
-  getToken:()=>token,
+  getToken:()=>auth.getToken(),
   sendCommand:action=>api("/api/dj/spotify/"+action,{method:"POST"}),
   refreshStatus:()=>spotifyConsole.refreshStatus(),
   onCommandSuccess:action=>{
@@ -37,12 +45,7 @@ playback=createDjPlaybackCoordinator({
   onCommandError:error=>{message.textContent=error.message;},
 });
 spotifyConsole.bindControls();
-const polling=createDjPollingController(refresh,()=>spotifyConsole.refreshStatus());
-function setLoggedIn(on){
-  loginCard.hidden=on;consoleView.hidden=!on;
-  if(on)polling.start();
-  else { polling.stop(); playback.invalidate(); spotifyConsole.invalidate(); }
-}
+polling=createDjPollingController(refresh,()=>spotifyConsole.refreshStatus());
 function stat(label,value,icon){const box=el("div","dj-stat");box.append(el("span","dj-stat-icon",icon));const copy=el("div","dj-stat-copy");copy.append(el("span","dj-muted",label),el("strong","",String(value)));box.append(copy);return box;}
 function formatMusicTime(ms){
   const minutes=Math.max(0,Math.round((Number(ms)||0)/60000));
@@ -141,16 +144,9 @@ function render(data){
 const queueReorder=createDjQueueReorderController(requestList,order=>commands.saveQueueOrder(order));
 async function refresh(){
   try{const data=await api("/api/dj/overview");render(data);}
-  catch(e){if(e.message.toLowerCase().includes("sessie")){logout();return;}message.textContent=e.message;}
+  catch(e){if(e.message.toLowerCase().includes("sessie")){auth.logout();return;}message.textContent=e.message;}
 }
-function logout(){token="";clearDjToken();setLoggedIn(false);}
-loginForm.addEventListener("submit",async e=>{
-  e.preventDefault();const button=loginForm.querySelector("button");button.disabled=true;loginMessage.textContent="Checking DJ access…";
-  try{const response=await fetch("/api/dj/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:new FormData(loginForm).get("code")})});const data=await response.json();if(!response.ok)throw new Error(data.error||"Login failed");token=data.token;saveDjToken(token);loginForm.reset();loginMessage.textContent="";setLoggedIn(true);}
-  catch(e){loginMessage.textContent=e.message;}
-  finally{button.disabled=false;}
-});
-document.querySelector("#dj-logout").addEventListener("click",logout);
+document.querySelector("#dj-logout").addEventListener("click",()=>auth.logout());
 document.querySelector("#pause-toggle").addEventListener("click",()=>commands.updateSetting("requests_paused",!currentSettings.requestsPaused));
 document.querySelector("#approval-toggle").addEventListener("click",()=>commands.updateSetting("auto_approve",!currentSettings.autoApprove));
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>commands.updateSetting("auto_queue",!currentSettings.autoQueue));
@@ -180,7 +176,7 @@ chatGPTButton?.addEventListener("click",async()=>{
   }
 });
 
-if(token)setLoggedIn(true);
+if(auth.hasToken())auth.setLoggedIn(true);
 
 
 document.querySelector("#partyqueue-next").addEventListener("click",async()=>{
