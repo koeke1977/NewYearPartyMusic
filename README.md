@@ -53,7 +53,7 @@ PartyQueue does not stream audio. Spotify playback is controlled through the Web
 ## Current application capabilities
 - Guest join with event code and nickname and signed 12-hour session.
 - Spotify catalogue search and track requests with event-scoped guest validation.
-- Configurable open-request and 30-minute rate limits, duplicate protection and DJ moderation.
+- Unlimited active requests per guest, a rolling 20-per-60-minute guest request limit, duplicate protection and DJ moderation.
 - DJ login and event-scoped protected routes.
 - Spotify DJ OAuth, encrypted token storage and serialized token refresh.
 - DJ overview, queue ordering, request moderation and Spotify playback controls.
