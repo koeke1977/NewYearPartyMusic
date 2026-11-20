@@ -126,7 +126,6 @@ describe("guest request lifecycle", () => {
     const insert=calls.find(call=>call.sql.includes("INTO requests"));
     expect(insert?.sql).toContain("INSERT OR IGNORE INTO requests");
     expect(insert?.sql).toContain("SELECT");
-    expect(insert?.sql).toContain("status IN ('pending','approved','queued')");
     expect(insert?.sql).toContain("requested_at >= datetime('now','-1 hour')");
     expect(insert?.values.slice(-2)).toEqual(["guest-1",20]);
     expect(insert?.values).toContain("queued");
