@@ -15,7 +15,6 @@ export function guestRequestErrorStatus(code: GuestRequestErrorCode): 400 | 401 
     case "event_inactive":
     case "requests_paused":
       return 403;
-    case "open_request_limit":
     case "request_rate_limit":
       return 429;
     case "duplicate_track":
