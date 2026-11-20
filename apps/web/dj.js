@@ -332,7 +332,7 @@ async function refreshSpotify(){
     else{document.querySelector("#master-volume-status").textContent="NO ACTIVE SPOTIFY DEVICE";}
     now.textContent=playbackSummary.nowPlaying;
   }catch(e){
-    if(!spotifyStatusRequests.isCurrent(requestId))return;
+    if(!playback.isStatusCurrent(requestId))return;
     state.textContent="NOT CONNECTED";
     document.querySelector("#spotify-connect")?.classList.remove("is-connected");
     syncPlaybackButtons(false,false);
