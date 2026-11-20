@@ -2,6 +2,7 @@ import { orderedQueued } from "./dj-queue.js";
 import { matchDjQueueProposal } from "./dj-ai-queue-parser.js";
 import { extractDjTrackSuggestions } from "./dj-ai-suggestions.js";
 import { resolveDjAiPrompt } from "./dj-ai-intent.js";
+import { addSelectedDjTracks, applyDjQueueProposal } from "./dj-ai-actions.js";
 import { element as el } from "./dom.js";
 
 // Owns DJ#DATUUR AI prompt submission, proposal confirmation and Spotify suggestion UI.
@@ -23,7 +24,11 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
         const overview=await api("/api/dj/overview");
         const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
         const { ids, unmatchedLines } = matchDjQueueProposal(answer, queued);
-        if(queued.length&&ids.length===queued.length&&new Set(ids).size===queued.length){
+        const proposal = await applyDjQueueProposal({
+          proposedIds: ids, queuedIds: queued.map(track => track.id),
+          saveOrder: async () => {},
+        });
+        if(proposal.applied || (queued.length && ids.length===queued.length && new Set(ids).size===queued.length)){
           output.replaceChildren(el("p","",answer));
           const confirmPanel=el("div","dj-ai-confirm-panel");
           confirmPanel.append(el("p","dj-ai-results-hint","Alle "+queued.length+" nummers zijn herkend. Wil je deze nieuwe volgorde toepassen op UP NEXT?"));
@@ -34,7 +39,10 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
           confirmButton.addEventListener("click",async()=>{
             confirmButton.disabled=true;cancelButton.disabled=true;confirmButton.textContent="VOLGORDE OPSLAAN…";
             try{
-              await api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order:ids})});
+              await applyDjQueueProposal({
+                proposedIds: ids, queuedIds: queued.map(track => track.id),
+                saveOrder: order => api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order})}),
+              });
               output.replaceChildren(el("p","",answer),el("p","dj-ai-results-hint","✓ Wachtrij effectief herschikt. De nieuwe volgorde is opgeslagen."));
               await refresh();
             }catch(error){
@@ -61,52 +69,46 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
             ? {results:result.spotifyMatches}
             : await api("/api/dj/ai/music/search",{method:"POST",body:JSON.stringify({queries:suggestions})});
           const selectedTracks=[];
-        let groupIndex=0;
-        for(const group of results.results||[]){
-          const groupBox=el("div","dj-ai-suggestion");
-          groupBox.append(el("strong","dj-ai-query",group.query));
-          if(!group.tracks?.length)groupBox.append(el("span","dj-ai-no-match","Geen Spotify-match gevonden."));
-          (group.tracks||[]).forEach((track,trackIndex)=>{
-            const option=el("label","dj-ai-track");
-            const pick=documentRef.createElement("input");
-            pick.type="radio";pick.name="dj-ai-pick-"+groupIndex;pick.value=track.id;
-            pick.checked=trackIndex===0;
-            pick.addEventListener("change",()=>{});
-            const chosen={track,group:group.query,pick};
-            selectedTracks.push(chosen);
-            if(track.albumImageUrl){const cover=el("img","dj-ai-track-cover");cover.src=track.albumImageUrl;cover.alt="";option.append(cover);}
-            const details=el("div","dj-ai-track-details");
-            details.append(el("strong","",track.name),el("span","",track.artists.join(", ")));
-            option.append(pick,details);groupBox.append(option);
-          });
-          output.append(groupBox);
-          groupIndex++;
-        }
-        const addSelected=el("button","dj-ai-add","＋ VOEG GESELECTEERDE NUMMERS TOE AAN UP NEXT");
-        addSelected.type="button";
-        addSelected.addEventListener("click",async()=>{
-          const chosen=selectedTracks.filter(item=>item.pick.checked);
-          if(!chosen.length)return;
-          addSelected.disabled=true;addSelected.textContent="NUMMERS WORDEN TOEGEVOEGD…";
-          let added=0,alreadyThere=0,failed=[];
-          for(const item of chosen){
-            try{
-              const result=await api("/api/dj/ai/music/add",{method:"POST",body:JSON.stringify({trackId:item.track.id})});
-              if(result.alreadyQueued)alreadyThere++;
-              else added++;
-            }catch(error){failed.push(item.track.name+": "+error.message);}
+          let groupIndex=0;
+          for(const group of results.results||[]){
+            const groupBox=el("div","dj-ai-suggestion");
+            groupBox.append(el("strong","dj-ai-query",group.query));
+            if(!group.tracks?.length)groupBox.append(el("span","dj-ai-no-match","Geen Spotify-match gevonden."));
+            (group.tracks||[]).forEach((track,trackIndex)=>{
+              const option=el("label","dj-ai-track");
+              const pick=documentRef.createElement("input");
+              pick.type="radio";pick.name="dj-ai-pick-"+groupIndex;pick.value=track.id;
+              pick.checked=trackIndex===0;
+              const chosen={track,group:group.query,pick};
+              selectedTracks.push(chosen);
+              if(track.albumImageUrl){const cover=el("img","dj-ai-track-cover");cover.src=track.albumImageUrl;cover.alt="";option.append(cover);}
+              const details=el("div","dj-ai-track-details");
+              details.append(el("strong","",track.name),el("span","",track.artists.join(", ")));
+              option.append(pick,details);groupBox.append(option);
+            });
+            output.append(groupBox);
+            groupIndex++;
           }
-          await refresh();
-          addSelected.textContent=added+" NUMMERS TOEGEVOEGD";
-          const parts=[];
-          if(added)parts.push(added+" nieuw toegevoegd aan UP NEXT");
-          if(alreadyThere)parts.push(alreadyThere+" stonden al in de actieve wachtrij en zijn overgeslagen");
-          if(!parts.length)parts.push("Geen nieuwe nummers toegevoegd");
-          if(failed.length)parts.push("Fouten: "+failed.join("; "));
-          output.append(el("p","dj-ai-results-hint",parts.join(". ")+"."));
-  
-        });
-        output.append(addSelected);
+          const addSelected=el("button","dj-ai-add","＋ VOEG GESELECTEERDE NUMMERS TOE AAN UP NEXT");
+          addSelected.type="button";
+          addSelected.addEventListener("click",async()=>{
+            const chosen=selectedTracks.filter(item=>item.pick.checked);
+            if(!chosen.length)return;
+            addSelected.disabled=true;addSelected.textContent="NUMMERS WORDEN TOEGEVOEGD…";
+            const summary=await addSelectedDjTracks({
+              tracks:chosen,
+              addTrack:item=>api("/api/dj/ai/music/add",{method:"POST",body:JSON.stringify({trackId:item.track.id})}),
+            });
+            await refresh();
+            addSelected.textContent=summary.added.length+" NUMMERS TOEGEVOEGD";
+            const parts=[];
+            if(summary.added.length)parts.push(summary.added.length+" nieuw toegevoegd aan UP NEXT");
+            if(summary.alreadyQueued.length)parts.push(summary.alreadyQueued.length+" stonden al in de actieve wachtrij en zijn overgeslagen");
+            if(!parts.length)parts.push("Geen nieuwe nummers toegevoegd");
+            if(summary.failed.length)parts.push("Fouten: "+summary.failed.map(item=>item.track.name+": "+item.error).join("; "));
+            output.append(el("p","dj-ai-results-hint",parts.join(". ")+"."));
+          });
+          output.append(addSelected);
         }else{
           output.append(el("p","dj-ai-results-hint","Ik kon geen genummerde tracks uit het antwoord halen. Vraag de AI om een lijst met Titel — Artiest."));
         }
@@ -137,7 +139,5 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
       await askDJAI("Stel 8 externe nummers voor die goed aansluiten op de huidige PartyQueue wachtrij en de energie geleidelijk verhogen richting een Oud & Nieuw-feest. Vermijd artiesten en tracks die al in UP NEXT of recent gespeeld staan. Geef een genummerde lijst met exact Titel — Artiest en markeer dit als suggesties buiten de wachtrij.","fill");
     }
   }));
-  
-  
   return { ask: askDJAI };
 }
