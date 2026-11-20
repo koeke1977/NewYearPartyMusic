@@ -83,24 +83,15 @@ export async function createDjQueueGuest(db: GuestRequestDatabase, eventId: stri
   return guestId;
 }
 
-export async function readSavedQueueOrder(db: GuestRequestDatabase): Promise<string[]> {
-  const row = await db.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{ value: string }>();
-  try {
-    const parsed: unknown = JSON.parse(row?.value || "[]");
-    return Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : [];
-  } catch {
-    return [];
-  }
-}
-
 export async function appendRequestToQueueOrder(db: GuestRequestDatabase, requestId: string): Promise<void> {
-  const order = await readSavedQueueOrder(db);
-  const next = order.filter(id => id !== requestId);
-  next.push(requestId);
   await db.prepare(
-    "INSERT INTO settings (key,value,updated_at) VALUES ('partyqueue_order',?,CURRENT_TIMESTAMP) " +
-    "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
-  ).bind(JSON.stringify(next)).run();
+    "INSERT INTO settings (key,value,updated_at) VALUES ('partyqueue_order',json_array(?),CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(key) DO UPDATE SET value = CASE " +
+    "WHEN json_valid(settings.value) THEN CASE WHEN json_type(settings.value)='array' THEN " +
+    "CASE WHEN EXISTS (SELECT 1 FROM json_each(settings.value) WHERE value = ?) " +
+    "THEN settings.value ELSE json_insert(settings.value,'$[#]',?) END " +
+    "ELSE excluded.value END ELSE excluded.value END, updated_at=CURRENT_TIMESTAMP",
+  ).bind(requestId, requestId, requestId).run();
 }
 
 export async function findEventRequestStatus(
