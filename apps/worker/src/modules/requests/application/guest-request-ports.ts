@@ -9,6 +9,7 @@ export interface GuestRequestRepository {
   countRecentGuestRequests(guestId:string):Promise<number>;
   countOpenGuestRequests(guestId:string):Promise<number>;
   findActiveTrackRequest(eventId:string,trackId:string):Promise<{id:string;status?:string}|null>;
+  insertGuestTrackRequest(request:StoredTrackRequest, limits:{maxOpenRequests:number;maxRequestsPer30Minutes:number}):Promise<boolean>;
   insertTrackRequest(request:StoredTrackRequest):Promise<boolean>;
   createDjQueueGuest(eventId:string):Promise<string>;
   appendRequestToQueueOrder(requestId:string):Promise<void>;
