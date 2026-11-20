@@ -29,14 +29,22 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Playback policy settings, fallback leases/errors/retry state and manual-pause persistence | `modules/playback/infrastructure/playback-policy-repository.ts` | Same repository |
 | Spotify playback HTTP route state reads/writes | Thin adapters calling playback repository functions | `modules/playback/infrastructure/playback-policy-repository.ts` |
 
+## Extracted HTTP route modules
+
+| Route group | Module | Responsibility |
+|---|---|---|
+| Guest join, guest Spotify search and guest request submission | `routes/guest.ts` | Parse guest HTTP input, enforce event-scoped guest sessions, call request/music use cases and serialize their existing responses |
+
+Guest route tests verify unauthenticated search/request rejection and malformed join JSON handling without invoking D1 or Spotify.
+
 ## Remaining entrypoint responsibilities
 
 | Current function / route | Current mixed responsibility | Intended owner |
 |---|---|---|
 | `requireDJ` | Thin event-scoped DJ session authorization adapter | `modules/identity/dj-session.ts` |
-| `POST /api/guests/join` | HTTP body parsing and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Identity session-token service |
-| `GET /api/spotify/search` | Guest authorization, query extraction and response serialization | `modules/music/application/search-spotify-tracks.ts` + Spotify catalogue adapter |
-| `POST /api/requests` | Guest session authorization, input validation and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Spotify catalogue adapter |
+| `POST /api/guests/join` | HTTP body parsing and response serialization | `routes/guest.ts` → request lifecycle + identity session-token service |
+| `GET /api/spotify/search` | Guest authorization, query extraction and response serialization | `routes/guest.ts` → music search use case + Spotify catalogue adapter |
+| `POST /api/requests` | Guest session authorization, input validation and response serialization | `routes/guest.ts` → request lifecycle + Spotify catalogue adapter |
 | `POST /api/dj/login` | JSON parsing and response serialization | `modules/identity/dj-session.ts` |
 | `POST /api/dj/ai/assistant` | Preference persistence, history/context assembly, event-time logic, prompt construction, provider call, tool dispatch, cache, quota/error mapping | AI orchestrator + context assembler + memory repository + prompt catalog + Cloudflare AI provider + Spotify search tool |
 | `POST /api/dj/ai/music/search` | DJ authorization, JSON parsing and response serialization | `modules/music/application/search-spotify-tracks.ts` + Spotify catalogue adapter |

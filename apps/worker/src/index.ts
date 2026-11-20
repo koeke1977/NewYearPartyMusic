@@ -10,13 +10,14 @@ import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistan
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
 import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
 import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist, playTrack, sendPlaybackCommand, setPlaybackShuffle, setPlaybackVolume } from "./integrations/spotify/playback-api";
-import { addDjTrackToPartyQueue, joinPartyGuest, moderatePartyRequest, queueApprovedPartyRequest, submitGuestTrackRequest } from "./modules/requests/application/guest-request-lifecycle";
+import { addDjTrackToPartyQueue, moderatePartyRequest, queueApprovedPartyRequest } from "./modules/requests/application/guest-request-lifecycle";
 import { getDjOverview, reorderDjQueue, updateDjSetting } from "./modules/requests/application/dj-queue-management";
 import { cleanupCompletedRequests } from "./modules/requests/application/cleanup-completed-requests";
 import { readSpotifyFallbackError, setSpotifyFallbackActive, setSpotifyManualPause } from "./modules/playback/infrastructure/playback-policy-repository";
 import { getDjSpotifyPlaybackStatus } from "./modules/playback/application/get-dj-spotify-playback-status";
 import { executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume } from "./modules/playback/application/dj-playback-controls";
-import { searchDjSpotifyTracks, searchGuestSpotifyTracks } from "./modules/music/application/search-spotify-tracks";
+import { searchDjSpotifyTracks } from "./modules/music/application/search-spotify-tracks";
+import { guestRoutes } from "./routes/guest";
 
 
 
@@ -37,45 +38,7 @@ app.get("/api/config", (c) => c.json({
   eventId: c.env.EVENT_ID, eventName: c.env.EVENT_NAME, guestAccess: "event-code-and-nickname",
 }));
 
-app.post("/api/guests/join", async (c) => {
-  if (!c.env.EVENT_ACCESS_CODE_HASH || !c.env.SESSION_SECRET) return c.json({ error: "PartyQueue is not configured yet. Please contact the DJ." }, 503);
-  let body: { nickname?: unknown; eventCode?: unknown };
-  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const result = await joinPartyGuest({
-    db: c.env.DB, eventId: c.env.EVENT_ID,
-    nickname: typeof body.nickname === "string" ? body.nickname.trim() : "",
-    eventCode: typeof body.eventCode === "string" ? body.eventCode.trim() : "",
-    expectedCodeHash: c.env.EVENT_ACCESS_CODE_HASH, sessionSecret: c.env.SESSION_SECRET,
-    hashCode: sha256, createToken: createSessionToken, createId: () => crypto.randomUUID(),
-    nowSeconds: () => Math.floor(Date.now() / 1000),
-  });
-  return c.json(result.body, result.status as 200);
-});
-
-app.get("/api/spotify/search", async (c) => {
-  const session = await readSession(c.req.raw, c.env.SESSION_SECRET);
-  if (!session || session.eventId !== c.env.EVENT_ID) return c.json({ error: "Je sessie is verlopen. Meld je opnieuw aan." }, 401);
-  const result = await searchGuestSpotifyTracks({
-    query: (c.req.query("q") || "").trim(),
-    search: (query, limit) => searchSpotifyTracks(c.env, query, limit),
-  });
-  return c.json(result.body, result.status);
-});
-
-app.post("/api/requests", async (c) => {
-  const session = await readSession(c.req.raw, c.env.SESSION_SECRET);
-  if (!session || session.eventId !== c.env.EVENT_ID) return c.json({ error: "Je sessie is verlopen. Meld je opnieuw aan." }, 401);
-  let body: { trackId?: unknown };
-  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const trackId = typeof body.trackId === "string" ? body.trackId.trim() : "";
-  if (!/^[A-Za-z0-9]{22}$/.test(trackId)) return c.json({ error: "Ongeldig Spotify-nummer." }, 400);
-  const result = await submitGuestTrackRequest({
-    db: c.env.DB, eventId: session.eventId, guestId: session.sub, trackId,
-    createId: () => crypto.randomUUID(), getSpotifyTrack: (id) => getSpotifyTrack(c.env, id),
-  });
-  return c.json(result.body, result.status as 200);
-});
-
+app.route("/api", guestRoutes);
 
 async function requireDJ(request: Request, env: Env): Promise<boolean> {
   return !!(await readDjSession(request, env.SESSION_SECRET, env.EVENT_ID));
