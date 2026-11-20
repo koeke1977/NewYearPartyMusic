@@ -140,7 +140,7 @@ The current Cloudflare Worker, D1 and Spotify OAuth connection remain test-only 
 
 - Added the partial unique index `idx_requests_one_active_track` on `(event_id, spotify_track_id)` for active request states `pending`, `approved` and `queued`.
 - Request insertion uses `INSERT OR IGNORE` and returns whether D1 inserted the row. Guest requests map a concurrent duplicate to HTTP 409; DJ additions return `alreadyQueued` and do not append a duplicate queue-order entry.
-- Guest open-request and rolling 30-minute quota predicates are part of the same `INSERT ... SELECT` statement. If a concurrent request reaches a limit first, the losing request returns the existing HTTP 429 limit response.
+- Guest requests have no per-guest open/active queue cap. The rolling 20-per-60-minute quota is checked in the same D1 `INSERT ... SELECT` statement, so concurrent submissions cannot exceed it.
 - Moderation writes include the expected previous status in the SQL predicate. If another action wins first, the stale action returns HTTP 409 and cannot overwrite the new status.
 - DJ queue-order append is an atomic SQLite JSON upsert, so concurrent track additions cannot overwrite one another's saved order.
 - Guest session signing now happens before guest persistence, avoiding orphan guest rows when signing fails.
