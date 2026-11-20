@@ -26,7 +26,7 @@ let latestDJOverview=null;
 const api=createDjApi(()=>token);
 const commands=createDjCommandService({api,refresh:()=>refresh(),onMessage:text=>{message.textContent=text;}});
 let playback;
-const spotifyConsole=createDjSpotifyConsole({api,getPlayback:()=>playback,onMessage:text=>{message.textContent=text;}});
+const spotifyConsole=createDjSpotifyConsole({api,getPlayback:()=>playback,onMessage:text=>{message.textContent=text;},onQueuePreview:track=>{spotifyQueuePreview=track;}});
 playback=createDjPlaybackCoordinator({
   getToken:()=>token,
   sendCommand:action=>api("/api/dj/spotify/"+action,{method:"POST"}),
