@@ -50,7 +50,7 @@ export function addDjTrackFromEnvironment(env: Env, trackId: string) {
   return addDjTrackToPartyQueue({
     db: env.DB, eventId: env.EVENT_ID, trackId,
     createId: () => crypto.randomUUID(),
-    getSpotifyTrack: (id) => getSpotifyTrack(env, id),
+    trackGateway: { getTrack: (id) => getGuestRequestTrack(env, id) },
   });
 }
 

@@ -97,7 +97,7 @@ export async function submitGuestTrackRequest(input: {
     await insertTrackRequest(input.db, {
       id: requestId, event_id: input.eventId, guest_id: input.guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
-      album_image_url: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null,
+      album_image_url: track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || null,
       duration_ms: track.duration_ms, status,
     });
     return { status: 201, body: { ok: true, request: { id: requestId, name: track.name, artists, status } } };
@@ -153,7 +153,7 @@ export async function addDjTrackToPartyQueue(input: {
   eventId: string;
   trackId: string;
   createId(): string;
-  getSpotifyTrack(trackId: string): Promise<Response>;
+  trackGateway: GuestRequestTrackGateway;
 }): Promise<Result> {
   try {
     const duplicate = await findActiveTrackRequest(input.db, input.eventId, input.trackId);

@@ -73,7 +73,7 @@ describe("guest request lifecycle", () => {
     const paused=fakeDb({settings:[{key:"requests_paused",value:"true"}]});
     expect(await submitGuestTrackRequest({
       db:paused.db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
-      createId:()=>"request",getSpotifyTrack:vi.fn(),
+      createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:403});
 
     const limited=fakeDb({count:20});
