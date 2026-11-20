@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../platform/env";
 import { readSession } from "../platform/composition/session-token";
+import { guestRequestErrorStatus } from "./guest-request-http";
 import {
   joinGuestFromEnvironment, submitGuestRequestFromEnvironment, searchGuestTracksFromEnvironment,
 } from "../platform/composition/guest-workflows";
@@ -22,7 +23,8 @@ guestRoutes.post("/guests/join", async (c) => {
     typeof body.nickname === "string" ? body.nickname.trim() : "",
     typeof body.eventCode === "string" ? body.eventCode.trim() : "",
   );
-  return c.json(result.body, result.status as 200);
+  if (!result.ok) return c.json({ error: result.error.message }, guestRequestErrorStatus(result.error.code));
+  return c.json({ ok: true, ...result.value }, 201);
 });
 
 guestRoutes.get("/spotify/search", async (c) => {
@@ -50,5 +52,6 @@ guestRoutes.post("/requests", async (c) => {
     return c.json({ error: "Ongeldig Spotify-nummer." }, 400);
   }
   const result = await submitGuestRequestFromEnvironment(c.env, session.sub, trackId);
-  return c.json(result.body, result.status as 200);
+  if (!result.ok) return c.json({ error: result.error.message }, guestRequestErrorStatus(result.error.code));
+  return c.json({ ok: true, request: result.value.request }, 201);
 });
