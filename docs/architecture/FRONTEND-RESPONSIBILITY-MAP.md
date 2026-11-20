@@ -38,7 +38,7 @@ The remaining DJ entrypoint still owns several separate concerns:
 | Settings controls | pause, auto-approve and auto-queue toggles | `dj/features/settings/` |
 | Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle) and `modules/dj-request-guard.js` (stale-response/in-flight guard) extracted; then `dj/services/polling-service.ts` |
 | Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `dj/features/playback/`; command/status coordination in `modules/dj-playback-coordinator.js`, pure time/progress calculations in `modules/dj-playback-display.js` and connection/device/volume/transport display mapping in `modules/dj-playback-state.js` |
-| AI request lifecycle | `askDJAI()`, prompt actions, response display and loading state | `dj/features/ai-assistant/` |
+| AI request lifecycle | `askDJAI()`, response display and loading state | `dj/features/ai-assistant/`; prompt intent resolution in `modules/dj-ai-intent.js` |
 | AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `modules/dj-ai-queue-parser.js` (pure matching extracted), then `dj/features/ai-assistant/queue-proposal-parser.ts` |
 | AI Spotify suggestions | numbered title/artist extraction, search result groups, selected tracks, add-to-queue actions | `modules/dj-ai-suggestions.js` (pure suggestion extraction), then `dj/features/ai-assistant/track-suggestions-view.ts` |
 | ChatGPT hand-off | opening ChatGPT and clipboard interaction | `modules/dj-chatgpt-handoff.js` (pure context/prompt builder extracted), then `dj/features/ai-assistant/chatgpt-handoff.ts` |
