@@ -24,6 +24,7 @@ This is too much responsibility for one route and is the primary AI extraction t
 | Responsibility | Module |
 |---|---|
 | DJ assistant system/user prompt construction | `modules/ai/prompts/dj-assistant.ts` |
+| Belgian local event-time phase calculation | `modules/ai/context/event-moment.ts` |
 
 The prompt builder receives typed context and a question, and returns a system/user message pair. It does not access D1, Spotify, Cloudflare bindings or HTTP requests.
 
