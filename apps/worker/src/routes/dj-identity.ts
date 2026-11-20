@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import type { Env } from "../platform/env";
-import { constantTimeEqual, sha256, toBase64Url } from "../platform/security/crypto";
-import { createSessionToken } from "../modules/identity/session-token";
-import { loginDj } from "../modules/identity/dj-session";
+import { constantTimeEqual, toBase64Url } from "../platform/security/crypto";
 import { createSpotifyAuthorizationUrl, spotifyOAuthRedirectUri } from "../modules/identity/spotify-oauth";
-import { completeSpotifyAuthorizationFromEnvironment } from "../platform/composition/spotify-oauth";
+import {
+  completeSpotifyAuthorizationFromEnvironment,
+} from "../platform/composition/spotify-oauth";
+import { loginDjFromEnvironment } from "../platform/composition/dj-identity-workflows";
 import { requireDJ } from "./dj-auth";
 
 export const djIdentityRoutes = new Hono<{ Bindings: Env }>();
@@ -16,15 +17,10 @@ djIdentityRoutes.post("/api/dj/login", async (c) => {
   } catch {
     return c.json({ error: "Ongeldige aanvraag." }, 400);
   }
-  const result = await loginDj({
-    code: typeof body.code === "string" ? body.code.trim() : "",
-    expectedCodeHash: c.env.DJ_ACCESS_CODE_HASH,
-    sessionSecret: c.env.SESSION_SECRET,
-    eventId: c.env.EVENT_ID,
-    hashCode: sha256,
-    createToken: createSessionToken,
-    nowSeconds: () => Math.floor(Date.now() / 1000),
-  });
+  const result = await loginDjFromEnvironment(
+    c.env,
+    typeof body.code === "string" ? body.code.trim() : "",
+  );
   return c.json(result.body, result.status as 200 | 401 | 503);
 });
 
