@@ -1,3 +1,4 @@
+import type { PlaybackPolicyRepository } from "../application/playback-policy-ports";
 export type PlaybackPolicyDatabase = Pick<D1Database, "prepare">;
 export type LastPartyQueueTrack = { uri: string; durationMs: number; startedAt: number };
 
@@ -26,6 +27,22 @@ export async function setSpotifyFallbackState(db: PlaybackPolicyDatabase, value:
   ).bind(value).run();
 }
 
+export async function setSpotifyFallbackActive(db: PlaybackPolicyDatabase): Promise<void> {
+  await setSpotifyFallbackState(db, "true");
+}
+
+export async function readSpotifyFallbackError(db: PlaybackPolicyDatabase): Promise<string | null> {
+  const setting = await readPlaybackSetting(db, "spotify_fallback_error");
+  return setting?.value || null;
+}
+
+export async function setSpotifyManualPause(db: PlaybackPolicyDatabase, paused: boolean): Promise<void> {
+  await db.prepare(
+    "INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause',?,CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
+  ).bind(paused ? "true" : "false").run();
+}
+
 export async function setSpotifyFallbackError(db: PlaybackPolicyDatabase, message: string): Promise<void> {
   await db.prepare(
     "INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_error',?,CURRENT_TIMESTAMP) " +
@@ -43,4 +60,17 @@ export async function setSpotifyFallbackRetryAfter(db: PlaybackPolicyDatabase, t
 export async function clearSpotifyFallbackFailure(db: PlaybackPolicyDatabase): Promise<void> {
   await db.prepare("DELETE FROM settings WHERE key='spotify_fallback_retry_after'").run();
   await db.prepare("DELETE FROM settings WHERE key='spotify_fallback_error'").run();
+}
+
+/** D1 adapter for the application-owned playback policy repository. */
+export function createPlaybackPolicyRepository(db: PlaybackPolicyDatabase): PlaybackPolicyRepository {
+  return {
+    readSetting: (key) => readPlaybackSetting(db, key),
+    countQueuedRequests: (eventId) => readQueuedRequestCount(db, eventId),
+    claimFallbackStart: () => claimSpotifyFallbackStart(db),
+    setFallbackState: (value) => setSpotifyFallbackState(db, value),
+    setFallbackError: (message) => setSpotifyFallbackError(db, message),
+    setFallbackRetryAfter: (timestamp) => setSpotifyFallbackRetryAfter(db, timestamp),
+    clearFallbackFailure: () => clearSpotifyFallbackFailure(db),
+  };
 }

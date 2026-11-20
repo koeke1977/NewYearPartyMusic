@@ -1,0 +1,33 @@
+/* DJ#DATUUR AI assistant */
+.dj-shell .dj-ai-panel{margin:18px 0;padding:20px;border:1px solid rgba(0,232,138,.22);border-radius:16px;background:linear-gradient(115deg,rgba(9,24,16,.98),rgba(15,22,18,.96));box-shadow:inset 0 1px rgba(255,255,255,.035),0 12px 32px rgba(0,0,0,.18)}
+.dj-ai-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dj-ai-heading h2{font-size:17px;letter-spacing:.06em}.dj-ai-heading h2 span{color:#00e88a}
+.dj-ai-status{padding:6px 9px;border:1px solid rgba(0,232,138,.25);border-radius:999px;color:#00e88a;font-size:8px;font-weight:900;letter-spacing:.08em;white-space:nowrap}
+.dj-ai-intro{margin:8px 0 14px;color:#aab7ad;font-size:11px}
+.dj-ai-form{display:flex;gap:8px}.dj-ai-form input{flex:1;min-width:0;min-height:44px;padding:0 13px;border:1px solid rgba(0,232,138,.32);border-radius:9px;background:#080e0a;color:#f3fff6;font:inherit;font-size:12px;outline:none}.dj-ai-form input:focus{border-color:#00e88a;box-shadow:0 0 0 3px rgba(0,232,138,.1)}
+.dj-ai-form button{padding:0 16px;border:0;border-radius:9px;background:#00d982;color:#061009;font-size:9px;font-weight:950;letter-spacing:.08em;cursor:pointer}.dj-ai-form button:disabled{opacity:.5}
+.dj-ai-answer{margin-top:12px;padding:13px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(0,0,0,.2);color:#e2eee5;font-size:12px;line-height:1.55;white-space:pre-wrap;min-height:48px}
+@media(max-width:560px){.dj-shell .dj-ai-panel{padding:14px}.dj-ai-heading{align-items:flex-start;flex-direction:column}.dj-ai-form{flex-direction:column}.dj-ai-form button{min-height:42px}}
+
+/* DJ#DATUUR AI Music Director actions */
+.dj-ai-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0 10px}.dj-ai-action{min-height:42px;padding:9px 10px;border:1px solid rgba(0,232,138,.28);border-radius:9px;background:rgba(0,0,0,.24);color:#c9f6d8;font-size:9px;font-weight:950;letter-spacing:.045em;cursor:pointer}.dj-ai-action:hover:not(:disabled){border-color:#00e88a;background:rgba(0,232,138,.1)}.dj-ai-action.dj-ai-primary{background:#00d982;color:#061009;border-color:#00d982}.dj-ai-action:disabled{opacity:.45;cursor:wait}.dj-ai-form{margin-top:8px}@media(max-width:650px){.dj-ai-actions{grid-template-columns:1fr}.dj-ai-action{min-height:40px}}
+
+.dj-ai-results-hint{margin:12px 0 8px;color:#aab7ad;font-size:10px;line-height:1.5}
+.dj-ai-suggestion{margin-top:9px;padding:10px;border:1px solid rgba(0,232,138,.16);border-radius:10px;background:rgba(0,0,0,.18)}
+.dj-ai-query{display:block;margin-bottom:8px;color:#e8fff0;font-size:11px}
+.dj-ai-no-match{color:#929b94;font-size:10px}
+.dj-ai-track{display:flex;align-items:center;gap:9px;padding:7px 0;border-top:1px solid rgba(255,255,255,.06)}
+.dj-ai-track input[type="radio"]{width:18px;min-width:18px;max-width:18px;height:18px;min-height:18px;flex:0 0 18px;margin:0;padding:0;accent-color:#00e88a;cursor:pointer}
+.dj-ai-track-cover{width:42px;height:42px;flex:0 0 42px;border-radius:6px;object-fit:cover}
+.dj-ai-track-details{display:grid;gap:4px;min-width:0;flex:1}
+.dj-ai-track-details strong,.dj-ai-track-details span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dj-ai-track-details strong{font-size:10px;color:#f0fff4}
+.dj-ai-track-details span{font-size:9px;color:#9aa79d}
+.dj-ai-add{min-height:32px;padding:0 9px;border:1px solid rgba(0,232,138,.38);border-radius:7px;background:rgba(0,232,138,.1);color:#00e88a;font-size:8px;font-weight:900;white-space:nowrap;cursor:pointer}
+.dj-ai-add.is-added{background:#00d982;color:#061009}
+.dj-ai-add:disabled{opacity:.65;cursor:wait}
+@media(max-width:560px){.dj-ai-track{align-items:flex-start;flex-wrap:wrap}.dj-ai-add{margin-left:51px}}
+
+/* ChatGPT handoff uses the DJ session context but opens the user's own ChatGPT account. */
+.dj-ai-chatgpt{display:block;width:100%;margin:0 0 10px;text-align:center;background:rgba(0,0,0,.18);border-color:rgba(255,255,255,.16);color:#e5eee7}
+.dj-ai-chatgpt:hover:not(:disabled){border-color:#00e88a;background:rgba(0,232,138,.08)}

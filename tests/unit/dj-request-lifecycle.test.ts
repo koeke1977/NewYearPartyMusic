@@ -1,0 +1,143 @@
+import { describe, expect, it, vi } from "vitest";
+import { createGuestRequestRepository } from "../../apps/worker/src/modules/requests/infrastructure/guest-request-d1-repository";
+import {
+  addDjTrackToPartyQueue,
+  moderatePartyRequest,
+  queueApprovedPartyRequest,
+} from "../../apps/worker/src/modules/requests/application/guest-request-lifecycle";
+
+function fakeDb(options:{
+  current?:{id:string;status:string}|null;
+  duplicate?:{id:string;status:string}|null;
+  autoQueue?:string;
+  updateChanges?:number;
+  insertChanges?:number;
+  duplicateAfterInsert?:{id:string;status:string}|null;
+}={}){
+  const calls:Array<{sql:string;values:unknown[]}>= [];
+  let insertAttempted = false;
+  const db={
+    prepare(sql:string){
+      let values:unknown[]=[];
+      const statement={
+        bind(...args:unknown[]){values=args;return statement;},
+        async first(){
+          calls.push({sql,values:[...values]});
+          if(sql.includes("spotify_track_id"))return insertAttempted ? (options.duplicateAfterInsert ?? options.duplicate ?? null) : (options.duplicate ?? null);
+          if(sql.includes("SELECT id,status FROM requests"))return options.current===undefined?{id:"req-1",status:"pending"}:options.current;
+          if(sql.includes("SELECT value FROM settings WHERE key = ?"))return {value:options.autoQueue??"false"};
+          return null;
+        },
+        async run(){
+          calls.push({sql,values:[...values]});
+          if(sql.includes("INTO requests")) insertAttempted = true;
+          return {meta:{changes:sql.includes("INTO requests") ? (options.insertChanges??1) : (options.updateChanges??1)}};
+        },
+      };
+      return statement;
+    },
+  };
+  return {db:db as never,calls};
+}
+
+const track={
+  id:"1234567890123456789012",uri:"spotify:track:1234567890123456789012",
+  name:"AI selected song",artists:["Artist"],
+  albumImageUrl:"https://image.example/small.jpg",durationMs:180000,
+};
+
+describe("DJ request lifecycle",()=>{
+  it("approves a pending request and honors auto-queue",async()=>{
+    const {db,calls}=fakeDb({autoQueue:"true"});
+    const result=await moderatePartyRequest({repository:createGuestRequestRepository(db),eventId:"event-1",requestId:"req-1",action:"approve"});
+    expect(result).toEqual({status:200,body:{ok:true,status:"queued"}});
+    const update=calls.find(call=>call.sql.startsWith("UPDATE requests"));
+    expect(update?.sql).toContain("queued_at = CURRENT_TIMESTAMP");
+    expect(update?.values).toEqual(["queued","req-1","event-1","pending"]);
+    expect(update?.sql).toContain("status IN (?)");
+  });
+
+  it("rejects invalid state transitions and unknown actions",async()=>{
+    const {db}=fakeDb({current:{id:"req-1",status:"played"}});
+    expect(await moderatePartyRequest({repository:createGuestRequestRepository(db),eventId:"event-1",requestId:"req-1",action:"approve"}))
+      .toMatchObject({status:409});
+    expect(await moderatePartyRequest({repository:createGuestRequestRepository(db),eventId:"event-1",requestId:"req-1",action:"unknown"}))
+      .toMatchObject({status:409});
+  });
+
+  it("rejects a stale moderation action when another DJ action already changed the request",async()=>{
+    const {db,calls}=fakeDb({current:{id:"req-1",status:"pending"},updateChanges:0});
+    const result=await moderatePartyRequest({
+      repository:createGuestRequestRepository(db),eventId:"event-1",requestId:"req-1",action:"approve",
+    });
+    expect(result).toMatchObject({
+      status:409,
+      body:{error:"Deze aanvraag is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw."},
+    });
+    expect(calls.some(call=>call.sql.includes("status IN (?)"))).toBe(true);
+  });
+
+  it("returns not found for requests outside the event",async()=>{
+    const {db}=fakeDb({current:null});
+    expect(await moderatePartyRequest({repository:createGuestRequestRepository(db),eventId:"event-1",requestId:"missing",action:"reject"}))
+      .toMatchObject({status:404});
+  });
+
+  it("queues an approved request with a conditional state update",async()=>{
+    const {db,calls}=fakeDb({current:{id:"req-1",status:"approved"}});
+    const result=await queueApprovedPartyRequest({repository:createGuestRequestRepository(db),eventId:"event-1",requestId:"req-1"});
+    expect(result).toEqual({status:200,body:{ok:true,status:"queued"}});
+    expect(calls.some(call=>call.sql.includes("status='queued'")&&call.sql.includes("status='approved'"))).toBe(true);
+  });
+
+  it("does not add a duplicate DJ track",async()=>{
+    const {db,calls}=fakeDb({duplicate:{id:"existing",status:"queued"}});
+    const getTrack=vi.fn();
+    const result=await addDjTrackToPartyQueue({
+      repository:createGuestRequestRepository(db),eventId:"event-1",trackId:track.id,createId:()=>"new-request",trackGateway:{getTrack},
+    });
+    expect(result).toEqual({status:200,body:{ok:true,alreadyQueued:true,status:"queued"}});
+    expect(getTrack).not.toHaveBeenCalled();
+    expect(calls.some(call=>call.sql.includes("INTO requests"))).toBe(false);
+  });
+
+  it("creates a DJ guest, queues the selected track and appends its ID to saved order",async()=>{
+    const {db,calls}=fakeDb();
+    const result=await addDjTrackToPartyQueue({
+      repository:createGuestRequestRepository(db),eventId:"event-1",trackId:track.id,createId:()=>"new-request",
+      trackGateway:{getTrack:async()=>track},
+    });
+    expect(result).toEqual({status:201,body:{ok:true,request:{
+      id:"new-request",name:"AI selected song",artist:"Artist",status:"queued",
+    }}});
+    expect(calls.some(call=>call.sql.startsWith("INSERT OR IGNORE INTO guests"))).toBe(true);
+    const insert=calls.find(call=>call.sql.includes("INTO requests"));
+    expect(insert?.values).toContain("queued");
+    expect(insert?.values).toContain("Artist");
+    const orderWrite=calls.find(call=>call.sql.includes("partyqueue_order")&&call.sql.startsWith("INSERT INTO settings"));
+    expect(orderWrite?.sql).toContain("json_each");
+    expect(orderWrite?.sql).toContain("json_insert");
+    expect(orderWrite?.values).toEqual(["new-request","new-request","new-request"]);
+    expect(calls.some(call=>call.sql.includes("SELECT value FROM settings WHERE key='partyqueue_order'"))).toBe(false);
+  });
+
+  it("treats a concurrent DJ add as already queued without changing saved order",async()=>{
+    const {db,calls}=fakeDb({insertChanges:0,duplicateAfterInsert:{id:"raced-request",status:"queued"}});
+    const result=await addDjTrackToPartyQueue({
+      repository:createGuestRequestRepository(db),eventId:"event-1",trackId:track.id,createId:()=>"new-request",
+      trackGateway:{getTrack:async()=>track},
+    });
+    expect(result).toEqual({status:200,body:{ok:true,alreadyQueued:true,status:"queued"}});
+    expect(calls.some(call=>call.sql.includes("partyqueue_order")&&call.sql.startsWith("INSERT INTO settings"))).toBe(false);
+  });
+
+  it("returns Spotify errors without inserting a DJ request",async()=>{
+    const {db,calls}=fakeDb();
+    const result=await addDjTrackToPartyQueue({
+      repository:createGuestRequestRepository(db),eventId:"event-1",trackId:track.id,createId:()=>"new-request",
+      trackGateway:{getTrack:async()=>null},
+    });
+    expect(result).toMatchObject({status:502});
+    expect(calls.some(call=>call.sql.includes("INTO requests"))).toBe(false);
+  });
+});
