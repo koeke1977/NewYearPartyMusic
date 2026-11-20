@@ -31,7 +31,7 @@ The guest search uses several generic classes rather than a consistent `.guest-*
 
 ## Safe extraction sequence
 
-1. Capture browser screenshots of both pages at the existing desktop and mobile breakpoints. Include login, guest search/results, DJ booth, queue, AI panel and responsive states.
+1. Capture browser screenshots of both pages at the existing desktop and mobile breakpoints. The repeatable Playwright capture is in `scripts/capture-ui-baseline.mjs`; CI uploads `guest-desktop.png`, `guest-mobile.png`, `dj-desktop.png` and `dj-mobile.png` as the `partyqueue-ui-baseline` artifact. DJ captures use deterministic mock API data and a seeded test-only DJ token, never Spotify or production data.
 2. Extract the six root design tokens and reset/base rules without changing values.
 3. Identify shared controls and layout primitives from actual usage in both HTML entrypoints.
 4. Move guest-only selectors by verified markup ownership; do not rename classes in the same change.
@@ -41,4 +41,4 @@ The guest search uses several generic classes rather than a consistent `.guest-*
 
 ## Current decision
 
-No CSS has been moved or rewritten in this pass. The selector inventory is groundwork only. A browser screenshot baseline is required before changing the shared stylesheet; avoiding an unverified split is safer than creating superficially tidy files that alter the live design.
+No CSS has been moved or rewritten in this pass. The selector inventory is groundwork only. The Playwright capture workflow now produces the desktop/mobile baseline as a CI artifact; review those captures before changing the shared stylesheet. Avoiding an unverified split is safer than creating superficially tidy files that alter the live design.
