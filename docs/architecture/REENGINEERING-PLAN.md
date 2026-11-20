@@ -42,7 +42,7 @@ The following measurements describe the **original pre-extraction baseline**, no
 | HTML | `apps/web/dj.html`, ~9 KB | Semantic page structure and stable hooks; behaviour loads through external native ES modules |
 | Documentation | Original architecture/development notes | Responsibility maps are maintained in `docs/architecture/`; this plan records target boundaries and remaining work |
 
-The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The current remaining risks are dependency inversion and composition consistency in some Worker features, plus limited controller/view mixing in two DJ frontend modules.
+The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The Worker application layer now uses application-owned repository/provider ports across the guest/request, DJ queue, music catalogue, AI, queue dispatch and playback workflows. A CI dependency-boundary check enforces that application and identity policy code does not import infrastructure, integrations, Cloudflare platform bindings or HTTP response objects. The remaining work is targeted composition review, frontend interaction coverage and operational hardening before a real event.
 
 ## Environment assumptions
 
@@ -312,3 +312,14 @@ This audit is intentionally explicit about remaining mixed boundaries. Green CI 
 - Existing API response shapes and user-visible behaviour are preserved, including Spotify rate-limit mapping, device field names, 204 command success and 400-character command error detail.
 - Focused tests cover both application ports and integration adapters.
 - Remaining dependency-boundary work should be driven by a fresh source audit; do not repeat extractions already completed in request, queue dispatch, AI and playback status modules.
+
+
+### Current architecture checkpoint — 2026-11-20
+
+The latest source audit confirms that Worker application modules and identity policies no longer import concrete infrastructure, integration, platform or route modules and do not use D1 bindings or Fetch `Response` objects directly. This is now enforced by `scripts/check-architecture-boundaries.mjs` in the pull-request CI workflow.
+
+Application-owned ports cover guest request persistence and Spotify track lookup, DJ queue persistence, request retention, AI context/cache/budget persistence, queue dispatch, playback automation/status/control and Spotify catalogue search. Cloudflare D1 and Spotify HTTP details are wired only in infrastructure/integration composition.
+
+The DJ AI workflow has also been split: `dj-ai-assistant.js` owns API/workflow orchestration, `dj-ai-assistant-view.js` owns DOM rendering and confirmation UI, and `dj-ai-actions.js` owns queue/track mutation policy. Explicit DJ confirmation and sequential per-track failure reporting remain covered.
+
+The current Cloudflare Worker, D1 and Spotify OAuth state are test-only and disposable. `npm run deploy` targets that default test environment; `npm run deploy:production` is a separate guarded path for any future real-event release. This future release path is not a prerequisite for current engineering.
