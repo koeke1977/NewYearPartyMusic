@@ -16,7 +16,8 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-playback-display.js`: pure playback display helpers for elapsed time, clamped progress percentage and playing/paused/waiting labels; DOM rendering remains in the DJ entrypoint.
 - `modules/dj-request-guard.js`: prevents overlapping status requests, invalidates in-flight responses when the DJ session ends, and prevents an old request's `finally` block from clearing a newer request's in-flight state.
 - `modules/dj-latest-task-queue.js`: serializes asynchronous DJ control writes, skips queued values superseded by newer input, and invalidates pending work when the DJ session ends.
-- `modules/dj-serial-task-queue.js`: preserves the order of transport commands, drops commands still waiting when the DJ session ends, and exposes busy state so playback polling cannot race commands.
+- `modules/dj-serial-task-queue.js`: low-level serial task primitive that preserves command order and invalidates queued work after a session change.
+- `modules/dj-playback-coordinator.js`: coordinates Spotify status reads and transport commands, rejects stale status responses, prevents polling during commands, reports command errors and refreshes status after the final queued command. It deliberately does not retry `next`/`previous` commands.
 - `modules/dj-playback-state.js`: pure Spotify UI-state mapping for volume normalization, play/pause/booth state, device/track summary and playback error priority.
 - `dj.js` remains the page composition/controller for login, rendering, moderation, playback and AI interactions until those flows have dedicated tests.
 
@@ -35,7 +36,7 @@ The remaining DJ entrypoint still owns several separate concerns:
 | Request moderation | `runAction()`, action buttons | `dj/features/requests/` |
 | Settings controls | pause, auto-approve and auto-queue toggles | `dj/features/settings/` |
 | Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle) and `modules/dj-request-guard.js` (stale-response/in-flight guard) extracted; then `dj/services/polling-service.ts` |
-| Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `dj/features/playback/`; pure time/progress calculations in `modules/dj-playback-display.js` and connection/device/volume/transport display mapping in `modules/dj-playback-state.js` |
+| Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `dj/features/playback/`; command/status coordination in `modules/dj-playback-coordinator.js`, pure time/progress calculations in `modules/dj-playback-display.js` and connection/device/volume/transport display mapping in `modules/dj-playback-state.js` |
 | AI request lifecycle | `askDJAI()`, prompt actions, response display and loading state | `dj/features/ai-assistant/` |
 | AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `modules/dj-ai-queue-parser.js` (pure matching extracted), then `dj/features/ai-assistant/queue-proposal-parser.ts` |
 | AI Spotify suggestions | numbered title/artist extraction, search result groups, selected tracks, add-to-queue actions | `modules/dj-ai-suggestions.js` (pure suggestion extraction), then `dj/features/ai-assistant/track-suggestions-view.ts` |
@@ -57,7 +58,7 @@ The next guest-side boundary should separate the search/request transport from r
 
 - `index.html` and `dj.html` should own semantic structure, labels, accessibility attributes and stable component hooks only.
 - No inline JavaScript or embedded business rules.
-- `index.html` now loads the guest entrypoint as a native ES module. `dj.html` remains on its existing deferred classic script until the DJ extraction is ready.
+- Both `index.html` and `dj.html` load their entrypoints as native ES modules. The DJ page was converted as part of the DJ console module foundation.
 - Preserve existing IDs and data attributes during migration to avoid breaking DOM contracts.
 
 ## CSS ownership
