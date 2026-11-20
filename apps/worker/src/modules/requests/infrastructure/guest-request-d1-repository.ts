@@ -1,6 +1,6 @@
 import type { GuestRequestRepository } from "../application/guest-request-ports";
 import {
-  appendRequestToQueueOrder, countOpenGuestRequests, countRecentGuestRequests, createDjQueueGuest, findActiveEvent,
+  appendRequestToQueueOrder, countRecentGuestRequests, createDjQueueGuest, findActiveEvent,
   findActiveTrackRequest, findEventGuest, findEventRequestStatus, insertGuest, insertGuestTrackRequest, insertTrackRequest,
   moveApprovedRequestToQueue, readAutoQueueSetting, readGuestRequestSettings, transitionRequestStatus,
   type GuestRequestDatabase,
@@ -13,7 +13,6 @@ export function createGuestRequestRepository(db:GuestRequestDatabase):GuestReque
     findEventGuest:(guestId,eventId)=>findEventGuest(db,guestId,eventId),
     readGuestRequestSettings:()=>readGuestRequestSettings(db),
     countRecentGuestRequests:guestId=>countRecentGuestRequests(db,guestId),
-    countOpenGuestRequests:guestId=>countOpenGuestRequests(db,guestId),
     findActiveTrackRequest:(eventId,trackId)=>findActiveTrackRequest(db,eventId,trackId),
     insertGuestTrackRequest:(request,limits)=>insertGuestTrackRequest(db,request,limits),
     insertTrackRequest:request=>insertTrackRequest(db,request),
