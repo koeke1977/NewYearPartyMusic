@@ -6,6 +6,7 @@ import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/cat
 import type { SpotifyTrack } from "./integrations/spotify/types";
 import { claimSpotifyRefreshLock, invalidateSpotifyAccessToken, readEncryptedSpotifyTokens, releaseSpotifyRefreshLock, saveEncryptedSpotifyTokens } from "./integrations/spotify/user-auth-repository";
 import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
+import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
 
 
 
@@ -355,39 +356,18 @@ async function startSpotifyFallback(env: Env): Promise<void> {
 }
 
 async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;busy?:boolean;track?:{name:string;artist:string};requestId?:string;error?:string}> {
-  // A unique lock owner prevents overlapping auto/manual NEXT and prevents an old request deleting a newer lock.
-  const owner = crypto.randomUUID();
-  const lock = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_partyqueue_next_lock',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-30 seconds')").bind(owner).run();
-  if (!lock.meta.changes) return {ok:false,busy:true,error:"Een andere NEXT-actie wordt al verwerkt."};
-  try {
-    const queued = await env.DB.prepare("SELECT id,track_uri,track_name,artist_name,duration_ms,queued_at,requested_at FROM requests WHERE event_id=? AND status='queued' ORDER BY queued_at ASC,requested_at ASC")
-      .bind(env.EVENT_ID).all<{id:string;track_uri:string;track_name:string;artist_name:string;duration_ms:number;queued_at:string;requested_at:string}>();
-    const saved = await env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>();
-    let order: string[] = [];
-    try { order = JSON.parse(saved?.value || "[]"); } catch { order = []; }
-    const orderIndex = new Map(order.map((id,index) => [id,index]));
-    const candidates = queued.results || [];
-    candidates.sort((a,b) => (orderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (orderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER) || String(a.queued_at || a.requested_at).localeCompare(String(b.queued_at || b.requested_at)));
-    const next = candidates[0];
-    if (!next) return {ok:false,error:"Er staan geen PartyQueue-aanvragen klaar."};
-    const response = await spotifyFetch(env,"/me/player/play",{
-      method:"PUT",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({uris:[next.track_uri]})
-    });
-    if (!response.ok) throw new Error("Spotify kon het volgende nummer niet starten (HTTP "+response.status+").");
-    const updated = await env.DB.prepare("UPDATE requests SET status='played',played_at=CURRENT_TIMESTAMP WHERE id=? AND event_id=? AND status='queued'")
-      .bind(next.id,env.EVENT_ID).run();
-    if (!updated.meta.changes) throw new Error("De aanvraag is intussen gewijzigd; probeer opnieuw.");
-    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
-    await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_last_partyqueue_track',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
-      .bind(JSON.stringify({uri:next.track_uri,durationMs:next.duration_ms,startedAt:Date.now()})).run();
-    return {ok:true,track:{name:next.track_name,artist:next.artist_name},requestId:next.id};
-  } catch (error) {
-    return {ok:false,error:error instanceof Error?error.message:"Volgende PartyQueue-aanvraag starten is mislukt."};
-  } finally {
-    await env.DB.prepare("DELETE FROM settings WHERE key='spotify_partyqueue_next_lock' AND value=?").bind(owner).run();
-  }
+  return dispatchNextTrack({
+    db: env.DB,
+    eventId: env.EVENT_ID,
+    playTrack: async (trackUri) => {
+      const response = await spotifyFetch(env, "/me/player/play", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uris: [trackUri] }),
+      });
+      return { ok: response.ok, status: response.status };
+    },
+  });
 }
 
 async function maybeAdvancePartyQueue(env: Env, playing: boolean): Promise<{advanced:boolean;error?:string}> {
