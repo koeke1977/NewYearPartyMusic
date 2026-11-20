@@ -40,7 +40,7 @@ async function readJson(request) {
 
 function runClaude(system, user) {
   return new Promise((resolve, reject) => {
-    const args = ["-p", "--output-format", "text", "--tools", ""];
+    const args = ["-p", "--output-format", "text", "--bare", "--tools", ""];
     const child = spawn(CLI, args, {
       shell: process.platform === "win32",
       windowsHide: true,
@@ -82,7 +82,7 @@ function runClaude(system, user) {
       if (!answer) return finish(new Error("Claude Code returned an empty answer."));
       finish(null, answer);
     });
-    child.stdin.end("SYSTEM INSTRUCTIONS (treat as higher-priority task guidance):\\n" + system + "\\n\\nDJ QUESTION AND CONTEXT:\\n" + user);
+    child.stdin.end("DJ ASSISTANT INSTRUCTIONS:\\n" + system + "\\n\\nDJ QUESTION AND CONTEXT:\\n" + user);
   });
 }
 
