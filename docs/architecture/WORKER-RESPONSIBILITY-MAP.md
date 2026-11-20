@@ -89,3 +89,14 @@ Guest route tests verify unauthenticated search/request rejection and malformed 
 5. Split AI context, memory, prompt catalog, provider adapter, tool adapter and use cases.
 6. Convert route handlers to thin transport adapters and assemble them from `app.ts`.
 7. Keep `index.ts` as the Worker composition root only.
+
+
+## Extracted HTTP route modules
+
+| Route group | Module | Responsibility |
+|---|---|---|
+| Guest join, guest Spotify search and guest request submission | `routes/guest.ts` | Parse guest HTTP input, enforce event-scoped guest sessions, call request/music use cases and serialize existing responses |
+| DJ login and Spotify OAuth connect/callback | `routes/dj-identity.ts` | Parse login input, enforce DJ access for OAuth initiation, validate OAuth state cookie and serialize redirects |
+| Shared DJ authorization | `routes/dj-auth.ts` | Reusable event-scoped DJ-session check for HTTP route adapters |
+
+Identity policy and Spotify token exchange remain in their application/integration modules.
