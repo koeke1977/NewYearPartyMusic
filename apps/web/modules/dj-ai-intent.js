@@ -1,4 +1,4 @@
-// Resolves the DJ prompt into the existing assistant interaction modes.
+// Resolves the DJ prompt into the supported assistant interaction modes.
 const TRACK_LINE = /^\s*\d+[.)]\s*.+\s+[—–-]\s+.+/;
 
 function extractTrackLines(value) {
@@ -18,7 +18,6 @@ export function resolveDjAiPrompt(prompt, previousAnswer = "") {
   if (importIntent && trackLines.length === 0) {
     const previousTracks = extractTrackLines(previousAnswer);
     if (previousTracks.length >= 2) {
-      // Use real line breaks so the assistant receives a parseable numbered list.
       source = previousTracks.join("\n");
       trackLines = previousTracks;
     }
@@ -26,8 +25,9 @@ export function resolveDjAiPrompt(prompt, previousAnswer = "") {
 
   if (reorderIntent) {
     return {
-      mode: "optimize",
-      prompt: "Pas deze DJ-instructie toe op de volledige huidige UP NEXT-wachtrij: " + text + ". Geef ALLEEN een genummerde lijst met alle bestaande tracks exact één keer, geen nummers toevoegen of weglaten.",
+      mode: "advice",
+      prompt: "Geef een creatief DJ-setplan op basis van deze instructie: " + text +
+        ". Je ontvangt geen live wachtrij of Spotify-trackmetadata. Beschrijf energieblokken en stijlwissels, maar verzin geen bestaande trackvolgorde.",
     };
   }
 
