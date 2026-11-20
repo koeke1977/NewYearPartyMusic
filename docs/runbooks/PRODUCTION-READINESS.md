@@ -35,7 +35,7 @@ The GitHub validation workflow checks both the test and production Wrangler conf
 - [ ] Set unique production secrets on `partyqueue-production`: `SESSION_SECRET`, `EVENT_ACCESS_CODE_HASH`, `DJ_ACCESS_CODE_HASH`, `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET`.
 - [ ] Generate and securely distribute separate event and DJ access codes; store only their hashes in Worker secrets.
 - [ ] Create/configure the dedicated production Spotify app, register `https://spotify.electrafest.be/auth/spotify/callback`, and verify current Developer Mode eligibility, scopes, account restrictions and Premium playback entitlement.
-- [ ] Configure and verify Cloudflare edge rate limits for `POST /api/guests/join` and `POST /api/dj/login`.
+- [ ] Protect `POST /api/guests/join` and `POST /api/dj/login` against brute force. The current `electrafest.be` zone has one custom rate-limit rule slot, already occupied by the existing leaked-credential check; Cloudflare rejected adding more rules (`maximum number of rules ... 1`). That existing protection was left unchanged. Before launch, either upgrade the zone plan to allow separate endpoint rules or implement and test application-level attempt throttling for both endpoints.
 - [ ] Verify the production Durable Object migration, AI binding availability/limits, cron trigger, logs and traces.
 - [ ] Deploy `partyqueue-production` without attaching the public hostname; test its workers.dev URL with private test codes and a dedicated Spotify account.
 - [ ] Smoke-test guest join, catalogue search, request submission, DJ login, moderation, queue ordering, Spotify OAuth, playback, logout and scheduled cleanup.
