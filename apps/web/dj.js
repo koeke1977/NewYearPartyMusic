@@ -426,7 +426,7 @@ async function askDJAI(prompt,mode="advice"){
 aiForm.addEventListener("submit",async event=>{
   event.preventDefault();
   const prompt=document.querySelector("#dj-ai-prompt").value.trim();
-  if(prompt){const trackLines=prompt.split(/\r?\n/).filter(line=>/^\s*(?:\d+[.)]\s*)?.+\s+[—–-]\s+.+/.test(line));await askDJAI(prompt,trackLines.length>=2?"import":"advice");}
+  if(prompt){const trackLines=prompt.split(/\r?\n/).filter(line=>/^\s*\d+[.)]\s*.+\s+[—–-]\s+.+/.test(line));const importIntent=/\b(zet|voeg|importeer|plaats)\b[\s\S]{0,100}\b(lijst|nummers|tracks|wachtrij|up\s*next)\b/i.test(prompt);if(importIntent&&trackLines.length===0){const out=document.querySelector("#dj-ai-answer");out.textContent="Ik zie het importcommando, maar nog geen genummerde tracklijst. Plak de volledige lijst onder het commando (bijvoorbeeld: 1. Titel — Artiest) en verstuur opnieuw.";}else{await askDJAI(prompt,importIntent&&trackLines.length>0?"import":"advice");}}
 });
 document.querySelectorAll("[data-ai-action]").forEach(button=>button.addEventListener("click",async()=>{
   const action=button.dataset.aiAction;
