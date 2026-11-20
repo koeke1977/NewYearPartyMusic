@@ -5,6 +5,7 @@ import { createSessionToken, readSession, type Session } from "./modules/identit
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
 import { extractCloudflareAssistantText, extractCloudflareToolCalls, runCloudflareAI } from "./integrations/ai/cloudflare-ai";
+import { searchSpotifyCatalogForAssistant, spotifyCatalogSearchTool } from "./integrations/ai/spotify-catalog-search";
 import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
 import { buildEventMoment } from "./modules/ai/context/event-moment";
 import { buildDJAssistantContext, parseAcceptedSetHistory, parseSavedQueueOrder } from "./modules/ai/context/assistant-context";
@@ -168,23 +169,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
     if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
 
     const model = "@cf/google/gemma-4-26b-a4b-it";
-    const musicTools = [{
-      name: "searchSpotifyTracks",
-      description: "Search Spotify for real track versions when the DJ asks for a specific song, track suggestions, or a starter/fill list. Only read/search: never add tracks, reorder the queue, or control playback. Do not use this tool for pure DJ advice or reordering the existing queue.",
-      parameters: {
-        type: "object",
-        properties: {
-          queries: {
-            type: "array",
-            description: "Exact Spotify search queries, preferably title plus artist.",
-            items: { type: "string" },
-            minItems: 1,
-            maxItems: 20
-          }
-        },
-        required: ["queries"]
-      }
-    }];
+    const musicTools = [spotifyCatalogSearchTool];
 
     const first:any = await runCloudflareAI(c.env.AI, model, {
       messages:[{role:"system",content:system},{role:"user",content:user}],
@@ -199,32 +184,12 @@ app.post("/api/dj/ai/assistant", async (c) => {
     let answer:any = extractCloudflareAssistantText(first);
     let spotifyMatches:Array<{query:string;tracks:any[]}> = [];
     const calls = extractCloudflareToolCalls(first);
-    const searchCall = calls.find((call) => call.name === "searchSpotifyTracks");
+    const searchCall = calls.find((call) => call.name === spotifyCatalogSearchTool.name);
 
     if (searchCall) {
-      let args:any = searchCall.arguments || {};
-      if (typeof args === "string") {
-        try { args = JSON.parse(args); } catch { args = {}; }
-      }
-      const queries = Array.isArray(args?.queries)
-        ? args.queries.filter((q:any)=>typeof q==="string")
-          .map((q:string)=>q.replace(/\s+/g," ").trim().slice(0,140))
-          .filter((q:string)=>q.length>2).slice(0,20)
-        : [];
-      if (queries.length) {
-        // The model can search Spotify, but this tool has no write/playback capability.
-        spotifyMatches = await Promise.all(queries.map(async (query:string) => {
-          try {
-            const response = await searchSpotifyTracks(c.env, query, 3);
-            if (!response.ok) return {query,tracks:[]};
-            const data = await response.json() as {tracks?:{items?:SpotifyTrack[]}};
-            return {query,tracks:(data.tracks?.items||[]).map(track=>({
-              id:track.id,uri:track.uri,name:track.name,artists:track.artists.map(a=>a.name),
-              durationMs:track.duration_ms,albumImageUrl:track.album.images?.[1]?.url||track.album.images?.[0]?.url||null
-            }))};
-          } catch { return {query,tracks:[]}; }
-        }));
-
+      // Model arguments are untrusted; the tool validates and bounds them before Spotify is called.
+      spotifyMatches = await searchSpotifyCatalogForAssistant(c.env, searchCall.arguments);
+      if (spotifyMatches.length) {
         // A single bounded follow-up gives the model the verified Spotify results.
         const followup:any = await runCloudflareAI(c.env.AI, model, {
           messages:[
