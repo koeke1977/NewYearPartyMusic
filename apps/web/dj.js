@@ -5,15 +5,13 @@ import { orderedQueued } from "./modules/dj-queue.js";
 import { matchDjQueueProposal } from "./modules/dj-ai-queue-parser.js";
 import { createDjPollingController } from "./modules/dj-polling.js";
 import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
-import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./modules/dj-playback-display.js";
-import { createLatestTaskQueue } from "./modules/dj-latest-task-queue.js";
-import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackSummary } from "./modules/dj-playback-state.js";
 import { createDjPlaybackCoordinator } from "./modules/dj-playback-coordinator.js";
 import { buildDjChatGptPrompt } from "./modules/dj-chatgpt-handoff.js";
 import { resolveDjAiPrompt } from "./modules/dj-ai-intent.js";
 import { createDjOverviewModel } from "./modules/dj-overview-model.js";
 import { createDjQueueReorderController } from "./modules/dj-queue-reorder.js";
 import { createDjCommandService } from "./modules/dj-command-service.js";
+import { createDjSpotifyConsole } from "./modules/dj-spotify-console.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -27,35 +25,25 @@ let spotifyQueuePreview=null;
 let latestDJOverview=null;
 const api=createDjApi(()=>token);
 const commands=createDjCommandService({api,refresh:()=>refresh(),onMessage:text=>{message.textContent=text;}});
-const playback=createDjPlaybackCoordinator({
+let playback;
+const spotifyConsole=createDjSpotifyConsole({api,getPlayback:()=>playback,onMessage:text=>{message.textContent=text;}});
+playback=createDjPlaybackCoordinator({
   getToken:()=>token,
   sendCommand:action=>api("/api/dj/spotify/"+action,{method:"POST"}),
-  refreshStatus:()=>refreshSpotify(),
+  refreshStatus:()=>spotifyConsole.refreshStatus(),
   onCommandSuccess:action=>{
-    if(action==="play")syncPlaybackButtons(true,true);
-    if(action==="pause")syncPlaybackButtons(true,false);
+    if(action==="play")spotifyConsole.syncPlaybackButtons(true,true);
+    if(action==="pause")spotifyConsole.syncPlaybackButtons(true,false);
     message.textContent="Spotify command sent.";
   },
   onCommandError:error=>{message.textContent=error.message;},
 });
-const volumeWrites=createLatestTaskQueue(async(value,{isCurrent})=>{
-  const status=document.querySelector("#master-volume-status");
-  try{
-    await api("/api/dj/spotify/volume",{method:"PUT",body:JSON.stringify({volume:value})});
-    if(!isCurrent())return;
-    status.textContent="SPOTIFY MASTER OUTPUT";
-    updateMasterVolumeDisplay(value);
-  }catch(e){
-    if(!isCurrent())return;
-    status.textContent=e.message;
-    await refreshSpotify();
-  }
-});
-const polling=createDjPollingController(refresh,refreshSpotify);
+spotifyConsole.bindControls();
+const polling=createDjPollingController(refresh,()=>spotifyConsole.refreshStatus());
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
   if(on)polling.start();
-  else { polling.stop(); playback.invalidate(); volumeWrites.invalidate(); }
+  else { polling.stop(); playback.invalidate(); spotifyConsole.invalidate(); }
 }
 function stat(label,value,icon){const box=el("div","dj-stat");box.append(el("span","dj-stat-icon",icon));const copy=el("div","dj-stat-copy");copy.append(el("span","dj-muted",label),el("strong","",String(value)));box.append(copy);return box;}
 function formatMusicTime(ms){
@@ -81,81 +69,6 @@ function renderDeck(requests,queueOrder){
   upcoming.forEach((r,i)=>list.append(trackLine(r,i)));
 }
 
-function setBoothDeck(side,track){
-  const title=document.querySelector("#booth-track-title-"+side);
-  const artist=document.querySelector("#booth-track-artist-"+side);
-  const image=document.querySelector("#booth-track-image-"+side);
-  const placeholder=document.querySelector("#booth-track-placeholder-"+side);
-  if(title)title.textContent=track?.name|| (side==="left"?"Waiting for Spotify":"SPOTIFY MIX");
-  if(artist)artist.textContent=track?.artists?.join(", ")||track?.artist|| (side==="left"?"Spotify deck":"Party Hits · SHUFFLE");
-  if(image){
-    if(track?.image||track?.album_image_url){
-      image.src=track.image||track.album_image_url;
-      image.hidden=false;
-      if(placeholder)placeholder.hidden=true;
-    }else{
-      image.removeAttribute("src");image.hidden=true;
-      if(placeholder)placeholder.hidden=false;
-    }
-  }
-}
-function updateMasterVolumeDisplay(value){
-  const volume=normalizeSpotifyVolume(value);
-  const slider=document.querySelector("#master-volume");
-  const label=document.querySelector("#master-volume-value");
-  const leds=document.querySelector("#master-volume-leds");
-  if(slider)slider.value=String(volume);
-  if(label)label.textContent=volume+"%";
-  if(leds){
-    const active=Math.round(volume/5);
-    leds.replaceChildren();
-    for(let i=0;i<20;i++){
-      const led=document.createElement("i");
-      if(i<active)led.className=i>=16?"hot":i>=12?"high":"active";
-      leds.append(led);
-    }
-    leds.setAttribute("aria-valuenow",String(volume));
-  }
-}
-function updateTrackProgress(progressMs,durationMs,playing){
-  const { duration, progress, percent } = getTrackProgress(progressMs,durationMs);
-  const leds=document.querySelector("#track-progress-leds");
-  const value=document.querySelector("#track-progress-value");
-  const elapsed=document.querySelector("#track-progress-elapsed");
-  const total=document.querySelector("#track-progress-duration");
-  const status=document.querySelector("#track-progress-status");
-  if(value)value.textContent=duration?percent+"%":"—%";
-  if(elapsed)elapsed.textContent=formatTrackTime(progress);
-  if(total)total.textContent=formatTrackTime(duration);
-  if(status)status.textContent=getTrackProgressStatus(duration,playing);
-  if(leds){
-    const active=Math.round(percent/5);
-    leds.replaceChildren();
-    for(let i=0;i<20;i++){
-      const led=document.createElement("i");
-      if(i<active)led.className=i>=16?"hot":i>=12?"high":"active";
-      leds.append(led);
-    }
-    leds.setAttribute("aria-valuenow",String(percent));
-  }
-}
-function syncPlaybackButtons(connected,playing){
-  const state=getSpotifyPlaybackControls(connected,playing);
-  const play=document.querySelector('[data-spotify-command="play"]');
-  const pause=document.querySelector('[data-spotify-command="pause"]');
-  [[play,state.playSelected],[pause,state.pauseSelected]].forEach(([button,active])=>{
-    if(!button)return;
-    button.classList.toggle("is-selected",active);
-    button.classList.toggle("is-idle",!active);
-    button.setAttribute("aria-pressed",String(active));
-  });
-  const booth=document.querySelector("#partyqueue-booth");
-  if(booth){
-    booth.classList.toggle("is-playing",state.boothPlaying);
-    const status=document.querySelector("#booth-play-state");
-    if(status)status.textContent=state.boothStatus;
-  }
-}
 function render(data){
   latestDJOverview=data;
   currentSettings=data.settings||currentSettings;
@@ -184,7 +97,7 @@ function render(data){
     stat("NOG TE SPELEN",formatMusicTime(overview.durations.remaining),"⌛")
   );
   renderDeck(requests,queueOrder);
-  setBoothDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:spotifyQueuePreview);
+  spotifyConsole.setDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:spotifyQueuePreview);
   const nextButton=document.querySelector("#partyqueue-next");
   if(nextButton){
     const empty=queued.length===0;
@@ -243,70 +156,6 @@ document.querySelector("#dj-logout").addEventListener("click",logout);
 document.querySelector("#pause-toggle").addEventListener("click",()=>commands.updateSetting("requests_paused",!currentSettings.requestsPaused));
 document.querySelector("#approval-toggle").addEventListener("click",()=>commands.updateSetting("auto_approve",!currentSettings.autoApprove));
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>commands.updateSetting("auto_queue",!currentSettings.autoQueue));
-
-async function refreshSpotify(){
-  // The coordinator blocks polls during transport commands and rejects stale responses.
-  const requestId=playback.beginStatus();
-  if(requestId===null)return;
-  const state=document.querySelector("#spotify-connection-state");
-  const device=document.querySelector("#spotify-device");
-  const now=document.querySelector("#spotify-now-playing");
-  try{
-    const data=await api("/api/dj/spotify/status");
-    if(!playback.isStatusCurrent(requestId))return;
-    const playbackSummary=getSpotifyPlaybackSummary(data);
-    state.textContent=playbackSummary.connection;
-    const booth=document.querySelector("#partyqueue-booth");
-    if(booth){
-      booth.classList.toggle("is-playing",!!data.playing);
-      document.querySelector("#booth-play-state").textContent=data.fallbackActive?"SPOTIFY MIX":data.playing?"ON AIR":"STANDBY";
-      setBoothDeck("left",data.track?{name:data.track.name,artists:data.track.artists,image:data.track.image}:null);
-      spotifyQueuePreview=data.fallbackActive?data.nextTrack:null;
-      const nextButton=document.querySelector("#partyqueue-next");
-      if(nextButton?.disabled)setBoothDeck("right",spotifyQueuePreview);
-      updateTrackProgress(data.progressMs,data.track?.durationMs,data.playing);
-    }
-    state.classList.toggle("accent",!!data.connected);
-    document.querySelector("#spotify-connect")?.classList.toggle("is-connected",!!data.connected);
-    syncPlaybackButtons(!!data.connected,!!data.playing);
-    if(data.fallbackActive)document.querySelector("#booth-play-state").textContent="SPOTIFY MIX";
-    device.textContent=playbackSummary.device;
-    if(playbackSummary.volume!==null){updateMasterVolumeDisplay(playbackSummary.volume);document.querySelector("#master-volume-status").textContent="SPOTIFY MASTER OUTPUT";}
-    else{document.querySelector("#master-volume-status").textContent="NO ACTIVE SPOTIFY DEVICE";}
-    now.textContent=playbackSummary.nowPlaying;
-  }catch(e){
-    if(!playback.isStatusCurrent(requestId))return;
-    state.textContent="NOT CONNECTED";
-    document.querySelector("#spotify-connect")?.classList.remove("is-connected");
-    syncPlaybackButtons(false,false);
-    const booth=document.querySelector("#partyqueue-booth");
-    if(booth){booth.classList.remove("is-playing");document.querySelector("#booth-play-state").textContent="OFFLINE";setBoothDeck("left",null);updateTrackProgress(0,0,false);}
-    device.textContent=e.message;
-    now.textContent="Connect your Spotify account to enable live playback.";
-  }finally{
-    playback.completeStatus(requestId);
-  }
-}
-const masterVolume=document.querySelector("#master-volume");
-masterVolume.addEventListener("input",()=>updateMasterVolumeDisplay(masterVolume.value));
-masterVolume.addEventListener("change",()=>{
-  const value=normalizeSpotifyVolume(masterVolume.value);
-  document.querySelector("#master-volume-status").textContent="SETTING SPOTIFY VOLUME…";
-  volumeWrites.enqueue(value).catch(()=>{});
-});
-document.querySelector("#spotify-connect").addEventListener("click",async()=>{
-  const button=document.querySelector("#spotify-connect");button.disabled=true;message.textContent="Opening Spotify authorization…";
-  try{const data=await api("/api/dj/spotify/connect",{method:"POST"});window.location.href=data.url;}
-  catch(e){message.textContent=e.message;button.disabled=false;}
-});
-document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEventListener("click",async()=>{
-  button.disabled=true;
-  try{
-    await playback.runCommand(button.dataset.spotifyCommand);
-  }finally{
-    button.disabled=false;
-  }
-}));
 
 const aiForm=document.querySelector("#dj-ai-form");
 async function askDJAI(prompt,mode="advice"){
@@ -475,10 +324,10 @@ document.querySelector("#partyqueue-next").addEventListener("click",async()=>{
     if(result.busy){message.textContent=result.error||"NEXT wordt al verwerkt.";return;}
     if(!result.track){message.textContent="Er is geen volgende PartyQueue-aanvraag gestart.";return;}
     spotifyQueuePreview=null;
-    setBoothDeck("right",null);
+    spotifyConsole.setDeck("right",null);
     message.textContent="Now playing PartyQueue request: "+result.track.name+" — "+result.track.artist;
     await refresh();
-    await refreshSpotify();
+    await spotifyConsole.refreshStatus();
   }catch(e){
     message.textContent=e.message;
   }finally{
