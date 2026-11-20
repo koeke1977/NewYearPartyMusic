@@ -63,6 +63,7 @@ During extraction, preserve:
 8. Spotify OAuth state cookie validation and token refresh concurrency.
 9. AI preference persistence, answer caching, rate limiting, Spotify search tool calls and proposal-only behaviour.
 10. Scheduled cleanup: completed/terminal requests older than 30 days only; pending, approved and queued requests remain untouched.
+11. Public credential-guessing exposure: `/api/guests/join` and `/api/dj/login` validate event/DJ codes but currently have no application-level attempt throttle or configured Cloudflare rate-limiting binding. Before public go-live, add edge rate limits for both endpoints (and verify expected behaviour under bursts); do not treat the guest request quota as protection for these separate login endpoints.
 
 ## Current route ownership
 
