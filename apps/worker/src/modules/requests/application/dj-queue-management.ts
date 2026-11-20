@@ -1,6 +1,8 @@
 import type { DjQueueRepository } from "./dj-queue-ports";
 
-type Result = { status: number; body: Record<string, unknown> };
+export type QueueManagementOutcome<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: "invalid_order" | "queue_changed" | "unknown_setting" | "invalid_setting_value"; message: string } };
 
 function parseStringArray(value: string | undefined): string[] {
   try {
@@ -52,15 +54,15 @@ export async function reorderDjQueue(input: {
   eventId: string;
   order: unknown;
   nowIso?: () => string;
-}): Promise<Result> {
+}): Promise<QueueManagementOutcome<{ order: string[] }>> {
   if (!Array.isArray(input.order) || input.order.length > 100 || !input.order.every(id => typeof id === "string")) {
-    return { status: 400, body: { error: "Ongeldige wachtrijvolgorde." } };
+    return { ok: false, error: { code: "invalid_order", message: "Ongeldige wachtrijvolgorde." } };
   }
   const requested = input.order as string[];
   const currentIds = await input.repository.readQueuedRequestIds(input.eventId);
   if (new Set(requested).size !== requested.length || requested.length !== currentIds.length
     || currentIds.some(id => !requested.includes(id))) {
-    return { status: 409, body: { error: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." } };
+    return { ok: false, error: { code: "queue_changed", message: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." } };
   }
 
   const tracks = await input.repository.readQueuedRequestTracks(input.eventId);
@@ -76,7 +78,7 @@ export async function reorderDjQueue(input: {
   const parsed = parseHistory(previous);
   parsed.push({ at: (input.nowIso || (() => new Date().toISOString()))(), tracks: acceptedTracks });
   await input.repository.saveAiHistory(input.eventId, parsed.slice(-5));
-  return { status: 200, body: { ok: true, order: requested } };
+  return { ok: true, value: { order: requested } };
 }
 
 function parseHistory(value: string | null): Array<{ at: string; tracks: string[] }> {
@@ -96,13 +98,13 @@ export async function updateDjSetting(input: {
   repository: DjQueueRepository;
   key: string;
   enabled: unknown;
-}): Promise<Result> {
+}): Promise<QueueManagementOutcome<{ enabled: boolean }>> {
   if (!["requests_paused", "auto_approve", "auto_queue"].includes(input.key)) {
-    return { status: 400, body: { error: "Onbekende instelling." } };
+    return { ok: false, error: { code: "unknown_setting", message: "Onbekende instelling." } };
   }
   if (typeof input.enabled !== "boolean") {
-    return { status: 400, body: { error: "Ongeldige waarde." } };
+    return { ok: false, error: { code: "invalid_setting_value", message: "Ongeldige waarde." } };
   }
   await input.repository.saveSetting(input.key, input.enabled);
-  return { status: 200, body: { ok: true, enabled: input.enabled } };
+  return { ok: true, value: { enabled: input.enabled } };
 }
