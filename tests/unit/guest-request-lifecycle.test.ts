@@ -22,7 +22,7 @@ function fakeDb(options: {
           return null;
         },
         async all() { calls.push({sql,values:[...values]}); return {results:options.settings ?? []}; },
-        async run() { calls.push({sql,values:[...values]}); return {meta:{changes:sql.startsWith("INSERT INTO requests") ? (options.insertChanges ?? 1) : 1}}; },
+        async run() { calls.push({sql,values:[...values]}); return {meta:{changes:sql.includes("INTO requests") ? (options.insertChanges ?? 1) : 1}}; },
       };
       return statement;
     },
@@ -111,7 +111,7 @@ describe("guest request lifecycle", () => {
     expect(result).toEqual({status:201,body:{
       ok:true,request:{id:"request-new",name:"Test Song",artists:["Artist A","Artist B"],status:"queued"},
     }});
-    const insert=calls.find(call=>call.sql.startsWith("INSERT INTO requests"));
+    const insert=calls.find(call=>call.sql.includes("INTO requests"));
     expect(insert?.values).toContain("queued");
     expect(insert?.values).toContain("Artist A, Artist B");
     expect(insert?.values).toContain("https://image.example/medium");
