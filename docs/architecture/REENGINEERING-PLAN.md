@@ -24,7 +24,7 @@ The GitHub Actions validation run has passed:
 - Security compatibility tests.
 - Cloudflare Worker bundle dry-run.
 
-The current Worker, frontend and AI responsibility maps are documented in `WORKER-RESPONSIBILITY-MAP.md`, `FRONTEND-RESPONSIBILITY-MAP.md` and `AI-RESPONSIBILITY-MAP.md`. Guest HTTP transport now lives in a dedicated Hono route module. DJ login and Spotify OAuth transport are also isolated in a dedicated route module, with shared event-scoped DJ authorization and route-level characterization tests.
+The current Worker, frontend and AI responsibility maps are documented in `WORKER-RESPONSIBILITY-MAP.md`, `FRONTEND-RESPONSIBILITY-MAP.md` and `AI-RESPONSIBILITY-MAP.md`. Guest HTTP transport now lives in a dedicated Hono route module. DJ login and Spotify OAuth transport are isolated in a dedicated route module. AI, DJ request management and Spotify playback endpoints are grouped into dedicated feature route modules, with shared event-scoped DJ authorization and route-level tests.
 
 This is the first vertical slice only. The remaining DJ, Spotify/OAuth, AI, moderation, queue and playback HTTP routes are still registered in the original entrypoint and remain scheduled for later extraction. No production deployment or D1 mutation was performed.
 

@@ -100,3 +100,13 @@ Guest route tests verify unauthenticated search/request rejection and malformed 
 | Shared DJ authorization | `routes/dj-auth.ts` | Reusable event-scoped DJ-session check for HTTP route adapters |
 
 Identity policy and Spotify token exchange remain in their application/integration modules.
+
+
+## DJ feature HTTP route modules
+
+- `routes/dj-ai.ts`: DJ assistant, AI music search and AI-added queue tracks; application use cases and music policy remain in their modules.
+- `routes/dj-requests.ts`: DJ overview, queue reorder, request moderation and DJ settings; lifecycle and persistence remain in request application/repository modules.
+- `routes/dj-playback.ts`: Spotify playback status, devices, NEXT, volume, transport commands and approved-request dispatch. It composes playback/queue use cases and Spotify adapters.
+- `routes/dj-playback-workflows.ts`: adapter workflows connecting queue dispatch, fallback playlist startup and playback automation to Spotify/D1 dependencies.
+
+The Worker entrypoint now mounts feature route groups rather than owning their HTTP handlers.

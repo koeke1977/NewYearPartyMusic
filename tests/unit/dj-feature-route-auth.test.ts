@@ -1,0 +1,12 @@
+import { describe, expect, it } from "vitest";
+import { Hono } from "hono";
+import type { Env } from "../../apps/worker/src/platform/env";
+import { djAiRoutes } from "../../apps/worker/src/routes/dj-ai";
+import { djRequestRoutes } from "../../apps/worker/src/routes/dj-requests";
+import { djPlaybackRoutes } from "../../apps/worker/src/routes/dj-playback";
+describe("DJ feature route authorization",()=>{const setup=()=>{const app=new Hono<{Bindings:Env}>();app.route("/",djAiRoutes);app.route("/",djRequestRoutes);app.route("/",djPlaybackRoutes);return {app,env:{EVENT_ID:"event-1",SESSION_SECRET:"test-secret",DB:{} as D1Database} as Env};};
+it("requires DJ session for AI assistant",async()=>{const {app,env}=setup();expect((await app.request("/api/dj/ai/assistant",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:"hello"})},env)).status).toBe(401);});
+it("requires DJ session for queue overview",async()=>{const {app,env}=setup();expect((await app.request("/api/dj/overview",{},env)).status).toBe(401);});
+it("requires DJ session for request moderation",async()=>{const {app,env}=setup();expect((await app.request("/api/dj/requests/request-1/approve",{method:"POST"},env)).status).toBe(401);});
+it("requires DJ session for Spotify playback status",async()=>{const {app,env}=setup();expect((await app.request("/api/dj/spotify/status",{},env)).status).toBe(401);});
+it("requires DJ session for Spotify queue dispatch",async()=>{const {app,env}=setup();expect((await app.request("/api/dj/spotify/next-request",{method:"POST"},env)).status).toBe(401);});});

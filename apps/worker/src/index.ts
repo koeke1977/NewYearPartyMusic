@@ -1,21 +1,11 @@
 import { Hono } from "hono";
 import type { Env } from "./platform/env";
-import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
-import { spotifyFetch } from "./integrations/spotify/user-auth-service";
-import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
-import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
-import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
-import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist, playTrack, sendPlaybackCommand, setPlaybackShuffle, setPlaybackVolume } from "./integrations/spotify/playback-api";
-import { addDjTrackToPartyQueue, moderatePartyRequest, queueApprovedPartyRequest } from "./modules/requests/application/guest-request-lifecycle";
-import { getDjOverview, reorderDjQueue, updateDjSetting } from "./modules/requests/application/dj-queue-management";
 import { cleanupCompletedRequests } from "./modules/requests/application/cleanup-completed-requests";
-import { readSpotifyFallbackError, setSpotifyFallbackActive, setSpotifyManualPause } from "./modules/playback/infrastructure/playback-policy-repository";
-import { getDjSpotifyPlaybackStatus } from "./modules/playback/application/get-dj-spotify-playback-status";
-import { executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume } from "./modules/playback/application/dj-playback-controls";
-import { searchDjSpotifyTracks } from "./modules/music/application/search-spotify-tracks";
 import { guestRoutes } from "./routes/guest";
 import { djIdentityRoutes } from "./routes/dj-identity";
-import { requireDJ } from "./routes/dj-auth";
+import { djAiRoutes } from "./routes/dj-ai";
+import { djRequestRoutes } from "./routes/dj-requests";
+import { djPlaybackRoutes } from "./routes/dj-playback";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -29,157 +19,9 @@ app.get("/api/config", (c) => c.json({
 
 app.route("/api", guestRoutes);
 app.route("/", djIdentityRoutes);
-
-app.post("/api/dj/ai/assistant", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  let body: { prompt?: unknown };
-  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-  if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
-
-  const result = await executeDJAssistant(c.env, prompt);
-  return c.json(result.body, result.status as 200 | 429 | 503 | 502);
-});
-app.post("/api/dj/ai/music/search", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  let body: { queries?: unknown };
-  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const result = await searchDjSpotifyTracks({
-    queries: body.queries,
-    search: (query, limit) => searchSpotifyTracks(c.env, query, limit),
-  });
-  return c.json(result.body, result.status);
-});
-app.post("/api/dj/ai/music/add", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  let body: { trackId?: unknown };
-  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const trackId = typeof body.trackId === "string" ? body.trackId.trim() : "";
-  if (!/^[A-Za-z0-9]{22}$/.test(trackId)) return c.json({ error: "Ongeldig Spotify-track-ID." }, 400);
-  const result = await addDjTrackToPartyQueue({
-    db: c.env.DB,eventId: c.env.EVENT_ID,trackId,createId:()=>crypto.randomUUID(),
-    getSpotifyTrack:(id)=>getSpotifyTrack(c.env,id),
-  });
-  return c.json(result.body,result.status as 200);
-});
-app.get("/api/dj/overview", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  return c.json(await getDjOverview({ db: c.env.DB, eventId: c.env.EVENT_ID }));
-});
-app.post("/api/dj/queue/reorder", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  let body: { order?: unknown };
-  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const result = await reorderDjQueue({ db: c.env.DB, eventId: c.env.EVENT_ID, order: body.order });
-  return c.json(result.body, result.status as 200 | 400 | 409);
-});
-app.post("/api/dj/requests/:id/:action", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  const result = await moderatePartyRequest({
-    db:c.env.DB,eventId:c.env.EVENT_ID,requestId:c.req.param("id"),action:c.req.param("action"),
-  });
-  return c.json(result.body,result.status as 200);
-});
-app.post("/api/dj/settings/:key", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  let body: { enabled?: unknown };
-  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const result = await updateDjSetting({ db: c.env.DB, key: c.req.param("key"), enabled: body.enabled });
-  return c.json(result.body, result.status as 200 | 400);
-});
-
-const SPOTIFY_FALLBACK_PLAYLIST_URI = "spotify:playlist:37i9dQZF1DXa2PvUpywmrr";
-
-async function startSpotifyFallback(env: Env): Promise<void> {
-  const shuffle = await setPlaybackShuffle(spotifyFetch.bind(null, env), true);
-  if (!shuffle.ok && shuffle.status !== 204) throw new Error("Spotify shuffle inschakelen mislukt (HTTP " + shuffle.status + ").");
-  const play = await playPlaylist(spotifyFetch.bind(null, env), SPOTIFY_FALLBACK_PLAYLIST_URI);
-  if (!play.ok && play.status !== 204) throw new Error("Spotify Party Hits starten mislukt (HTTP " + play.status + ").");
-  await setSpotifyFallbackActive(env.DB);
-}
-
-async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;busy?:boolean;track?:{name:string;artist:string};requestId?:string;error?:string}> {
-  return dispatchNextTrack({
-    db: env.DB,
-    eventId: env.EVENT_ID,
-    playTrack: async (trackUri) => {
-      const response = await playTrack(spotifyFetch.bind(null, env), trackUri);
-      return { ok: response.ok, status: response.status };
-    },
-  });
-}
-
-async function maybeAdvancePartyQueue(env: Env, playing: boolean): Promise<{advanced:boolean;error?:string}> {
-  return runQueueAdvancement({
-    db: env.DB,
-    eventId: env.EVENT_ID,
-    dispatchNext: async () => {
-      const result = await startNextPartyQueueRequest(env);
-      return { ok: result.ok, busy: result.busy, error: result.error };
-    },
-  }, playing);
-}
-
-async function maybeStartSpotifyFallback(env: Env, currentTrackUri: string | null, playing: boolean, _progressMs: number, _currentDurationMs: number): Promise<boolean> {
-  return runSpotifyFallbackPolicy({
-    db: env.DB,
-    eventId: env.EVENT_ID,
-    startFallback: () => startSpotifyFallback(env),
-  }, currentTrackUri, playing);
-}
-
-app.get("/api/dj/spotify/status", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
-  const spotify = spotifyFetch.bind(null, c.env);
-  const result = await getDjSpotifyPlaybackStatus({
-    getCurrentPlayback: () => getCurrentPlayback(spotify),
-    getPlaybackQueue: () => getPlaybackQueue(spotify),
-    maybeAdvance: (playing) => maybeAdvancePartyQueue(c.env, playing),
-    maybeStartFallback: (trackUri, playing, progressMs, durationMs) =>
-      maybeStartSpotifyFallback(c.env, trackUri, playing, progressMs, durationMs),
-    readFallbackError: () => readSpotifyFallbackError(c.env.DB),
-    clearManualPause: () => setSpotifyManualPause(c.env.DB, false),
-  });
-  return c.json(result.body, result.status);
-});
-app.get("/api/dj/spotify/devices", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
-  const result = await listDjSpotifyDevices({
-    getDevices: () => getPlaybackDevices(spotifyFetch.bind(null, c.env)),
-  });
-  return c.json(result.body, result.status);
-});
-app.post("/api/dj/spotify/next-request",async(c)=>{
-  if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
-  const result=await startNextPartyQueueRequest(c.env);
-  if(result.busy)return c.json({ok:false,busy:true,error:result.error||"Een andere NEXT-actie wordt al verwerkt."});
-  if(!result.ok)return c.json({error:result.error||"Volgende aanvraag starten is mislukt."},409);
-  return c.json({ok:true,track:result.track,requestId:result.requestId});
-});
-app.put("/api/dj/spotify/volume", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
-  let body: { volume?: unknown };
-  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const result = await setDjSpotifyVolume({
-    volume: body.volume,
-    setVolume: (volume) => setPlaybackVolume(spotifyFetch.bind(null, c.env), volume),
-  });
-  return c.json(result.body, result.status);
-});
-app.post("/api/dj/spotify/:action", async (c) => {
-  if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen." }, 401);
-  const result = await executeDjSpotifyCommand({
-    action: c.req.param("action"),
-    sendCommand: (action) => sendPlaybackCommand(spotifyFetch.bind(null, c.env), action),
-    setManualPause: (paused) => setSpotifyManualPause(c.env.DB, paused),
-  });
-  return c.json(result.body, result.status);
-});
-app.post("/api/dj/spotify/queue/:id",async(c)=>{
-  if(!await requireDJ(c.req.raw,c.env))return c.json({error:"DJ-sessie verlopen."},401);
-  const result=await queueApprovedPartyRequest({db:c.env.DB,eventId:c.env.EVENT_ID,requestId:c.req.param("id")});
-  return c.json(result.body,result.status as 200);
-});
+app.route("/", djAiRoutes);
+app.route("/", djRequestRoutes);
+app.route("/", djPlaybackRoutes);
 
 app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
 
