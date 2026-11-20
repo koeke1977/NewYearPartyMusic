@@ -33,13 +33,16 @@ This checklist reflects the current implementation on `refactor/architecture-fou
 - [x] CSS ownership split, selector inventory and browser screenshot baselines
 - [x] API inventory and Worker/frontend/AI responsibility maps
 - [x] Release guard and test-environment runbook
-- [x] TypeScript, security characterization tests, Worker dry-run and browser journeys green on current PR head
+- [x] TypeScript, security characterization tests, Worker dry-run and browser journeys green on the validated code head
+- [x] Automated Worker application dependency-boundary check integrated into CI
+- [x] Spotify catalogue and playback-control application ports with typed provider adapters
+- [x] DJ AI workflow controller separated from DOM-only view rendering
 
 ## Remaining architecture work
 
 1. Complete dependency inversion for the remaining request, music and playback workflows; application code should consume application-owned repository/provider ports rather than concrete D1 bindings or Fetch responses.
-2. Audit the AI assistant and Spotify console modules for remaining controller/view mixing; split only where there is a real responsibility boundary.
-3. Add automated dependency-boundary checks after the ports and module ownership are stable.
+2. Audit the Spotify console controller for any remaining coordination/presentation mixing; do not add pass-through layers where the existing view/controller boundary is already clear.
+3. Extend automated dependency-boundary checks to frontend feature boundaries where a stable rule can be enforced without brittle path whitelists.
 4. Review CSS selector duplication/unused rules and accessibility without changing the visual language unintentionally.
 5. Add focused linting and formatting only if it can be introduced without unnecessary dependencies or broad churn.
 6. Keep full CI green after each coherent extraction.
