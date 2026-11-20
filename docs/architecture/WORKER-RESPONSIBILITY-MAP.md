@@ -14,6 +14,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Spotify client-credentials token cache | `integrations/spotify/catalog-token.ts` | `integrations/spotify/catalog-token.ts` |
 | Spotify track response shape | `integrations/spotify/types.ts` | `integrations/spotify/types.ts` |
 | Spotify playback HTTP endpoints, methods and request payloads | `integrations/spotify/playback-api.ts` | `integrations/spotify/playback-api.ts` |
+| Guest and DJ Spotify catalogue search validation, result mapping and error semantics | `modules/music/application/search-spotify-tracks.ts` | Same music application module |
 | Encrypted Spotify user-token persistence, refresh lease and invalidation | `integrations/spotify/user-auth-repository.ts` | `integrations/spotify/user-auth-repository.ts` |
 | Spotify OAuth code exchange, encrypted token lifecycle, refresh rotation and authenticated user API client | `integrations/spotify/user-auth-service.ts` | `integrations/spotify/user-auth-service.ts` |
 | Queue dispatch D1 lease, ordered queue read, conditional played transition and playback-state writes | `modules/queue/infrastructure/queue-dispatch-repository.ts` | `modules/queue/infrastructure/queue-dispatch-repository.ts` |
@@ -33,11 +34,11 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 |---|---|---|
 | `requireDJ` | Thin event-scoped DJ session authorization adapter | `modules/identity/dj-session.ts` |
 | `POST /api/guests/join` | HTTP body parsing and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Identity session-token service |
-| `GET /api/spotify/search` | Guest authorization, Spotify HTTP request, Spotify response mapping | Search use case + Spotify catalogue adapter |
+| `GET /api/spotify/search` | Guest authorization, query extraction and response serialization | `modules/music/application/search-spotify-tracks.ts` + Spotify catalogue adapter |
 | `POST /api/requests` | Guest session authorization, input validation and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Spotify catalogue adapter |
 | `POST /api/dj/login` | JSON parsing and response serialization | `modules/identity/dj-session.ts` |
 | `POST /api/dj/ai/assistant` | Preference persistence, history/context assembly, event-time logic, prompt construction, provider call, tool dispatch, cache, quota/error mapping | AI orchestrator + context assembler + memory repository + prompt catalog + Cloudflare AI provider + Spotify search tool |
-| `POST /api/dj/ai/music/search` | DJ validation, query normalization, Spotify search and result mapping | AI music-search use case + Spotify catalogue adapter |
+| `POST /api/dj/ai/music/search` | DJ authorization, JSON parsing and response serialization | `modules/music/application/search-spotify-tracks.ts` + Spotify catalogue adapter |
 | `POST /api/dj/ai/music/add` | DJ authorization, input validation and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Spotify catalogue adapter |
 | `GET /api/dj/overview` | DJ authorization and response serialization | `modules/requests/application/dj-queue-management.ts` + `dj-queue-repository.ts` |
 | `POST /api/dj/queue/reorder` | DJ authorization, JSON parsing and response serialization | `modules/requests/application/dj-queue-management.ts` + `dj-queue-repository.ts` |
@@ -75,7 +76,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 1. Characterize and extract guest join, guest track submission, DJ moderation transitions and AI-added queue tracks. The application use cases and D1 repository now live under `modules/requests/`.
 2. DJ overview, queue reorder, DJ settings and 30-day completed-request retention now live under `modules/requests/`; keep future request-related D1 access in the same repository/application boundaries.
 3. Keep Spotify catalogue and OAuth user-token handling separate. OAuth code exchange, refresh rotation and authenticated user API requests now live in `integrations/spotify/user-auth-service.ts`; encrypted persistence remains in `user-auth-repository.ts`. Playback paths and payloads live in `playback-api.ts`.
-4. Queue dispatch, fallback policy and DJ Spotify status orchestration now use dedicated application/repository modules. The Spotify playback routes no longer issue D1 SQL directly; the remaining Spotify OAuth start/callback flow, catalogue search routes and queue-next route still need final application/use-case boundaries.
+4. Queue dispatch, fallback policy and DJ Spotify status orchestration now use dedicated application/repository modules. The Spotify playback routes no longer issue D1 SQL directly; the remaining Spotify OAuth start/callback flow and queue-next HTTP adapter still need final application/use-case boundaries.
 5. Split AI context, memory, prompt catalog, provider adapter, tool adapter and use cases.
 6. Convert route handlers to thin transport adapters and assemble them from `app.ts`.
 7. Keep `index.ts` as the Worker composition root only.
