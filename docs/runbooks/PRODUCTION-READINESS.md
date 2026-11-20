@@ -41,7 +41,13 @@ Spotify content displayed by the application must retain attribution and a direc
 
 ## Abuse protection and rate limits
 
-The application implements atomic D1-backed per-IP attempt throttling for the public access-code endpoints:
+Guest music-request policy is separate from access-code abuse throttling:
+- No per-guest limit on the number of pending, approved or queued requests.
+- Maximum 20 submitted requests per guest in any rolling 60-minute window.
+- A track already pending, approved or queued cannot be requested again until it reaches a terminal state.
+- The hourly quota is checked atomically in the same D1 insert statement to remain correct under concurrent submissions.
+
+The application also implements atomic D1-backed per-IP attempt throttling for the public access-code endpoints:
 
 - Guest join: 120 attempts per 15 minutes per IP.
 - DJ login: 10 attempts per 15 minutes per IP.
