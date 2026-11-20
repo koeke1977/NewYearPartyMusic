@@ -5,6 +5,7 @@ import { orderedQueued } from "./modules/dj-queue.js";
 import { matchDjQueueProposal } from "./modules/dj-ai-queue-parser.js";
 import { createDjPollingController } from "./modules/dj-polling.js";
 import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
+import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./modules/dj-playback-display.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -87,14 +88,8 @@ function updateMasterVolumeDisplay(value){
     leds.setAttribute("aria-valuenow",String(volume));
   }
 }
-function formatTrackTime(milliseconds){
-  const total=Math.max(0,Math.floor((Number(milliseconds)||0)/1000));
-  return Math.floor(total/60)+":"+String(total%60).padStart(2,"0");
-}
 function updateTrackProgress(progressMs,durationMs,playing){
-  const duration=Math.max(0,Number(durationMs)||0);
-  const progress=Math.max(0,Math.min(duration,Number(progressMs)||0));
-  const percent=duration?Math.round(progress/duration*100):0;
+  const { duration, progress, percent } = getTrackProgress(progressMs,durationMs);
   const leds=document.querySelector("#track-progress-leds");
   const value=document.querySelector("#track-progress-value");
   const elapsed=document.querySelector("#track-progress-elapsed");
@@ -103,7 +98,7 @@ function updateTrackProgress(progressMs,durationMs,playing){
   if(value)value.textContent=duration?percent+"%":"—%";
   if(elapsed)elapsed.textContent=formatTrackTime(progress);
   if(total)total.textContent=formatTrackTime(duration);
-  if(status)status.textContent=!duration?"WAITING FOR TRACK":playing?"TRACK PLAYING":"TRACK PAUSED";
+  if(status)status.textContent=getTrackProgressStatus(duration,playing);
   if(leds){
     const active=Math.round(percent/5);
     leds.replaceChildren();
