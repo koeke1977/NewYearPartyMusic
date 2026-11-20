@@ -34,6 +34,7 @@ npm run dev
 npm run typecheck
 npm test
 npm run test:browser
+npm run test:local-ai-bridge
 ```
 For a disposable local D1 database only: `npm run db:local`.
 
