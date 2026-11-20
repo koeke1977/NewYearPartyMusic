@@ -26,6 +26,9 @@ jobs:
       - name: TypeScript validation
         run: npm run typecheck
 
+      - name: Architecture dependency boundary check
+        run: npm run test:architecture
+
       - name: Security characterization tests
         run: npm test
 
