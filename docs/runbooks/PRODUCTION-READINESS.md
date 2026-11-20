@@ -94,7 +94,7 @@ GitHub pull-request validation runs:
 
 Cloudflare production builds run typecheck, architecture checks and Vitest before applying production D1 migrations and deploying. A failed build command must stop before the deploy command. Production build configuration is bound to the Worker system tag, not the human-readable Worker name.
 
-The production release completed on 2026-11-20. The validated build reported 65 test files and 266 unit tests passing. The current deployed Worker version at the time of this runbook update is recorded in the Cloudflare deployment history; always inspect the active deployment before a release or rollback.
+The production release completed on 2026-11-20. The latest validated build reported 65 test files and 264 unit tests passing on Vitest 5.1.1. Bun audit reported zero vulnerabilities across 198 packages (and zero in production dependencies). The active production Worker version is 7: `89d90ebb-15d1-4192-81c0-9e015f658bdd`. The Cloudflare production build now gates deployment on typecheck, architecture checks, unit tests and a full dependency audit; any audit finding fails the build. Always inspect the active deployment before a release or rollback.
 
 ## Release verification checklist
 
@@ -107,7 +107,9 @@ The production release completed on 2026-11-20. The validated build reported 65 
 - [x] Production Worker deployed and public hostname moved from test to production.
 - [x] Public application visible, as confirmed by the release owner.
 - [x] Spotify OAuth connection succeeds, as confirmed by the release owner.
-- [x] Typecheck, architecture check and 266 unit tests passed in the production build.
+- [x] Typecheck, architecture check and 264 unit tests passed in the production build using Vitest 5.1.1.
+- [x] Bun audit reports zero vulnerabilities across 198 packages; production dependency audit also clean.
+- [x] Production build gate now fails on any dependency audit finding.
 - [x] Browser guest/DJ journeys passed in the GitHub CI run for the architecture release.
 - [x] Production Workers Logs and Traces enabled.
 - [x] Query-string redaction and Real-time Issues enabled and verified in the active production Worker settings (version 5, 2026-11-20); Wrangler configuration also records these settings as source of truth.
@@ -130,6 +132,8 @@ A successful OAuth connection does not establish that the intended event use is 
 Spotify's current Developer Policy (effective 15 May 2025) restricts streaming applications from commercial use, prohibits non-interactive internet webcasting from one source to multiple simultaneous listeners, and restricts products targeted at businesses. Spotify's consumer service is described as personal and non-commercial. The precise use of PartyQueue for an event, the nature of the event and the playback arrangement must be checked against the current Spotify Developer Terms and Policy. Do not assume that calling an event private or non-commercial makes every form of public playback or API-controlled streaming permitted.
 
 Before using Spotify as the event PA source, obtain a clear policy determination from Spotify for the exact setup where necessary. Separately verify Belgian public-performance licensing obligations with the relevant rights/licensing body. If the intended use is not permitted, use a properly licensed playback source/service rather than attempting to work around Spotify's restrictions.
+
+Two Developer Policy implementation requirements are not yet closed in the current UI: there is no published privacy-policy page, and the DJ's `LOG OUT` action ends the PartyQueue DJ session but does not disconnect/delete the stored Spotify OAuth credentials. Add a clearly accessible privacy notice with the event controller's real contact details and an in-app Spotify disconnect/delete action before treating Developer Policy compliance as complete. Do not invent a controller email address.
 
 References:
 - https://developer.spotify.com/policy
