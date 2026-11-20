@@ -41,6 +41,9 @@ CREATE INDEX IF NOT EXISTS idx_requests_event_status_time
   ON requests(event_id, status, requested_at);
 CREATE INDEX IF NOT EXISTS idx_requests_track_status
   ON requests(event_id, spotify_track_id, status);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_requests_one_active_track
+  ON requests(event_id, spotify_track_id)
+  WHERE status IN ('pending', 'approved', 'queued');
 
 CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
