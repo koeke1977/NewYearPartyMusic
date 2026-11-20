@@ -2,6 +2,11 @@ import type { GuestRequestRepository } from "./guest-request-ports";
 
 type Result = { status: number; body: Record<string, unknown> };
 
+function positiveIntegerSetting(value: string | undefined, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
 export type GuestRequestTrack = { id:string; uri:string; name:string; artists:Array<{name:string}>; album?:{images?:Array<{url:string}>}; duration_ms:number };
 export type GuestRequestTrackGateway = { getTrack(trackId:string):Promise<GuestRequestTrack|null> };
 
@@ -54,15 +59,15 @@ export async function submitGuestTrackRequest(input: {
     return { status: 403, body: { error: "De DJ heeft aanvragen tijdelijk gepauzeerd." } };
   }
 
-  const openRequestLimit = Number(config.max_open_requests_per_guest || 2);
+  const openRequestLimit = positiveIntegerSetting(config.max_open_requests_per_guest, 2);
   const openRequestCount = await input.repository.countOpenGuestRequests(input.guestId);
-  if (Number.isInteger(openRequestLimit) && openRequestLimit > 0 && openRequestCount >= openRequestLimit) {
+  if (openRequestCount >= openRequestLimit) {
     return { status: 429, body: { error: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
   }
 
-  const rateLimit = Number(config.max_requests_per_30_minutes || 5);
+  const rateLimit = positiveIntegerSetting(config.max_requests_per_30_minutes, 5);
   const recentCount = await input.repository.countRecentGuestRequests(input.guestId);
-  if (Number.isInteger(rateLimit) && rateLimit > 0 && recentCount >= rateLimit) {
+  if (recentCount >= rateLimit) {
     return { status: 429, body: { error: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
   }
 

@@ -91,6 +91,7 @@ describe("guest request lifecycle", () => {
       repository:createGuestRequestRepository(limited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:429});
+    expect(limited.calls.some(call=>call.sql.includes("datetime('now','-30 minutes')"))).toBe(true);
 
     const duplicate=fakeDb({duplicate:{id:"existing"}});
     expect(await submitGuestTrackRequest({
