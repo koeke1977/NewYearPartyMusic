@@ -80,12 +80,13 @@ export async function submitGuestTrackRequest(input: {
     const requestId = input.createId();
     const status = config.auto_approve === "true" ? (config.auto_queue === "true" ? "queued" : "approved") : "pending";
     const artists = track.artists;
-    await input.repository.insertTrackRequest({
+    const inserted = await input.repository.insertTrackRequest({
       id: requestId, event_id: input.eventId, guest_id: input.guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
       album_image_url: track.albumImageUrl,
       duration_ms: track.durationMs, status,
     });
+    if (!inserted) return { status: 409, body: { error: "Dit nummer staat al in de wachtrij." } };
     return { status: 201, body: { ok: true, request: { id: requestId, name: track.name, artists, status } } };
   } catch (error) {
     return { status: 503, body: { error: error instanceof Error ? error.message : "Aanvraag kon niet worden opgeslagen." } };
@@ -149,12 +150,18 @@ export async function addDjTrackToPartyQueue(input: {
     const guestId = await input.repository.createDjQueueGuest(input.eventId);
     const requestId = input.createId();
     const artists = track.artists;
-    await input.repository.insertTrackRequest({
+    const inserted = await input.repository.insertTrackRequest({
       id: requestId, event_id: input.eventId, guest_id: guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
-      album_image_url: track.albumImageUrl,
-      duration_ms: track.durationMs, status: "queued",
+      album_image_url: track.albumImageUrl, duration_ms: track.durationMs, status: "queued",
     });
+    if (!inserted) {
+      const existing = await input.repository.findActiveTrackRequest(input.eventId, track.id);
+      return {
+        status: 200,
+        body: { ok: true, alreadyQueued: true, status: existing?.status || "queued" },
+      };
+    }
     await input.repository.appendRequestToQueueOrder(requestId);
     return {
       status: 201,
