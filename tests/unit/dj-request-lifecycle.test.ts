@@ -52,7 +52,8 @@ describe("DJ request lifecycle",()=>{
     expect(result).toEqual({status:200,body:{ok:true,status:"queued"}});
     const update=calls.find(call=>call.sql.startsWith("UPDATE requests"));
     expect(update?.sql).toContain("queued_at = CURRENT_TIMESTAMP");
-    expect(update?.values).toEqual(["queued","req-1","event-1"]);
+    expect(update?.values).toEqual(["queued","req-1","event-1","pending"]);
+    expect(update?.sql).toContain("status IN (?)");
   });
 
   it("rejects invalid state transitions and unknown actions",async()=>{
@@ -61,6 +62,18 @@ describe("DJ request lifecycle",()=>{
       .toMatchObject({status:409});
     expect(await moderatePartyRequest({repository:createGuestRequestRepository(db),eventId:"event-1",requestId:"req-1",action:"unknown"}))
       .toMatchObject({status:409});
+  });
+
+  it("rejects a stale moderation action when another DJ action already changed the request",async()=>{
+    const {db,calls}=fakeDb({current:{id:"req-1",status:"pending"},updateChanges:0});
+    const result=await moderatePartyRequest({
+      repository:createGuestRequestRepository(db),eventId:"event-1",requestId:"req-1",action:"approve",
+    });
+    expect(result).toMatchObject({
+      status:409,
+      body:{error:"Deze aanvraag is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw."},
+    });
+    expect(calls.some(call=>call.sql.includes("status IN (?)"))).toBe(true);
   });
 
   it("returns not found for requests outside the event",async()=>{
