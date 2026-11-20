@@ -40,12 +40,24 @@ export function createDjOverviewView({
     parent.append(image);
   }
 
+  function spotifyTrackLink(request) {
+    const link = elementFactory("a", "spotify-content-link");
+    link.href = "https://open.spotify.com/track/" + encodeURIComponent(request.spotify_track_id);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.append(
+      elementFactory("strong", "", request.track_name),
+      elementFactory("span", "", request.artist_name),
+    );
+    return link;
+  }
+
   function trackLine(request, index) {
     const row = elementFactory("div", "queue-track");
     row.append(elementFactory("span", "queue-position", String(index + 1).padStart(2, "0")));
     addCover(row, request.album_image_url, "");
     const info = elementFactory("div", "queue-track-info");
-    info.append(elementFactory("strong", "", request.track_name), elementFactory("span", "", request.artist_name));
+    info.append(spotifyTrackLink(request));
     row.append(info, row.appendChild(elementFactory("span", "queue-state", "QUEUED")));
     return row;
   }
@@ -94,7 +106,7 @@ export function createDjOverviewView({
     );
     renderDeck(requests, queueOrder);
     spotifyConsole.setDeck("right", nextQueued
-      ? { name: nextQueued.track_name, artist: nextQueued.artist_name, album_image_url: nextQueued.album_image_url }
+      ? { id: nextQueued.spotify_track_id, name: nextQueued.track_name, artist: nextQueued.artist_name, album_image_url: nextQueued.album_image_url }
       : getQueuePreview());
 
     const nextButton = documentRef.querySelector("#partyqueue-next");
@@ -133,8 +145,7 @@ export function createDjOverviewView({
       const info = elementFactory("div", "dj-track");
       if (isQueued) card.append(elementFactory("span", "queue-position", String(queuePositions.get(request.id) + 1).padStart(2, "0")));
       info.append(
-        elementFactory("strong", "dj-track-name", request.track_name),
-        elementFactory("span", "dj-muted", request.artist_name),
+        spotifyTrackLink(request),
         elementFactory("span", "dj-requester", "REQUESTED BY " + (request.nickname || "GUEST").toUpperCase())
       );
       info.append(elementFactory("span", "dj-status status-" + request.status, request.status.replace("_", " ").toUpperCase()));
