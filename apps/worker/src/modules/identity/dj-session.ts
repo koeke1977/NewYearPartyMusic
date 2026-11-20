@@ -11,7 +11,7 @@ export async function loginDj(input: {
   createToken(payload: Session, secret: string): Promise<string>;
   nowSeconds(): number;
 }): Promise<Result> {
-  if (!input.expectedCodeHash) {
+  if (!input.expectedCodeHash || !input.sessionSecret) {
     return { status: 503, body: { error: "DJ-toegang is nog niet geconfigureerd." } };
   }
   if (!input.code || input.code.length > 64
