@@ -3,7 +3,7 @@ import type { AuthAttemptScope } from "../../modules/identity/domain/auth-attemp
 export type AuthAttemptDatabase = Pick<D1Database, "prepare">;
 
 /**
- * Atomically consumes one attempt from a per-IP sliding bucket.
+ * Atomically consumes one attempt from a per-IP fixed-window bucket.
  * A null RETURNING row means the threshold was already reached.
  */
 export async function consumeAuthAttempt(
