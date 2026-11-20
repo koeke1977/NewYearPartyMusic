@@ -269,7 +269,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
   // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
   const provider = "cloudflare";
-  const cacheKey = await sha256(provider + "\\n" + system + "\\n" + user + "\\nspotify-tools-v1");
+  const cacheKey = await sha256(provider + "\n" + system + "\n" + user + "\nspotify-tools-v1");
   const cachedRow = await c.env.DB.prepare("SELECT value,updated_at FROM settings WHERE key='dj_ai_answer_cache'").first<{value:string;updated_at:string}>();
   if (cachedRow?.updated_at && Date.now() - Date.parse(cachedRow.updated_at + "Z") < 10 * 60 * 1000) {
     try {
@@ -282,7 +282,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
   if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
   try {
-    if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \\"AI\\" toe en deploy opnieuw." }, 503);
+    if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
 
     const model = "@cf/google/gemma-4-26b-a4b-it";
     const musicTools = [{
@@ -328,7 +328,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
       }
       const queries = Array.isArray(args?.queries)
         ? args.queries.filter((q:any)=>typeof q==="string")
-          .map((q:string)=>q.replace(/\\s+/g," ").trim().slice(0,140))
+          .map((q:string)=>q.replace(/\s+/g," ").trim().slice(0,140))
           .filter((q:string)=>q.length>2).slice(0,12)
         : [];
       if (queries.length) {
@@ -354,7 +354,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
         const followup:any = await c.env.AI.run(model,{
           messages:[
             {role:"system",content:system+" When verified Spotify search results are supplied, recommend only tracks present in those results and preserve exact Spotify titles and artists."},
-            {role:"user",content:user+"\\n\\nVERIFIED SPOTIFY SEARCH RESULTS:\\n"+JSON.stringify(spotifyMatches)}
+            {role:"user",content:user+"\n\nVERIFIED SPOTIFY SEARCH RESULTS:\n"+JSON.stringify(spotifyMatches)}
           ],
           max_tokens:1400,
           temperature:0.35,
@@ -366,7 +366,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
       }
     }
 
-    if (Array.isArray(answer)) answer=answer.map((part:any)=>typeof part==="string"?part:part?.text||"").join("\\n");
+    if (Array.isArray(answer)) answer=answer.map((part:any)=>typeof part==="string"?part:part?.text||"").join("\n");
     if (typeof answer!=="string" || !answer.trim()) {
       console.error("DJ AI returned no text",JSON.stringify({provider,keys:first&&typeof first==="object"?Object.keys(first):[],usage:first?.usage||null}));
       throw new Error("Cloudflare AI gaf geen antwoordtekst terug. Probeer het opnieuw.");
