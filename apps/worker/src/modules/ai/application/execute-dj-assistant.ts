@@ -9,7 +9,7 @@ import { ASSISTANT_MAX_OUTPUT_TOKENS } from "./neuron-budget-policy";
 
 export type DJAssistantHttpResult = { status: number; body: Record<string, unknown> };
 
-/** Executes a Spotify-content-free AI turn through application-owned persistence and budget ports. */
+/** Executes a Spotify-independent AI turn using only event timing and DJ-authored preferences. */
 export async function executeDJAssistant(input: {
   eventId: string;
   eventName: string;
@@ -25,12 +25,10 @@ export async function executeDJAssistant(input: {
     event: eventName,
     eventMoment: buildEventMoment(),
     djPreferences: parseDJPreferences(snapshot.djPreferences),
-    requestCounts: snapshot.requestCounts,
   });
   const { system, user } = buildDJAssistantPrompt(context, prompt);
   const provider = "cloudflare";
-  // New cache namespace prevents reuse of answers generated with Spotify content.
-  const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nspotify-content-free-v2");
+  const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nspotify-independent-context-v3");
   const cached = await repository.readAnswerCache(cacheKey);
   if (cached) {
     return { status: 200, body: { ok: true, provider, answer: cached.answer, spotifyMatches: [], cached: true, memoryUpdated } };

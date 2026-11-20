@@ -63,7 +63,6 @@ createDjAiAssistant({api,refresh:()=>refresh()});
 
 bindDjChatGptHandoff({
   button:document.querySelector("#dj-chatgpt-help"),
-  getOverview:()=>overviewView.getLatestOverview(),
   output:document.querySelector("#dj-ai-answer"),
 });
 
