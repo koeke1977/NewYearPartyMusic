@@ -10,6 +10,8 @@ import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-tra
 import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
 import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist, playTrack, sendPlaybackCommand, setPlaybackShuffle, setPlaybackVolume } from "./integrations/spotify/playback-api";
 import { addDjTrackToPartyQueue, joinPartyGuest, moderatePartyRequest, queueApprovedPartyRequest, submitGuestTrackRequest } from "./modules/requests/application/guest-request-lifecycle";
+import { getDjOverview, reorderDjQueue, updateDjSetting } from "./modules/requests/application/dj-queue-management";
+import { cleanupCompletedRequests } from "./modules/requests/application/cleanup-completed-requests";
 
 
 
@@ -145,48 +147,14 @@ app.post("/api/dj/ai/music/add", async (c) => {
 });
 app.get("/api/dj/overview", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  const [activeRequests, recentPlayed, settings] = await Promise.all([
-    c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, r.queued_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? AND r.status IN ('pending','approved','queued') ORDER BY r.requested_at ASC").bind(c.env.EVENT_ID).all(),
-    c.env.DB.prepare("SELECT r.id, r.spotify_track_id, r.track_uri, r.track_name, r.artist_name, r.album_image_url, r.duration_ms, r.status, r.moderation_reason, r.requested_at, r.queued_at, g.nickname FROM requests r JOIN guests g ON g.id = r.guest_id WHERE r.event_id = ? AND r.status = 'played' ORDER BY r.played_at DESC LIMIT 100").bind(c.env.EVENT_ID).all(),
-    c.env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve','auto_queue','partyqueue_order')").all<{key:string;value:string}>()
-  ]);
-  const config = Object.fromEntries((settings.results || []).map(x => [x.key, x.value]));
-  let savedOrder: string[] = [];
-  try { savedOrder = JSON.parse(config.partyqueue_order || "[]"); } catch { savedOrder = []; }
-  const orderIndex = new Map(savedOrder.map((id, index) => [id, index]));
-  const rows = [...(activeRequests.results || []), ...(recentPlayed.results || [])] as Array<Record<string, any>>;
-  rows.sort((a,b) => {
-    const rank = (status: string) => status === "pending" ? 0 : status === "approved" ? 1 : status === "queued" ? 2 : status === "played" ? 3 : 4;
-    const statusDiff = rank(a.status) - rank(b.status);
-    if (statusDiff) return statusDiff;
-    if (a.status === "queued") return (orderIndex.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (orderIndex.get(b.id) ?? Number.MAX_SAFE_INTEGER) || String(a.queued_at || a.requested_at).localeCompare(String(b.queued_at || b.requested_at));
-    return String(a.requested_at).localeCompare(String(b.requested_at));
-  });
-  const queuedIds = rows.filter(r => r.status === "queued").map(r => r.id);
-  const normalizedOrder = [...savedOrder.filter(id => queuedIds.includes(id)), ...queuedIds.filter(id => !savedOrder.includes(id))];
-  return c.json({ requests: rows, queueOrder: normalizedOrder, settings: { requestsPaused: config.requests_paused === "true", autoApprove: config.auto_approve === "true", autoQueue: config.auto_queue === "true" } });
+  return c.json(await getDjOverview({ db: c.env.DB, eventId: c.env.EVENT_ID }));
 });
 app.post("/api/dj/queue/reorder", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   let body: { order?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  if (!Array.isArray(body.order) || body.order.length > 100 || !body.order.every(id => typeof id === "string")) return c.json({ error: "Ongeldige wachtrijvolgorde." }, 400);
-  const current = await c.env.DB.prepare("SELECT id FROM requests WHERE event_id=? AND status='queued'").bind(c.env.EVENT_ID).all<{id:string}>();
-  const currentIds = (current.results || []).map(row => row.id);
-  const requested = body.order as string[];
-  if (new Set(requested).size !== requested.length || requested.length !== currentIds.length || currentIds.some(id => !requested.includes(id))) return c.json({ error: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." }, 409);
-  const orderedTracks = await c.env.DB.prepare("SELECT id,track_name,artist_name FROM requests WHERE event_id=? AND status='queued'").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string}>();
-  const trackById = new Map((orderedTracks.results || []).map(track => [track.id,track]));
-  const acceptedTracks = requested.map(id => trackById.get(id)).filter(Boolean).map(track => track!.track_name+" — "+track!.artist_name);
-  await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('partyqueue_order',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(requested)).run();
-  const historyKey = "dj_ai_history_" + c.env.EVENT_ID;
-  const previousHistory = await c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(historyKey).first<{value:string}>();
-  let history: Array<{at:string;tracks:string[]}> = [];
-  try { history = JSON.parse(previousHistory?.value || "[]"); } catch { history = []; }
-  history.push({at:new Date().toISOString(),tracks:acceptedTracks});
-  history = history.slice(-5);
-  await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(historyKey,JSON.stringify(history)).run();
-  return c.json({ ok: true, order: requested });
+  const result = await reorderDjQueue({ db: c.env.DB, eventId: c.env.EVENT_ID, order: body.order });
+  return c.json(result.body, result.status as 200 | 400 | 409);
 });
 app.post("/api/dj/requests/:id/:action", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
@@ -197,13 +165,10 @@ app.post("/api/dj/requests/:id/:action", async (c) => {
 });
 app.post("/api/dj/settings/:key", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
-  const key = c.req.param("key");
-  if (!["requests_paused","auto_approve","auto_queue"].includes(key)) return c.json({ error: "Onbekende instelling." }, 400);
   let body: { enabled?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  if (typeof body.enabled !== "boolean") return c.json({ error: "Ongeldige waarde." }, 400);
-  await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=CURRENT_TIMESTAMP").bind(key, String(body.enabled)).run();
-  return c.json({ ok: true, enabled: body.enabled });
+  const result = await updateDjSetting({ db: c.env.DB, key: c.req.param("key"), enabled: body.enabled });
+  return c.json(result.body, result.status as 200 | 400);
 });
 
 app.post("/api/dj/spotify/connect", async (c) => {
@@ -351,13 +316,6 @@ app.post("/api/dj/spotify/queue/:id",async(c)=>{
 
 app.notFound((c) => c.env.ASSETS.fetch(c.req.raw));
 
-async function cleanupOldRequests(env: Env): Promise<void> {
-  // Keep the live queue untouched; only purge completed requests older than 30 days.
-  await env.DB.prepare(
-    "DELETE FROM requests WHERE requested_at < datetime('now','-30 days') AND status NOT IN ('pending','approved','queued')"
-  ).run();
-}
-
 export class QueueRoom {
   constructor(private readonly state: DurableObjectState) {}
   async fetch(request: Request): Promise<Response> {
@@ -369,6 +327,6 @@ export class QueueRoom {
 export default {
   fetch: app.fetch,
   scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(cleanupOldRequests(env));
+    ctx.waitUntil(cleanupCompletedRequests(env.DB));
   }
 };
