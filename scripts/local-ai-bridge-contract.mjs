@@ -16,7 +16,7 @@ test("bridge source keeps the listener loopback-only by default", async () => {
 
 test("bridge documentation forbids silent API billing fallback", async () => {
   const source = await (await import("node:fs/promises")).readFile(
-    new URL("../../tools/local-ai-bridge/README.md", import.meta.url), "utf8",
+    new URL("../tools/local-ai-bridge/README.md", import.meta.url), "utf8",
   );
   assert.match(source, /does not switch to API billing/i);
   assert.match(source, /Spotify catalogue results/i);
