@@ -10,6 +10,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | SHA-256, HMAC, base64url, constant-time comparison | `platform/security/crypto.ts` | `platform/security/crypto.ts` |
 | AES-GCM encryption/decryption for stored Spotify tokens | `platform/security/crypto.ts` | `platform/security/crypto.ts` |
 | Signed bearer-token creation and validation | `modules/identity/session-token.ts` | `modules/identity/` |
+| DJ login validation and event-scoped DJ session authorization | `modules/identity/dj-session.ts` | `modules/identity/dj-session.ts` |
 | Spotify client-credentials token cache | `integrations/spotify/catalog-token.ts` | `integrations/spotify/catalog-token.ts` |
 | Spotify track response shape | `integrations/spotify/types.ts` | `integrations/spotify/types.ts` |
 | Spotify playback HTTP endpoints, methods and request payloads | `integrations/spotify/playback-api.ts` | `integrations/spotify/playback-api.ts` |
@@ -26,11 +27,11 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 
 | Current function / route | Current mixed responsibility | Intended owner |
 |---|---|---|
-| `requireDJ` | DJ role/event authorization | Identity application service / DJ auth middleware |
+| `requireDJ` | Thin event-scoped DJ session authorization adapter | `modules/identity/dj-session.ts` |
 | `POST /api/guests/join` | HTTP body parsing and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Identity session-token service |
 | `GET /api/spotify/search` | Guest authorization, Spotify HTTP request, Spotify response mapping | Search use case + Spotify catalogue adapter |
 | `POST /api/requests` | Guest session authorization, input validation and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Spotify catalogue adapter |
-| `POST /api/dj/login` | DJ code validation and session issue | DJ authentication use case |
+| `POST /api/dj/login` | JSON parsing and response serialization | `modules/identity/dj-session.ts` |
 | `POST /api/dj/ai/assistant` | Preference persistence, history/context assembly, event-time logic, prompt construction, provider call, tool dispatch, cache, quota/error mapping | AI orchestrator + context assembler + memory repository + prompt catalog + Cloudflare AI provider + Spotify search tool |
 | `POST /api/dj/ai/music/search` | DJ validation, query normalization, Spotify search and result mapping | AI music-search use case + Spotify catalogue adapter |
 | `POST /api/dj/ai/music/add` | DJ authorization, input validation and response serialization | `modules/requests/application/guest-request-lifecycle.ts` + `modules/requests/infrastructure/guest-request-repository.ts` + Spotify catalogue adapter |
