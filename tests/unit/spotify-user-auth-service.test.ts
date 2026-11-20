@@ -42,6 +42,33 @@ describe("Spotify user-auth service", () => {
     expect(calls).toHaveLength(1);
   });
 
+  it("refreshes an expired token under the D1 lease and persists the rotated refresh token encrypted", async () => {
+    const refreshEncrypted = await encryptSecret("old-refresh-token", envBase.SESSION_SECRET);
+    const { db, calls } = fakeDb({
+      access_token_enc: "expired-access-ciphertext",
+      refresh_token_enc: refreshEncrypted,
+      expires_at: Date.now() - 1000,
+    });
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({
+      access_token: "new-access-token",
+      refresh_token: "rotated-refresh-token",
+      expires_in: 3600,
+    }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    const token = await spotifyUserToken(
+      { ...envBase, DB: db } as never,
+      fetcher as never,
+      async () => undefined,
+    );
+    expect(token).toBe("new-access-token");
+    const request = fetcher.mock.calls[0]?.[1];
+    expect(request?.body).toBeInstanceOf(URLSearchParams);
+    expect((request?.body as URLSearchParams).get("refresh_token")).toBe("old-refresh-token");
+    const stored = calls.find((call) => call.sql.includes("INSERT INTO spotify_auth"));
+    expect(stored?.values[0]).not.toBe("new-access-token");
+    expect(stored?.values[1]).not.toBe("rotated-refresh-token");
+    expect(calls.some((call) => call.sql.includes("DELETE FROM settings"))).toBe(true);
+  });
+
   it("attaches the user token and passes the Spotify response through unchanged", async () => {
     const accessEncrypted = await encryptSecret("cached-access-token", envBase.SESSION_SECRET);
     const refreshEncrypted = await encryptSecret("cached-refresh-token", envBase.SESSION_SECRET);
