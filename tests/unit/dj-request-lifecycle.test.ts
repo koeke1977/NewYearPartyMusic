@@ -12,6 +12,7 @@ function fakeDb(options:{
   autoQueue?:string;
   savedOrder?:string;
   updateChanges?:number;
+  insertChanges?:number;
 }={}){
   const calls:Array<{sql:string;values:unknown[]}>= [];
   const db={
@@ -29,7 +30,7 @@ function fakeDb(options:{
         },
         async run(){
           calls.push({sql,values:[...values]});
-          return {meta:{changes:options.updateChanges??1}};
+          return {meta:{changes:sql.startsWith("INSERT INTO requests") ? (options.insertChanges??1) : (options.updateChanges??1)}};
         },
       };
       return statement;
@@ -101,6 +102,16 @@ describe("DJ request lifecycle",()=>{
     expect(insert?.values).toContain("Artist");
     const orderWrite=calls.find(call=>call.sql.includes("partyqueue_order")&&call.sql.startsWith("INSERT INTO settings"));
     expect(JSON.parse(orderWrite?.values[0] as string)).toEqual(["old","stale","new-request"]);
+  });
+
+  it("treats a concurrent DJ add as already queued without changing saved order",async()=>{
+    const {db,calls}=fakeDb({insertChanges:0,duplicate:{id:"raced-request",status:"queued"}});
+    const result=await addDjTrackToPartyQueue({
+      repository:createGuestRequestRepository(db),eventId:"event-1",trackId:track.id,createId:()=>"new-request",
+      trackGateway:{getTrack:async()=>track},
+    });
+    expect(result).toEqual({status:200,body:{ok:true,alreadyQueued:true,status:"queued"}});
+    expect(calls.some(call=>call.sql.includes("partyqueue_order")&&call.sql.startsWith("INSERT INTO settings"))).toBe(false);
   });
 
   it("returns Spotify errors without inserting a DJ request",async()=>{
