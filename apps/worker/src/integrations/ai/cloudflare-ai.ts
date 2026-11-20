@@ -36,11 +36,11 @@ export function extractCloudflareAssistantText(result: unknown): unknown {
   const nestedResult = root && asRecord(root.result);
   const message = firstMessage(result);
   const nestedMessage = nestedResult ? firstMessage(nestedResult) : null;
-  return root?.response ??
-    nestedResult?.response ??
-    message?.content ??
-    root?.output_text ??
-    nestedMessage?.content ??
+  return root?.response ||
+    nestedResult?.response ||
+    message?.content ||
+    root?.output_text ||
+    nestedMessage?.content ||
     "";
 }
 
