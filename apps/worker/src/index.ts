@@ -13,6 +13,7 @@ import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist,
 import { addDjTrackToPartyQueue, joinPartyGuest, moderatePartyRequest, queueApprovedPartyRequest, submitGuestTrackRequest } from "./modules/requests/application/guest-request-lifecycle";
 import { getDjOverview, reorderDjQueue, updateDjSetting } from "./modules/requests/application/dj-queue-management";
 import { cleanupCompletedRequests } from "./modules/requests/application/cleanup-completed-requests";
+import { readSpotifyFallbackError, setSpotifyFallbackActive, setSpotifyManualPause } from "./modules/playback/infrastructure/playback-policy-repository";
 
 
 
@@ -205,7 +206,7 @@ async function startSpotifyFallback(env: Env): Promise<void> {
   if (!shuffle.ok && shuffle.status !== 204) throw new Error("Spotify shuffle inschakelen mislukt (HTTP " + shuffle.status + ").");
   const play = await playPlaylist(spotifyFetch.bind(null, env), SPOTIFY_FALLBACK_PLAYLIST_URI);
   if (!play.ok && play.status !== 204) throw new Error("Spotify Party Hits starten mislukt (HTTP " + play.status + ").");
-  await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_active','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
+  await setSpotifyFallbackActive(env.DB);
 }
 
 async function startNextPartyQueueRequest(env: Env): Promise<{ok:boolean;busy?:boolean;track?:{name:string;artist:string};requestId?:string;error?:string}> {
@@ -245,7 +246,7 @@ app.get("/api/dj/spotify/status",async(c)=>{
     if(response.status===204){
       const fallbackActive=await maybeStartSpotifyFallback(c.env,null,false,0,0);
       const autoAdvance=await maybeAdvancePartyQueue(c.env,false);
-      const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
+      const fallbackError=await readSpotifyFallbackError(c.env.DB);
       return c.json({connected:true,playing:false,device:null,track:null,nextTrack:null,fallbackActive,autoAdvanced:autoAdvance.advanced,autoAdvanceError:autoAdvance.error||null,fallbackError:fallbackError?.value||null});
     }
     if(!response.ok) return c.json({error:"Spotify playbackstatus niet beschikbaar (HTTP "+response.status+")."},502);
@@ -254,11 +255,11 @@ app.get("/api/dj/spotify/status",async(c)=>{
     const playing=!!data.is_playing;
     // If playback was resumed directly in Spotify, clear a stale pause flag left by the DJ console.
     if(playing){
-      await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
+      await setSpotifyManualPause(c.env.DB, false);
     }
     const autoAdvance=await maybeAdvancePartyQueue(c.env,playing);
     const fallbackActive=await maybeStartSpotifyFallback(c.env,item?.uri||null,playing,data.progress_ms||0,item?.duration_ms||0);
-    const fallbackError=await c.env.DB.prepare("SELECT value FROM settings WHERE key='spotify_fallback_error'").first<{value:string}>();
+    const fallbackError=await readSpotifyFallbackError(c.env.DB);
     let nextTrack=null;
     if(fallbackActive){
       const queueResponse=await getPlaybackQueue(spotifyFetch.bind(null, c.env));
@@ -305,8 +306,8 @@ app.post("/api/dj/spotify/:action",async(c)=>{
       const detail=(await r.text()).slice(0,400);
       return c.json({error:"Spotify-commando geweigerd (HTTP "+r.status+"). "+detail},502);
     }
-    if(action==="pause") await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause','true',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='true',updated_at=CURRENT_TIMESTAMP").run();
-    if(action==="play") await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP").run();
+    if(action==="pause") await setSpotifyManualPause(c.env.DB, true);
+    if(action==="play") await setSpotifyManualPause(c.env.DB, false);
     return c.json({ok:true});
   }
   catch(e){return c.json({error:e instanceof Error?e.message:"Spotify-commando mislukt."},503);}
