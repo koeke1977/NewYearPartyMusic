@@ -7,7 +7,7 @@ import {
 } from "../context/assistant-context";
 import { buildDJAssistantPrompt } from "../prompts/dj-assistant";
 import { parseDJPreferences } from "../memory/dj-preferences";
-import { ASSISTANT_MAX_OUTPUT_TOKENS } from "../infrastructure/neuron-budget";
+import { ASSISTANT_MAX_OUTPUT_TOKENS } from "./neuron-budget-policy";
 
 export type DJAssistantHttpResult = { status: number; body: Record<string, unknown> };
 

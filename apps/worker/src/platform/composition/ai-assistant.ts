@@ -7,7 +7,8 @@ import {
   claimAssistantRateLimit, readAssistantAnswerCache, rememberDJPreferenceInDatabase,
   writeAssistantAnswerCache,
 } from "../../modules/ai/infrastructure/assistant-settings-repository";
-import { createDailyAssistantNeuronBudget } from "../../modules/ai/infrastructure/neuron-budget";
+import { createDailyAssistantNeuronBudget } from "../../modules/ai/application/neuron-budget-policy";
+import { createD1AssistantNeuronUsageRepository } from "../../modules/ai/infrastructure/neuron-budget";
 
 export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
   const repository: AssistantRepository = {
@@ -16,7 +17,7 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
     readAnswerCache: key => readAssistantAnswerCache(env.DB, key),
     writeAnswerCache: (key, answer, matches) => writeAssistantAnswerCache(env.DB, key, answer, matches),
     claimRateLimit: () => claimAssistantRateLimit(env.DB),
-    createNeuronBudget: () => createDailyAssistantNeuronBudget(env.DB),
+    createNeuronBudget: () => createDailyAssistantNeuronBudget(createD1AssistantNeuronUsageRepository(env.DB)),
   };
   return executeDJAssistant({
     env, prompt, repository, hash: sha256,
