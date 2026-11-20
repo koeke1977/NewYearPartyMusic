@@ -14,7 +14,7 @@
     "release:preflight": "node scripts/release-guard.mjs preflight",
     "test:architecture": "node scripts/check-architecture-boundaries.mjs",
     "deploy:production": "node scripts/release-guard.mjs deploy",
-    "test:local-ai-bridge": "node --test tests/local-ai-bridge/*.test.mjs"
+    "test:local-ai-bridge": "node --test scripts/local-ai-bridge-contract.test.mjs"
   },
   "dependencies": {
     "hono": "^4.10.0"
