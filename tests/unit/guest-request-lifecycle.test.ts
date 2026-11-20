@@ -32,9 +32,9 @@ function fakeDb(options: {
 
 const spotifyTrack = {
   id:"1234567890123456789012", uri:"spotify:track:1234567890123456789012",
-  name:"Test Song", artists:[{name:"Artist A"},{name:"Artist B"}],
-  album:{images:[{url:"https://image.example/large"},{url:"https://image.example/medium"}]},
-  duration_ms:210000,
+  name:"Test Song", artists:["Artist A","Artist B"],
+  albumImageUrl:"https://image.example/medium",
+  durationMs:210000,
 };
 
 describe("guest request lifecycle", () => {
