@@ -43,3 +43,12 @@ The guest search uses several generic classes rather than a consistent `.guest-*
 ## Current decision
 
 The first CSS foundation extraction is complete. Both HTML entrypoints now load `styles/tokens.css`, `styles/base.css` and the remaining `styles.css` in that order. Only the six root tokens, universal box-sizing reset, `html`, and `body` foundation rules plus the font import moved; all values and component selectors are preserved. The before/after Playwright captures are pixel-identical at all four viewports: guest desktop (1440×1000), guest mobile (390×844), DJ desktop (1600×1813 full-page capture) and DJ responsive (1024×1865 full-page capture). The guest-specific selector move is also pixel-identical at all four viewports. Shared `.text-button` and `.button:disabled` remain in `styles.css`; the DJ page does not load `styles/guest.css`. Continue with DJ-only selectors only after their ownership is verified from `dj.html` and the relevant DOM hooks.
+
+
+## DJ stylesheet extraction
+
+- `apps/web/styles.css`: shared page shell and text-button foundations used by both guest and DJ pages.
+- `apps/web/styles/dj-console.css`: DJ-only console, stage, mixer, Spotify transport, turntable, request queue, reorder and AI assistant presentation.
+- `apps/web/dj.html` loads `styles.css` followed by `styles/dj-console.css` to preserve the original cascade order. Guest page keeps its existing `styles.css` then `styles/guest.css` order.
+
+This extraction moves the existing declarations without rewriting selectors or values; visual baselines are required to validate that the page output remains unchanged.
