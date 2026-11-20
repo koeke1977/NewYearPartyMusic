@@ -56,7 +56,7 @@ export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {},
       try {
         await api("/api/dj/spotify/connection", { method: "DELETE" });
         view.renderOffline(new Error("Spotify-account disconnected."));
-        onMessage("Spotify-account ontkoppeld. De opgeslagen tokens zijn verwijderd.");
+        onMessage("PartyQueue heeft de lokaal opgeslagen tokens verwijderd. Trek de toestemming desgewenst ook in via je Spotify-account > Apps.");
       } catch (error) {
         onMessage(error.message);
       } finally {
