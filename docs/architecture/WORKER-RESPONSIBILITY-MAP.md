@@ -14,6 +14,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Spotify track response shape | `integrations/spotify/types.ts` | `integrations/spotify/types.ts` |
 | Spotify playback HTTP endpoints, methods and request payloads | `integrations/spotify/playback-api.ts` | `integrations/spotify/playback-api.ts` |
 | Encrypted Spotify user-token persistence, refresh lease and invalidation | `integrations/spotify/user-auth-repository.ts` | `integrations/spotify/user-auth-repository.ts` |
+| Spotify OAuth code exchange, encrypted token lifecycle, refresh rotation and authenticated user API client | `integrations/spotify/user-auth-service.ts` | `integrations/spotify/user-auth-service.ts` |
 | Queue dispatch D1 lease, ordered queue read, conditional played transition and playback-state writes | `modules/queue/infrastructure/queue-dispatch-repository.ts` | `modules/queue/infrastructure/queue-dispatch-repository.ts` |
 | Cohesive lock-protected PartyQueue dispatch workflow | `modules/queue/application/dispatch-next-track.ts` | `modules/queue/application/dispatch-next-track.ts` |
 | Queue end-of-track advancement and fallback eligibility/retry policy | `modules/playback/application/playback-automation.ts` | `modules/playback/application/playback-automation.ts` + `modules/playback/infrastructure/playback-policy-repository.ts` |
@@ -34,11 +35,11 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | `POST /api/dj/queue/reorder` | Queue validation, order persistence, accepted-set history persistence | Reorder-queue use case + Queue repository + DJ history repository |
 | `POST /api/dj/requests/:id/:action` | State-transition policy, auto-queue setting, timestamp update | Moderate-request use case + Request/Settings repositories |
 | `POST /api/dj/settings/:key` | Settings allow-list, validation and persistence | Update-DJ-setting use case + Settings repository |
-| `saveSpotifyTokens` | Encrypt token pair, then delegate persistence | Spotify OAuth token store + crypto adapter |
-| `spotifyUserToken` | Refresh-token flow, decrypt, refresh request and rotation; D1 operations delegated | Spotify OAuth token service + `user-auth-repository.ts` |
-| `spotifyFetch` | Authenticated Spotify user API request and 401 refresh retry; token invalidation delegated | Spotify user API adapter + token repository |
+| `saveSpotifyTokens` | Encrypt token pair, then delegate persistence | `integrations/spotify/user-auth-service.ts` + token repository |
+| `spotifyUserToken` | Refresh-token flow, decrypt, refresh request and rotation; D1 operations delegated | `integrations/spotify/user-auth-service.ts` + `user-auth-repository.ts` |
+| `spotifyFetch` | Authenticated Spotify user API request and 401 refresh retry; token invalidation delegated | `integrations/spotify/user-auth-service.ts` + `user-auth-repository.ts` |
 | `POST /api/dj/spotify/connect` | DJ auth, OAuth state creation, redirect and cookie | Spotify OAuth start use case + route adapter |
-| `GET /auth/spotify/callback` | State cookie validation, code exchange, token persistence, redirect | Spotify OAuth callback use case + route adapter |
+| `GET /auth/spotify/callback` | State cookie validation, code exchange, token persistence, redirect | Route adapter + `integrations/spotify/user-auth-service.ts` |
 | `startSpotifyFallback` | Fallback policy plus playback gateway call and fallback setting write | Playback application service + `integrations/spotify/playback-api.ts` |
 | `startNextPartyQueueRequest` | Thin adapter supplying the Spotify playback operation | `modules/queue/application/dispatch-next-track.ts` + `modules/queue/infrastructure/queue-dispatch-repository.ts` |
 | `maybeAdvancePartyQueue` | Thin adapter to queue advancement policy | `modules/playback/application/playback-automation.ts` |
@@ -65,7 +66,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 
 1. Complete characterization tests for guest request lifecycle and DJ request transitions.
 2. Extract D1 repositories and application use cases for guests, requests and settings.
-3. Keep Spotify catalogue and OAuth token handling separate; playback HTTP paths and payloads now live in `integrations/spotify/playback-api.ts`, injected with the authenticated user API request function.
+3. Keep Spotify catalogue and OAuth user-token handling separate. OAuth code exchange, refresh rotation and authenticated user API requests now live in `integrations/spotify/user-auth-service.ts`; encrypted persistence remains in `user-auth-repository.ts`. Playback paths and payloads live in `playback-api.ts`.
 4. Extract queue dispatch and playback/fallback orchestration together.
 5. Split AI context, memory, prompt catalog, provider adapter, tool adapter and use cases.
 6. Convert route handlers to thin transport adapters and assemble them from `app.ts`.
