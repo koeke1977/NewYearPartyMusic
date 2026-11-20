@@ -42,7 +42,7 @@ The following measurements describe the **original pre-extraction baseline**, no
 | HTML | `apps/web/dj.html`, ~9 KB | Semantic page structure and stable hooks; behaviour loads through external native ES modules |
 | Documentation | Original architecture/development notes | Responsibility maps are maintained in `docs/architecture/`; this plan records target boundaries and remaining work |
 
-The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The Worker application layer now uses application-owned repository/provider ports across the guest/request, DJ queue, music catalogue, AI, queue dispatch and playback workflows. A CI dependency-boundary check enforces that application and identity policy code does not import infrastructure, integrations, Cloudflare platform bindings or HTTP response objects. The remaining work is targeted composition review, frontend interaction coverage and operational hardening before a real event.
+The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The Worker application layer now uses application-owned repository/provider ports across the guest/request, DJ queue, music catalogue, AI, queue dispatch and playback workflows. A CI dependency-boundary check enforces Worker application/domain/identity dependencies and browser transport/storage ownership, including no direct Spotify API calls or inline HTML presentation/behaviour. The remaining work is targeted composition review, frontend interaction coverage and operational hardening before a real event.
 
 ## Environment assumptions
 
