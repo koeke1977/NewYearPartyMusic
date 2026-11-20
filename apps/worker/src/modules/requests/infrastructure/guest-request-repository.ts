@@ -21,21 +21,14 @@ export async function findEventGuest(db: GuestRequestDatabase, guestId: string, 
 
 export async function readGuestRequestSettings(db: GuestRequestDatabase): Promise<GuestRequestSettings> {
   const result = await db.prepare(
-    "SELECT key, value FROM settings WHERE key IN ('requests_paused','max_open_requests_per_guest','max_requests_per_30_minutes','auto_approve','auto_queue')",
+    "SELECT key, value FROM settings WHERE key IN ('requests_paused','max_requests_per_hour','auto_approve','auto_queue')",
   ).all<{ key: string; value: string }>();
   return Object.fromEntries((result.results || []).map(row => [row.key, row.value]));
 }
 
 export async function countRecentGuestRequests(db: GuestRequestDatabase, guestId: string): Promise<number> {
   const row = await db.prepare(
-    "SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-30 minutes')",
-  ).bind(guestId).first<{ count: number }>();
-  return row?.count || 0;
-}
-
-export async function countOpenGuestRequests(db: GuestRequestDatabase, guestId: string): Promise<number> {
-  const row = await db.prepare(
-    "SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND status IN ('pending','approved','queued')",
+    "SELECT COUNT(*) AS count FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-1 hour')",
   ).bind(guestId).first<{ count: number }>();
   return row?.count || 0;
 }
@@ -48,18 +41,17 @@ export async function findActiveTrackRequest(db: GuestRequestDatabase, eventId: 
 
 export async function insertGuestTrackRequest(
   db: GuestRequestDatabase, request: StoredTrackRequest,
-  limits: { maxOpenRequests: number; maxRequestsPer30Minutes: number },
+  limits: { maxRequestsPerHour: number },
 ): Promise<boolean> {
   const result = await db.prepare(
     "INSERT OR IGNORE INTO requests (id,event_id,guest_id,spotify_track_id,track_uri,track_name,artist_name,album_image_url,duration_ms,status,approved_at,queued_at) " +
     "SELECT ?,?,?,?,?,?,?,?,?,?,CASE WHEN ? IN ('approved','queued') THEN CURRENT_TIMESTAMP ELSE NULL END,CASE WHEN ? = 'queued' THEN CURRENT_TIMESTAMP ELSE NULL END " +
-    "WHERE (SELECT COUNT(*) FROM requests WHERE guest_id = ? AND status IN ('pending','approved','queued')) < ? " +
-    "AND (SELECT COUNT(*) FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-30 minutes')) < ?",
+    "WHERE (SELECT COUNT(*) FROM requests WHERE guest_id = ? AND requested_at >= datetime('now','-1 hour')) < ?",
   ).bind(
     request.id, request.event_id, request.guest_id, request.spotify_track_id, request.track_uri,
     request.track_name, request.artist_name, request.album_image_url, request.duration_ms,
     request.status, request.status, request.status,
-    request.guest_id, limits.maxOpenRequests, request.guest_id, limits.maxRequestsPer30Minutes,
+    request.guest_id, limits.maxRequestsPerHour,
   ).run();
   return result.meta.changes === 1;
 }
