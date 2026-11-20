@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import type { Env } from "../platform/env";
-import { readSession } from "../modules/identity/session-token";
-import { joinGuestFromEnvironment, submitGuestRequestFromEnvironment, searchGuestTracksFromEnvironment } from "../platform/composition/guest-workflows";
+import { readSession } from "../platform/composition/session-token";
+import {
+  joinGuestFromEnvironment, submitGuestRequestFromEnvironment, searchGuestTracksFromEnvironment,
+} from "../platform/composition/guest-workflows";
 
 export const guestRoutes = new Hono<{ Bindings: Env }>();
 
@@ -15,7 +17,8 @@ guestRoutes.post("/guests/join", async (c) => {
   } catch {
     return c.json({ error: "Ongeldige aanvraag." }, 400);
   }
-  const result = await joinGuestFromEnvironment(c.env,
+  const result = await joinGuestFromEnvironment(
+    c.env,
     typeof body.nickname === "string" ? body.nickname.trim() : "",
     typeof body.eventCode === "string" ? body.eventCode.trim() : "",
   );
