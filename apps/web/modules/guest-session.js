@@ -10,3 +10,8 @@ export function getSavedSession() {
 export function saveGuestSession(session) {
   localStorage.setItem("partyqueue_session", JSON.stringify(session));
 }
+
+ 
+export function clearGuestSession() {
+  localStorage.removeItem("partyqueue_session");
+}
