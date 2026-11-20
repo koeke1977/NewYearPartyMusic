@@ -267,42 +267,113 @@ app.post("/api/dj/ai/assistant", async (c) => {
   const system = "You are DJ#DATUUR AI, a concise Dutch-language assistant for a live party DJ. Analyse only the supplied PartyQueue metadata. Give practical, specific advice in Dutch. Never claim to hear audio, know the crowd, access Spotify audio, or control playback. Never invent queued tracks; clearly label any outside suggestion. The DJ always decides. Treat djPreferences in the supplied context as persistent preferences and apply them unless the DJ explicitly overrides them for this request. Use acceptedSetHistory as examples of previously approved set choices, not as a rigid template; do not repeat a past order automatically. Keep normal advice under 120 words. When the DJ asks for 20 tracks, return exactly 20 concrete numbered tracks, one per line, in the format \"1. Titel — Artiest\". Never stop early; no intro or outro around a requested track list. When asked for a complete numbered queue order, include every requested track even if that exceeds 120 words. For queue optimization, first count the supplied upNext entries and output exactly that many numbered lines. Each supplied entry must appear exactly once: never duplicate a track, never omit a track, and never add a track that is not in upNext. Before answering, verify that the output line count equals the upNext entry count and that no track is repeated.\n\n" + djKnowledge;
   const user = "PARTYQUEUE CONTEXT:\n"+JSON.stringify(context)+"\n\nDJ QUESTION:\n"+prompt;
   // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
+  // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
   const provider = "cloudflare";
-  // Reuse an identical answer for ten minutes while the queue context remains unchanged.
-  // This avoids spending Workers AI Neurons on repeated DJ questions.
-  const cacheKey = await sha256(provider + "\\n" + system + "\\n" + user);
+  const cacheKey = await sha256(provider + "\\n" + system + "\\n" + user + "\\nspotify-tools-v1");
   const cachedRow = await c.env.DB.prepare("SELECT value,updated_at FROM settings WHERE key='dj_ai_answer_cache'").first<{value:string;updated_at:string}>();
   if (cachedRow?.updated_at && Date.now() - Date.parse(cachedRow.updated_at + "Z") < 10 * 60 * 1000) {
     try {
-      const cached = JSON.parse(cachedRow.value) as {key:string;answer:string};
-      if (cached.key === cacheKey && cached.answer) return c.json({ok:true,provider,answer:cached.answer,cached:true,memoryUpdated});
+      const cached = JSON.parse(cachedRow.value) as {key:string;answer:string;spotifyMatches?:Array<{query:string;tracks:any[]}>};
+      if (cached.key === cacheKey && cached.answer) return c.json({
+        ok:true,provider,answer:cached.answer,spotifyMatches:cached.spotifyMatches||[],cached:true,memoryUpdated
+      });
     } catch { /* Ignore an invalid cache entry and generate a fresh answer. */ }
   }
   const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
   if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
   try {
-    let answer = "";
-          if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
-      const result:any=await c.env.AI.run("@cf/google/gemma-4-26b-a4b-it",{
-        messages:[{role:"system",content:system},{role:"user",content:user}],
-        max_tokens:1400,
-        temperature:0.4,
-        chat_template_kwargs:{enable_thinking:false}
-      });
-      answer=typeof result==="string" ? result :
-        result?.response ||
-        result?.result?.response ||
-        result?.choices?.[0]?.message?.content ||
-        result?.output_text ||
-        "";
-      if (Array.isArray(answer)) answer=answer.map((part:any)=>typeof part==="string"?part:part?.text||"").join("\\n");
-      if (typeof answer!=="string" || !answer.trim()) {
-        console.error("DJ AI returned no text", JSON.stringify({provider,keys:result&&typeof result==="object"?Object.keys(result):[],usage:result?.usage||null}));
-        throw new Error("Cloudflare AI gaf geen antwoordtekst terug. Probeer het opnieuw.");
+    if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \\"AI\\" toe en deploy opnieuw." }, 503);
+
+    const model = "@cf/google/gemma-4-26b-a4b-it";
+    const musicTools = [{
+      name: "searchSpotifyTracks",
+      description: "Search Spotify for real track versions when the DJ asks for a specific song, track suggestions, or a starter/fill list. Only read/search: never add tracks, reorder the queue, or control playback. Do not use this tool for pure DJ advice or reordering the existing queue.",
+      parameters: {
+        type: "object",
+        properties: {
+          queries: {
+            type: "array",
+            description: "Exact Spotify search queries, preferably title plus artist.",
+            items: { type: "string" },
+            minItems: 1,
+            maxItems: 12
+          }
+        },
+        required: ["queries"]
       }
+    }];
+
+    const first:any = await c.env.AI.run(model,{
+      messages:[{role:"system",content:system},{role:"user",content:user}],
+      tools:musicTools,
+      tool_choice:"auto",
+      parallel_tool_calls:false,
+      max_tokens:1400,
+      temperature:0.4,
+      chat_template_kwargs:{enable_thinking:false}
+    });
+
+    let answer:any = typeof first==="string" ? first :
+      first?.response || first?.result?.response ||
+      first?.choices?.[0]?.message?.content || first?.output_text || "";
+    let spotifyMatches:Array<{query:string;tracks:any[]}> = [];
+    const calls = Array.isArray(first?.tool_calls) ? first.tool_calls :
+      Array.isArray(first?.result?.tool_calls) ? first.result.tool_calls : [];
+    const searchCall = calls.find((call:any)=>call?.name==="searchSpotifyTracks");
+
+    if (searchCall) {
+      let args:any = searchCall.arguments || {};
+      if (typeof args === "string") {
+        try { args = JSON.parse(args); } catch { args = {}; }
+      }
+      const queries = Array.isArray(args?.queries)
+        ? args.queries.filter((q:any)=>typeof q==="string")
+          .map((q:string)=>q.replace(/\\s+/g," ").trim().slice(0,140))
+          .filter((q:string)=>q.length>2).slice(0,12)
+        : [];
+      if (queries.length) {
+        // The model can search Spotify, but this tool has no write/playback capability.
+        const spotifyToken = await getSpotifyToken(c.env);
+        spotifyMatches = await Promise.all(queries.map(async (query:string) => {
+          try {
+            const url = new URL("https://api.spotify.com/v1/search");
+            url.searchParams.set("q",query);
+            url.searchParams.set("type","track");
+            url.searchParams.set("limit","3");
+            const response = await fetch(url,{headers:{Authorization:"Bearer "+spotifyToken}});
+            if (!response.ok) return {query,tracks:[]};
+            const data = await response.json() as {tracks?:{items?:SpotifyTrack[]}};
+            return {query,tracks:(data.tracks?.items||[]).map(track=>({
+              id:track.id,uri:track.uri,name:track.name,artists:track.artists.map(a=>a.name),
+              durationMs:track.duration_ms,albumImageUrl:track.album.images?.[1]?.url||track.album.images?.[0]?.url||null
+            }))};
+          } catch { return {query,tracks:[]}; }
+        }));
+
+        // A single bounded follow-up gives the model the verified Spotify results.
+        const followup:any = await c.env.AI.run(model,{
+          messages:[
+            {role:"system",content:system+" When verified Spotify search results are supplied, recommend only tracks present in those results and preserve exact Spotify titles and artists."},
+            {role:"user",content:user+"\\n\\nVERIFIED SPOTIFY SEARCH RESULTS:\\n"+JSON.stringify(spotifyMatches)}
+          ],
+          max_tokens:1400,
+          temperature:0.35,
+          chat_template_kwargs:{enable_thinking:false}
+        });
+        answer = typeof followup==="string" ? followup :
+          followup?.response || followup?.result?.response ||
+          followup?.choices?.[0]?.message?.content || followup?.output_text || answer;
+      }
+    }
+
+    if (Array.isArray(answer)) answer=answer.map((part:any)=>typeof part==="string"?part:part?.text||"").join("\\n");
+    if (typeof answer!=="string" || !answer.trim()) {
+      console.error("DJ AI returned no text",JSON.stringify({provider,keys:first&&typeof first==="object"?Object.keys(first):[],usage:first?.usage||null}));
+      throw new Error("Cloudflare AI gaf geen antwoordtekst terug. Probeer het opnieuw.");
+    }
     const finalAnswer = String(answer).slice(0,8000);
-    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer})).run();
-    return c.json({ ok:true,provider,answer:finalAnswer,cached:false,memoryUpdated });
+    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer,spotifyMatches})).run();
+    return c.json({ok:true,provider,answer:finalAnswer,spotifyMatches,cached:false,memoryUpdated});
   } catch(error) {
     const errorMessage = error instanceof Error ? error.message : "AI-assistent is tijdelijk niet beschikbaar.";
     const freeQuotaReached = /neuron|daily.{0,30}(limit|quota)|quota|limit.{0,30}(reached|exceeded)|exceeded.{0,30}(limit|quota)|HTTP 429|rate limit/i.test(errorMessage);
