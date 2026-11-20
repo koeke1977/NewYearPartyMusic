@@ -26,6 +26,22 @@ export async function setSpotifyFallbackState(db: PlaybackPolicyDatabase, value:
   ).bind(value).run();
 }
 
+export async function setSpotifyFallbackActive(db: PlaybackPolicyDatabase): Promise<void> {
+  await setSpotifyFallbackState(db, "true");
+}
+
+export async function readSpotifyFallbackError(db: PlaybackPolicyDatabase): Promise<string | null> {
+  const setting = await readPlaybackSetting(db, "spotify_fallback_error");
+  return setting?.value || null;
+}
+
+export async function setSpotifyManualPause(db: PlaybackPolicyDatabase, paused: boolean): Promise<void> {
+  await db.prepare(
+    "INSERT INTO settings (key,value,updated_at) VALUES ('spotify_manual_pause',?,CURRENT_TIMESTAMP) " +
+    "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
+  ).bind(paused ? "true" : "false").run();
+}
+
 export async function setSpotifyFallbackError(db: PlaybackPolicyDatabase, message: string): Promise<void> {
   await db.prepare(
     "INSERT INTO settings (key,value,updated_at) VALUES ('spotify_fallback_error',?,CURRENT_TIMESTAMP) " +
