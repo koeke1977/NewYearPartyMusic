@@ -10,7 +10,6 @@ function fakeDb(options:{
   current?:{id:string;status:string}|null;
   duplicate?:{id:string;status:string}|null;
   autoQueue?:string;
-  savedOrder?:string;
   updateChanges?:number;
   insertChanges?:number;
   duplicateAfterInsert?:{id:string;status:string}|null;
@@ -27,7 +26,6 @@ function fakeDb(options:{
           if(sql.includes("spotify_track_id"))return insertAttempted ? (options.duplicateAfterInsert ?? options.duplicate ?? null) : (options.duplicate ?? null);
           if(sql.includes("SELECT id,status FROM requests"))return options.current===undefined?{id:"req-1",status:"pending"}:options.current;
           if(sql.includes("SELECT value FROM settings WHERE key = ?"))return {value:options.autoQueue??"false"};
-          if(sql.includes("SELECT value FROM settings WHERE key='partyqueue_order'"))return {value:options.savedOrder??'["old"]'};
           return null;
         },
         async run(){
@@ -104,7 +102,7 @@ describe("DJ request lifecycle",()=>{
   });
 
   it("creates a DJ guest, queues the selected track and appends its ID to saved order",async()=>{
-    const {db,calls}=fakeDb({savedOrder:'["old","stale"]'});
+    const {db,calls}=fakeDb();
     const result=await addDjTrackToPartyQueue({
       repository:createGuestRequestRepository(db),eventId:"event-1",trackId:track.id,createId:()=>"new-request",
       trackGateway:{getTrack:async()=>track},
@@ -117,7 +115,10 @@ describe("DJ request lifecycle",()=>{
     expect(insert?.values).toContain("queued");
     expect(insert?.values).toContain("Artist");
     const orderWrite=calls.find(call=>call.sql.includes("partyqueue_order")&&call.sql.startsWith("INSERT INTO settings"));
-    expect(JSON.parse(orderWrite?.values[0] as string)).toEqual(["old","stale","new-request"]);
+    expect(orderWrite?.sql).toContain("json_each");
+    expect(orderWrite?.sql).toContain("json_insert");
+    expect(orderWrite?.values).toEqual(["new-request","new-request","new-request"]);
+    expect(calls.some(call=>call.sql.includes("SELECT value FROM settings WHERE key='partyqueue_order'"))).toBe(false);
   });
 
   it("treats a concurrent DJ add as already queued without changing saved order",async()=>{
