@@ -12,18 +12,12 @@ import {
 export type AdvanceResult = { advanced: boolean; error?: string };
 export type DispatchResult = { ok: boolean; busy?: boolean; error?: string };
 
-type PlaybackPolicyBase = {
+type PlaybackPolicyDependencies = {
   db: PlaybackPolicyDatabase;
   eventId: string;
-  now?: () => number;
-};
-
-type QueueAdvancementDependencies = PlaybackPolicyBase & {
   dispatchNext: () => Promise<DispatchResult>;
-};
-
-type SpotifyFallbackDependencies = PlaybackPolicyBase & {
   startFallback: () => Promise<void>;
+  now?: () => number;
 };
 
 function parseLastTrack(raw: string | undefined): LastPartyQueueTrack | null {
@@ -43,7 +37,7 @@ function parseLastTrack(raw: string | undefined): LastPartyQueueTrack | null {
 
 export async function maybeAdvancePartyQueue({
   db, eventId, dispatchNext, now = () => Date.now(),
-}: QueueAdvancementDependencies, playing: boolean): Promise<AdvanceResult> {
+}: PlaybackPolicyDependencies, playing: boolean): Promise<AdvanceResult> {
   if (playing) return { advanced: false };
   const manualPause = await readPlaybackSetting(db, "spotify_manual_pause");
   if (manualPause?.value === "true") return { advanced: false };
@@ -62,7 +56,7 @@ export async function maybeAdvancePartyQueue({
 
 export async function maybeStartSpotifyFallback({
   db, eventId, startFallback, now = () => Date.now(),
-}: SpotifyFallbackDependencies, currentTrackUri: string | null, playing: boolean): Promise<boolean> {
+}: PlaybackPolicyDependencies, currentTrackUri: string | null, playing: boolean): Promise<boolean> {
   const manualPause = await readPlaybackSetting(db, "spotify_manual_pause");
   if (manualPause?.value === "true") return false;
 
