@@ -54,7 +54,7 @@ djPlaybackRoutes.post("/api/dj/spotify/:action", async (c) => {
   return c.json(result.body, result.status);
 });
 djPlaybackRoutes.post("/api/dj/spotify/queue/:id",async(c)=>{
-  const result=await queueApprovedPartyRequest({db:c.env.DB,eventId:c.env.EVENT_ID,requestId:c.req.param("id")});
+  const result=await queueApprovedPartyRequest({repository:createGuestRequestRepository(c.env.DB),eventId:c.env.EVENT_ID,requestId:c.req.param("id")});
   return c.json(result.body,result.status as 200);
 });
 
