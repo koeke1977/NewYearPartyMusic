@@ -11,5 +11,6 @@ export interface Env {
   SESSION_SECRET: string;
   SPOTIFY_CLIENT_ID: string;
   SPOTIFY_CLIENT_SECRET: string;
-  AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };\n  LOCAL_AI_BRIDGE_URL?: string;\n  LOCAL_AI_BRIDGE_TOKEN?: string;
+  AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };  LOCAL_AI_BRIDGE_URL?: string;
+  LOCAL_AI_BRIDGE_TOKEN?: string;
 }
