@@ -1,6 +1,9 @@
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 import { timingSafeEqual } from "node:crypto";
+import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const HOST = process.env.LOCAL_AI_HOST || "127.0.0.1";
 const PORT = Number(process.env.LOCAL_AI_PORT || 8787);
@@ -38,52 +41,60 @@ async function readJson(request) {
   return JSON.parse(Buffer.concat(chunks).toString("utf8"));
 }
 
-function runClaude(system, user) {
-  return new Promise((resolve, reject) => {
-    const args = ["-p", "--output-format", "text", "--bare", "--tools", ""];
-    const child = spawn(CLI, args, {
-      shell: process.platform === "win32",
-      windowsHide: true,
-      stdio: ["pipe", "pipe", "pipe"],
-      env: { ...process.env, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
-    });
-    let stdout = "";
-    let stderr = "";
-    let settled = false;
-    const finish = (error, value) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (error) reject(error);
-      else resolve(value);
-    };
-    const timer = setTimeout(() => {
-      child.kill();
-      finish(new Error("Claude Code timed out."));
-    }, TIMEOUT_MS);
+async function runClaude(system, user) {
+  const tempDir = await mkdtemp(join(tmpdir(), "partyqueue-ai-"));
+  const systemPromptPath = join(tempDir, "system-prompt.txt");
+  await writeFile(systemPromptPath, system, { encoding: "utf8", mode: 0o600 });
 
-    child.stdout.setEncoding("utf8");
-    child.stderr.setEncoding("utf8");
-    child.stdout.on("data", chunk => {
-      stdout += chunk;
-      if (Buffer.byteLength(stdout, "utf8") > MAX_OUTPUT_BYTES) {
+  try {
+    return await new Promise((resolve, reject) => {
+      const args = ["-p", "--output-format", "text", "--system-prompt-file", systemPromptPath, "--tools", ""];
+      const child = spawn(CLI, args, {
+        shell: process.platform === "win32",
+        windowsHide: true,
+        stdio: ["pipe", "pipe", "pipe"],
+        env: { ...process.env, CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
+      });
+      let stdout = "";
+      let stderr = "";
+      let settled = false;
+      const finish = (error, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (error) reject(error);
+        else resolve(value);
+      };
+      const timer = setTimeout(() => {
         child.kill();
-        finish(new Error("Claude output exceeded the response limit."));
-      }
+        finish(new Error("Claude Code timed out."));
+      }, TIMEOUT_MS);
+
+      child.stdout.setEncoding("utf8");
+      child.stderr.setEncoding("utf8");
+      child.stdout.on("data", chunk => {
+        stdout += chunk;
+        if (Buffer.byteLength(stdout, "utf8") > MAX_OUTPUT_BYTES) {
+          child.kill();
+          finish(new Error("Claude output exceeded the response limit."));
+        }
+      });
+      child.stderr.on("data", chunk => {
+        stderr += chunk;
+        if (stderr.length > 8000) stderr = stderr.slice(-8000);
+      });
+      child.on("error", error => finish(new Error("Claude Code could not start. Is it installed and logged in? " + error.message)));
+      child.on("close", code => {
+        if (code !== 0) return finish(new Error(stderr.trim() || "Claude Code exited with code " + code));
+        const answer = stdout.trim();
+        if (!answer) return finish(new Error("Claude Code returned an empty answer."));
+        finish(null, answer);
+      });
+      child.stdin.end(user);
     });
-    child.stderr.on("data", chunk => {
-      stderr += chunk;
-      if (stderr.length > 8000) stderr = stderr.slice(-8000);
-    });
-    child.on("error", error => finish(new Error("Claude Code could not start. Is it installed and logged in? " + error.message)));
-    child.on("close", code => {
-      if (code !== 0) return finish(new Error(stderr.trim() || "Claude Code exited with code " + code));
-      const answer = stdout.trim();
-      if (!answer) return finish(new Error("Claude Code returned an empty answer."));
-      finish(null, answer);
-    });
-    child.stdin.end("DJ ASSISTANT INSTRUCTIONS:\\n" + system + "\\n\\nDJ QUESTION AND CONTEXT:\\n" + user);
-  });
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
 }
 
 const server = createServer(async (request, response) => {
