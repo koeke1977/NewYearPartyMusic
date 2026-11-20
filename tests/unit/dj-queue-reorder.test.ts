@@ -46,19 +46,19 @@ describe("DJ queue reorder controller", () => {
     const b = card("b", 100);
     const { handlers, save } = harness([a, b]);
     handlers.dragstart({
-      target: { closest: () => a },
+      target: { closest: () => b },
       dataTransfer: { setData: vi.fn(), effectAllowed: "" },
     });
 
     let prevented = false;
     await handlers.drop({
       target: { closest: () => b },
-      clientY: 120,
+      clientY: 20,
       preventDefault: () => { prevented = true; },
     });
 
     expect(prevented).toBe(true);
-    expect(save).toHaveBeenCalledWith(["a", "b"]);
+    expect(save).toHaveBeenCalledWith(["b", "a"]);
   });
 
   it("calculates and saves the reordered queue when dropped after a target", async () => {
@@ -77,7 +77,7 @@ describe("DJ queue reorder controller", () => {
       preventDefault: vi.fn(),
     });
 
-    expect(save).toHaveBeenCalledWith(["c", "a", "b"]);
+    expect(save).toHaveBeenCalledWith(["a", "c", "b"]);
   });
 
   it("does not save when dropping on the dragged card itself", async () => {
