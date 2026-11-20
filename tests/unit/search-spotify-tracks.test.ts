@@ -88,4 +88,11 @@ describe("Spotify catalogue search use cases", () => {
       search: async () => new Response(null, { status: 429 }),
     })).resolves.toEqual({ status: 200, body: { ok: true, results: [{ query: "song", tracks: [] }] } });
   });
+
+  it("preserves the existing request-level error when a DJ Spotify query rejects", async () => {
+    await expect(searchDjSpotifyTracks({
+      queries: ["song"],
+      search: async () => { throw new Error("Spotify offline"); },
+    })).resolves.toEqual({ status: 502, body: { error: "Spotify offline" } });
+  });
 });
