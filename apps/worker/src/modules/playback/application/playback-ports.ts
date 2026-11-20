@@ -32,3 +32,18 @@ export interface SpotifyPlaybackGateway {
   getCurrentPlayback(): Promise<SpotifyCurrentPlayback>;
   getPlaybackQueue(): Promise<SpotifyPlaybackQueue>;
 }
+
+export type SpotifyPlaybackActionResult =
+  | { ok: true }
+  | { ok: false; status: number; detail?: string };
+
+export type SpotifyPlaybackDevicesResult =
+  | { kind: "available"; devices: SpotifyPlaybackDevice[] }
+  | { kind: "unavailable"; status: number };
+
+/** Application-facing control port; Spotify HTTP response objects stay in the integration adapter. */
+export interface SpotifyPlaybackControlGateway {
+  getDevices(): Promise<SpotifyPlaybackDevicesResult>;
+  setVolume(volume: number): Promise<SpotifyPlaybackActionResult>;
+  sendCommand(command: PlaybackCommand): Promise<SpotifyPlaybackActionResult>;
+}
