@@ -8,7 +8,7 @@ import { exchangeSpotifyAuthorizationCode, spotifyFetch } from "./integrations/s
 import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
 import { maybeAdvancePartyQueue as runQueueAdvancement, maybeStartSpotifyFallback as runSpotifyFallbackPolicy } from "./modules/playback/application/playback-automation";
-import { getCurrentPlayback, getPlaybackQueue, playPlaylist, playTrack, setPlaybackShuffle } from "./integrations/spotify/playback-api";
+import { getCurrentPlayback, getPlaybackDevices, getPlaybackQueue, playPlaylist, playTrack, sendPlaybackCommand, setPlaybackShuffle, setPlaybackVolume } from "./integrations/spotify/playback-api";
 import { addDjTrackToPartyQueue, joinPartyGuest, moderatePartyRequest, queueApprovedPartyRequest, submitGuestTrackRequest } from "./modules/requests/application/guest-request-lifecycle";
 import { getDjOverview, reorderDjQueue, updateDjSetting } from "./modules/requests/application/dj-queue-management";
 import { cleanupCompletedRequests } from "./modules/requests/application/cleanup-completed-requests";
