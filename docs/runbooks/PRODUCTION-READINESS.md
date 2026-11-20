@@ -39,7 +39,7 @@ Before a test deployment or database rebuild:
 6. Run TypeScript, unit/security tests, Worker dry-run and browser journeys.
 7. Verify guest join, search/request, DJ login, queue moderation and playback with test accounts.
 
-The existing `release:preflight` and `deploy` scripts are currently designed as a fail-closed gate for a future dedicated production environment. They are not prerequisites for architecture work and must not be used to imply that the current test app is live production.
+The default `npm run deploy` command deploys the current test environment. `npm run deploy:production` and `npm run release:preflight` are the fail-closed paths for a future dedicated real-event environment. They are not prerequisites for architecture work and must not be used to imply that the current test app is live production.
 
 ## Checklist before a real public event (future, not current work)
 
