@@ -45,7 +45,7 @@ export async function executeDJAssistant(input: {
       return { status: 200, body: { ok: true, provider: "claude-code-local", answer, spotifyMatches: [], cached: false, memoryUpdated } };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Lokale Claude-assistent is tijdelijk niet beschikbaar.";
-      const usageLimitReached = /usage limit|rate limit|limit reached|weekly limit|five-hour limit|capacity|429/i.test(errorMessage);
+      const usageLimitReached = /usage limit|rate limit|limit reached|hit your limit|weekly limit|five-hour limit|capacity|429/i.test(errorMessage);
       return {
         status: usageLimitReached ? 429 : 502,
         body: { error: usageLimitReached
