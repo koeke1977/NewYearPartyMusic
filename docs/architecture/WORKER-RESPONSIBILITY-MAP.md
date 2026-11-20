@@ -12,6 +12,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Signed bearer-token creation and validation | `modules/identity/session-token.ts` | `modules/identity/` |
 | Spotify client-credentials token cache | `integrations/spotify/catalog-token.ts` | `integrations/spotify/catalog-token.ts` |
 | Spotify track response shape | `integrations/spotify/types.ts` | `integrations/spotify/types.ts` |
+| Encrypted Spotify user-token persistence, refresh lease and invalidation | `integrations/spotify/user-auth-repository.ts` | `integrations/spotify/user-auth-repository.ts` |
 
 ## Remaining entrypoint responsibilities
 
@@ -29,9 +30,9 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | `POST /api/dj/queue/reorder` | Queue validation, order persistence, accepted-set history persistence | Reorder-queue use case + Queue repository + DJ history repository |
 | `POST /api/dj/requests/:id/:action` | State-transition policy, auto-queue setting, timestamp update | Moderate-request use case + Request/Settings repositories |
 | `POST /api/dj/settings/:key` | Settings allow-list, validation and persistence | Update-DJ-setting use case + Settings repository |
-| `saveSpotifyTokens` | Encrypt and persist Spotify OAuth token pair | Spotify OAuth token store |
-| `spotifyUserToken` | D1 token read, refresh lock, token decrypt, refresh request, token rotation, lock release | Spotify OAuth token service + token repository |
-| `spotifyFetch` | Authenticated Spotify user API request and 401 refresh retry | Spotify user API adapter |
+| `saveSpotifyTokens` | Encrypt token pair, then delegate persistence | Spotify OAuth token store + crypto adapter |
+| `spotifyUserToken` | Refresh-token flow, decrypt, refresh request and rotation; D1 operations delegated | Spotify OAuth token service + `user-auth-repository.ts` |
+| `spotifyFetch` | Authenticated Spotify user API request and 401 refresh retry; token invalidation delegated | Spotify user API adapter + token repository |
 | `POST /api/dj/spotify/connect` | DJ auth, OAuth state creation, redirect and cookie | Spotify OAuth start use case + route adapter |
 | `GET /auth/spotify/callback` | State cookie validation, code exchange, token persistence, redirect | Spotify OAuth callback use case + route adapter |
 | `startSpotifyFallback` | Spotify playback commands and fallback setting write | Playback service |
