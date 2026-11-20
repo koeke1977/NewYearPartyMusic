@@ -71,22 +71,12 @@ bindDjChatGptHandoff({
 if(auth.hasToken())auth.setLoggedIn(true);
 
 
-document.querySelector("#partyqueue-next").addEventListener("click",async()=>{
-  const button=document.querySelector("#partyqueue-next");
-  button.disabled=true;
-  message.textContent="Loading next PartyQueue request…";
-  try{
-    const result=await api("/api/dj/spotify/next-request",{method:"POST"});
-    if(result.busy){message.textContent=result.error||"NEXT wordt al verwerkt.";return;}
-    if(!result.track){message.textContent="Er is geen volgende PartyQueue-aanvraag gestart.";return;}
+const nextButton=document.querySelector("#partyqueue-next");
+nextButton.addEventListener("click",()=>commands.runNextRequest({
+  button:nextButton,
+  onTrackStarted:()=>{
     spotifyQueuePreview=null;
     spotifyConsole.setDeck("right",null);
-    message.textContent="Now playing PartyQueue request: "+result.track.name+" — "+result.track.artist;
-    await refresh();
-    await spotifyConsole.refreshStatus();
-  }catch(e){
-    message.textContent=e.message;
-  }finally{
-    await refresh();
-  }
-});
+  },
+  refreshPlayback:()=>spotifyConsole.refreshStatus(),
+}));
