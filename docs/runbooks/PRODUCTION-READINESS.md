@@ -133,14 +133,18 @@ A successful OAuth connection does not establish that the intended event use is 
 
 Spotify's current Developer Policy (effective 15 May 2025) restricts streaming applications from commercial use, prohibits non-interactive internet webcasting from one source to multiple simultaneous listeners, and restricts products targeted at businesses. Spotify's consumer service is described as personal and non-commercial. The precise use of PartyQueue for an event, the nature of the event and the playback arrangement must be checked against the current Spotify Developer Terms and Policy. Do not assume that calling an event private or non-commercial makes every form of public playback or API-controlled streaming permitted.
 
-Before using Spotify as the event PA source, obtain a clear policy determination from Spotify for the exact setup where necessary. Separately verify Belgian public-performance licensing obligations with the relevant rights/licensing body. If the intended use is not permitted, use a properly licensed playback source/service rather than attempting to work around Spotify's restrictions.
+Before using Spotify as the event PA source, obtain a clear policy determination from Spotify for the exact setup where necessary. Section III.4 of the Developer Policy prohibits an SDA that plays content from one source to several simultaneous listeners; the exact application to a DJ-controlled Spotify device feeding a local PA is not conclusively resolved here. Section III.10 also prohibits products targeted to businesses and public playback from businesses, while Section III.7 restricts mixing/segueing Spotify content. Do not represent the playback integration as policy-cleared without Spotify's written confirmation for this exact arrangement.
+
+For Belgium, Unisono says its private-family exception applies only if all conditions are met: the event is free, has no entry fee, artistic budget, sponsorship or commercial purpose, is not advertised, takes place within the family circle and is held at home. If any condition is not met, check and arrange the appropriate Unisono licence before playing recorded/streamed music. Unisono also says a streaming subscription does not replace the required event licence. If Spotify's intended use is not permitted, use a properly licensed playback source/service rather than attempting to work around the restrictions.
 
 The application now publishes a privacy notice at `https://spotify.electrafest.be/privacy.html`, linked from both the guest and DJ screens. The DJ console also has a `DISCONNECT SPOTIFY` action that deletes the locally stored encrypted OAuth credentials; an active token-refresh lease blocks the deletion and asks the DJ to retry. This does not revoke the app's authorization at Spotify itself: the DJ can also remove PartyQueue from the Spotify account's Apps settings. The event organizer must register the privacy-notice URL in the Spotify Developer Dashboard and ensure the contact channel referenced in the notice (the event invitation) is current and reachable. Do not claim full Spotify policy compliance until the exact event playback arrangement is confirmed with Spotify where necessary and Belgian public-performance licensing has been checked.
 
 References:
 - https://developer.spotify.com/policy
+- https://developer.spotify.com/terms
 - https://developer.spotify.com/compliance-tips
-- https://support.spotify.com/article/spotify-public-commercial-use/
+- https://www.unisono.be/nl/licenties-evenementen
+- https://www.unisono.be/nl/knowledgebase/heb-ik-een-licentie-nodig-als-ik-in-mijn-zaak-bedrijf-of-tijdens-mijn-evenement-muziek-speel-via-een-streamingdienst
 
 ## Rollback procedure
 
