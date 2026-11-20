@@ -10,6 +10,8 @@ import {
   type SpotifyCatalogMatch,
 } from "../../../integrations/ai/spotify-catalog-search";
 import type { Env } from "../../../platform/env";
+import { ASSISTANT_MAX_OUTPUT_TOKENS } from "../infrastructure/neuron-budget";
+import type { DailyAssistantNeuronBudget } from "../infrastructure/neuron-budget";
 
 export type DJAssistantRunResult = {
   answer: string;
@@ -28,16 +30,19 @@ export async function runDJAssistantTurn(
   model: string,
   system: string,
   user: string,
+  neuronBudget: DailyAssistantNeuronBudget,
 ): Promise<DJAssistantRunResult> {
   const first = await runCloudflareAI(ai, model, {
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
     tools: [spotifyCatalogSearchTool],
     tool_choice: "auto",
     parallel_tool_calls: false,
-    max_tokens: MODEL_MAX_TOKENS,
+    max_tokens: ASSISTANT_MAX_OUTPUT_TOKENS,
     temperature: 0.4,
     chat_template_kwargs: { enable_thinking: false },
   });
+
+  await neuronBudget.record(first, system.length + user.length, ASSISTANT_MAX_OUTPUT_TOKENS);
 
   let answer: unknown = extractCloudflareAssistantText(first);
   let spotifyMatches: SpotifyCatalogMatch[] = [];
@@ -48,22 +53,26 @@ export async function runDJAssistantTurn(
     spotifyMatches = await searchSpotifyCatalogForAssistant(env, searchCall.arguments);
     if (spotifyMatches.length) {
       // A single bounded follow-up lets the model explain only catalogue-verified options.
-      const followup = await runCloudflareAI(ai, model, {
-        messages: [
-          {
-            role: "system",
-            content: system + " When verified Spotify search results are supplied, recommend only tracks present in those results and preserve exact Spotify titles and artists.",
-          },
-          {
-            role: "user",
-            content: user + "\n\nVERIFIED SPOTIFY SEARCH RESULTS:\n" + JSON.stringify(spotifyMatches),
-          },
-        ],
-        max_tokens: MODEL_MAX_TOKENS,
-        temperature: 0.35,
-        chat_template_kwargs: { enable_thinking: false },
-      });
-      answer = extractCloudflareAssistantText(followup) || answer;
+      const followupUser = user + "\n\nVERIFIED SPOTIFY SEARCH RESULTS:\n" + JSON.stringify(spotifyMatches);
+      const followupInputCharacters = system.length + followupUser.length + 180;
+      if (neuronBudget.canAfford(followupInputCharacters, ASSISTANT_MAX_OUTPUT_TOKENS)) {
+        const followup = await runCloudflareAI(ai, model, {
+          messages: [
+            {
+              role: "system",
+              content: system + " When verified Spotify search results are supplied, recommend only tracks present in those results and preserve exact Spotify titles and artists.",
+            },
+            { role: "user", content: followupUser },
+          ],
+          max_tokens: MODEL_MAX_OUTPUT_TOKENS,
+          temperature: 0.35,
+          chat_template_kwargs: { enable_thinking: false },
+        });
+        await neuronBudget.record(followup, followupInputCharacters, ASSISTANT_MAX_OUTPUT_TOKENS);
+        answer = extractCloudflareAssistantText(followup) || answer;
+      } else {
+        answer = "Ik heb de Spotify-zoekopdrachten gecontroleerd. Het veilige AI-dagbudget laat vandaag geen extra analyse meer toe; kies hieronder zelf de juiste Spotify-uitvoering.";
+      }
     }
   }
 
