@@ -30,6 +30,7 @@ This is too much responsibility for one route and is the primary AI extraction t
 | Cloudflare Workers AI invocation and response/tool-call normalization | `integrations/ai/cloudflare-ai.ts` | Extracted; route delegates to it |
 | Spotify read-only search tool schema, argument validation, query bounds and result mapping | `integrations/ai/spotify-catalog-search.ts` | Extracted; route delegates to it |
 | One bounded assistant turn, read-only tool dispatch, verified-result follow-up and answer normalization | `modules/ai/orchestration/assistant-orchestrator.ts` | Extracted; route delegates to it |
+| Daily free-tier Neuron estimation, UTC usage tracking and follow-up budget checks | `modules/ai/infrastructure/neuron-budget.ts` | Extracted; route preflights and orchestrator records usage |
 
 The prompt builder receives typed context and a question, and returns a system/user message pair. It does not access D1, Spotify, Cloudflare bindings or HTTP requests.
 
@@ -74,4 +75,5 @@ The prompt builder receives typed context and a question, and returns a system/u
 5. Extract the Spotify read-only tool adapter. (done)
 6. Extract rate limiting and answer caching.
 7. Add the orchestrator and turn the HTTP route into a thin adapter. (orchestrator extracted; route now delegates to it, cache/rate/memory persistence remain)
-8. Move each AI action into a named, independently testable use case.
+8. Preserve the daily free-tier Neuron guardrail as an independently tested infrastructure module. (done)
+9. Move each AI action into a named, independently testable use case.
