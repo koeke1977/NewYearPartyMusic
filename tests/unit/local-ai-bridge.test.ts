@@ -23,7 +23,7 @@ describe("PartyQueue Local AI Bridge client", () => {
   });
 
   it("requires a long secret and sends only system/user prompt data", async () => {
-    const fetcher = vi.fn(async (_url: URL, init?: RequestInit) => new Response(JSON.stringify({ answer: "Disco naar rock: onverwacht, maar werkt!" }), { status: 200 }));
+    const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => new Response(JSON.stringify({ answer: "Disco naar rock: onverwacht, maar werkt!" }), { status: 200 }));
     const client = createLocalAIBridgeClient({ url: "https://bridge.example.com", token: "x".repeat(40), fetcher });
     expect(client).toBeDefined();
     await expect(client!.complete("DJ SYSTEM", "Maak het verrassend")).resolves.toContain("Disco");
