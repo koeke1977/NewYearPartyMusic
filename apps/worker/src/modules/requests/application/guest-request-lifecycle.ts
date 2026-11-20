@@ -166,7 +166,7 @@ export async function addDjTrackToPartyQueue(input: {
     await insertTrackRequest(input.db, {
       id: requestId, event_id: input.eventId, guest_id: guestId, spotify_track_id: track.id,
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
-      album_image_url: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null,
+      album_image_url: track.album?.images?.[1]?.url || track.album?.images?.[0]?.url || null,
       duration_ms: track.duration_ms, status: "queued",
     });
     await appendRequestToQueueOrder(input.db, requestId);
