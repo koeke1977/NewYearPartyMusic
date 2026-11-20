@@ -16,6 +16,7 @@ import { cleanupCompletedRequests } from "./modules/requests/application/cleanup
 import { readSpotifyFallbackError, setSpotifyFallbackActive, setSpotifyManualPause } from "./modules/playback/infrastructure/playback-policy-repository";
 import { getDjSpotifyPlaybackStatus } from "./modules/playback/application/get-dj-spotify-playback-status";
 import { executeDjSpotifyCommand, listDjSpotifyDevices, setDjSpotifyVolume } from "./modules/playback/application/dj-playback-controls";
+import { searchDjSpotifyTracks, searchGuestSpotifyTracks } from "./modules/music/application/search-spotify-tracks";
 
 
 
@@ -54,23 +55,11 @@ app.post("/api/guests/join", async (c) => {
 app.get("/api/spotify/search", async (c) => {
   const session = await readSession(c.req.raw, c.env.SESSION_SECRET);
   if (!session || session.eventId !== c.env.EVENT_ID) return c.json({ error: "Je sessie is verlopen. Meld je opnieuw aan." }, 401);
-  const query = (c.req.query("q") || "").trim();
-  if (query.length < 2 || query.length > 100) return c.json({ error: "Zoek op minstens 2 en maximaal 100 tekens." }, 400);
-  try {
-    const response = await searchSpotifyTracks(c.env, query, 8);
-    if (response.status === 429) return c.json({ error: "Spotify krijgt even veel zoekopdrachten. Probeer zo meteen opnieuw." }, 429);
-    if (!response.ok) return c.json({ error: "Spotify zoeken is mislukt (HTTP " + response.status + ")." }, 502);
-    const data = await response.json() as { tracks?: { items?: SpotifyTrack[] } };
-    const tracks = (data.tracks?.items || []).map((track) => ({
-      id: track.id, uri: track.uri, name: track.name,
-      artists: track.artists.map((artist) => artist.name),
-      albumImageUrl: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null,
-      durationMs: track.duration_ms,
-    }));
-    return c.json({ tracks, attribution: "Music data provided by Spotify" });
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : "Spotify is tijdelijk niet beschikbaar." }, 503);
-  }
+  const result = await searchGuestSpotifyTracks({
+    query: (c.req.query("q") || "").trim(),
+    search: (query, limit) => searchSpotifyTracks(c.env, query, limit),
+  });
+  return c.json(result.body, result.status);
 });
 
 app.post("/api/requests", async (c) => {
@@ -119,25 +108,11 @@ app.post("/api/dj/ai/music/search", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
   let body: { queries?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  if (!Array.isArray(body.queries) || body.queries.length > 20 || !body.queries.every(q => typeof q === "string")) {
-    return c.json({ error: "Geef maximaal 20 trackzoekopdrachten door." }, 400);
-  }
-  const queries = (body.queries as string[]).map(q => q.replace(/\s+/g," ").trim().slice(0,140)).filter(q => q.length > 2);
-  if (!queries.length) return c.json({ error: "Ik kon geen bruikbare titels en artiesten uit de lijst halen." }, 400);
-  try {
-    const results = await Promise.all(queries.map(async query => {
-      const response = await searchSpotifyTracks(c.env, query, 3);
-      if (!response.ok) return { query, tracks: [] };
-      const data = await response.json() as { tracks?: { items?: SpotifyTrack[] } };
-      return { query, tracks: (data.tracks?.items || []).map(track => ({
-        id: track.id, uri: track.uri, name: track.name, artists: track.artists.map(a => a.name),
-        durationMs: track.duration_ms, albumImageUrl: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null
-      })) };
-    }));
-    return c.json({ ok: true, results });
-  } catch (error) {
-    return c.json({ error: error instanceof Error ? error.message : "Spotify zoeken is tijdelijk niet beschikbaar." }, 502);
-  }
+  const result = await searchDjSpotifyTracks({
+    queries: body.queries,
+    search: (query, limit) => searchSpotifyTracks(c.env, query, limit),
+  });
+  return c.json(result.body, result.status);
 });
 app.post("/api/dj/ai/music/add", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
