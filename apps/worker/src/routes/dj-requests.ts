@@ -4,7 +4,7 @@ import { getDjOverview, reorderDjQueue, updateDjSetting } from "../modules/reque
 import { moderatePartyRequest } from "../modules/requests/application/guest-request-lifecycle";
 import { requireDJSession } from "./dj-auth";
 export const djRequestRoutes = new Hono<{ Bindings: Env }>();
-djRequestRoutes.use("/api/dj/*", requireDJSession);
+djRequestRoutes.use("/api/dj/*", requireDJSession("DJ-sessie verlopen. Meld opnieuw aan."));
 djRequestRoutes.get("/api/dj/overview", async (c) => {
   return c.json(await getDjOverview({ db: c.env.DB, eventId: c.env.EVENT_ID }));
 });

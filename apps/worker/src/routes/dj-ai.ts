@@ -6,7 +6,7 @@ import { searchDjSpotifyTracks } from "../modules/music/application/search-spoti
 import { searchSpotifyTracks, getSpotifyTrack } from "../integrations/spotify/catalog-api";
 import { requireDJSession } from "./dj-auth";
 export const djAiRoutes = new Hono<{ Bindings: Env }>();
-djAiRoutes.use("/api/dj/*", requireDJSession);
+djAiRoutes.use("/api/dj/*", requireDJSession("DJ-sessie verlopen. Meld opnieuw aan."));
 djAiRoutes.post("/api/dj/ai/assistant", async (c) => {
   let body: { prompt?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
