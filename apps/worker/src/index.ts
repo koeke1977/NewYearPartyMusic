@@ -211,7 +211,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   let savedOrder: string[] = [];
   try { savedOrder = JSON.parse(orderSetting?.value || "[]"); } catch { savedOrder = []; }
   const orderIndex = new Map(savedOrder.map((id,index)=>[id,index]));
-  const queued = tracks.filter(t=>t.status==="queued").sort((a,b)=>(orderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(orderIndex.get(b.id)??Number.MAX_SAFE_INTEGER)||String(a.queued_at||a.requested_at).localeCompare(String(b.queued_at||b.requested_at))).slice(0,15);
+  const queued = tracks.filter(t=>t.status==="queued").sort((a,b)=>(orderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(orderIndex.get(b.id)??Number.MAX_SAFE_INTEGER)||String(a.queued_at||a.requested_at).localeCompare(String(b.queued_at||b.requested_at)));
   const recent = playedRows.results || [];
   const current = recent[0];
   const context = {
