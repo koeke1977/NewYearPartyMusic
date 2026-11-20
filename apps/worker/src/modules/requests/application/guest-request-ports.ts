@@ -1,4 +1,5 @@
-import type { GuestRequestSettings, StoredTrackRequest } from "../infrastructure/guest-request-repository";
+export type GuestRequestSettings = { requests_paused?:string; max_requests_per_hour?:string; auto_approve?:string; auto_queue?:string };
+export type StoredTrackRequest = { id:string; event_id:string; guest_id:string; spotify_track_id:string; track_uri:string; track_name:string; artist_name:string; album_image_url:string|null; duration_ms:number; status:string };
 
 export interface GuestRequestRepository {
   findActiveEvent(eventId:string):Promise<{id:string}|null>;
