@@ -127,7 +127,7 @@ describe("guest request lifecycle", () => {
     expect(insert?.sql).toContain("INSERT OR IGNORE INTO requests");
     expect(insert?.sql).toContain("SELECT");
     expect(insert?.sql).toContain("status IN ('pending','approved','queued')");
-    expect(insert?.sql).toContain("requested_at >= datetime('now','-30 minutes')");
+    expect(insert?.sql).toContain("requested_at >= datetime('now','-1 hour')");
     expect(insert?.values.slice(-2)).toEqual(["guest-1",20]);
     expect(insert?.values).toContain("queued");
     expect(insert?.values).toContain("Artist A, Artist B");
