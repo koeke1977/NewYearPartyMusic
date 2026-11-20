@@ -383,7 +383,7 @@ async function askDJAI(prompt,mode="advice"){
       const suggestions=[...answer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)]
         .map(match=>match[1].replace(/\*+/g,"").replace(/\s*\([^)]*\)\s*$/,"").trim())
         .filter(line=>line.includes("—")||line.includes("-"))
-        .slice(0,12);
+        .slice(0,20);
       output.replaceChildren();
       const intro=el("p","",answer);
       output.append(intro);
