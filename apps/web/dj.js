@@ -3,6 +3,7 @@ import { clearDjToken, getSavedDjToken, saveDjToken } from "./modules/dj-session
 import { element as el } from "./modules/dom.js";
 import { orderedQueued } from "./modules/dj-queue.js";
 import { matchDjQueueProposal } from "./modules/dj-ai-queue-parser.js";
+import { createDjPollingController } from "./modules/dj-polling.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -11,7 +12,6 @@ const consoleView=document.querySelector("#dj-console");
 const requestList=document.querySelector("#dj-requests");
 const message=document.querySelector("#dj-message");
 let token=getSavedDjToken();
-let pollHandle=null;
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
 let spotifyStatusRequest=0;
@@ -20,10 +20,11 @@ let queueDragId=null;
 let queueReorderBusy=false;
 let latestDJOverview=null;
 const api=createDjApi(()=>token);
+const polling=createDjPollingController(refresh,refreshSpotify);
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
-  if(on){refresh();refreshSpotify();if(pollHandle)clearInterval(pollHandle);pollHandle=setInterval(()=>{refresh();refreshSpotify();},5000);}
-  else if(pollHandle){clearInterval(pollHandle);pollHandle=null;}
+  if(on)polling.start();
+  else polling.stop();
 }
 function stat(label,value,icon){const box=el("div","dj-stat");box.append(el("span","dj-stat-icon",icon));const copy=el("div","dj-stat-copy");copy.append(el("span","dj-muted",label),el("strong","",String(value)));box.append(copy);return box;}
 function formatMusicTime(ms){
