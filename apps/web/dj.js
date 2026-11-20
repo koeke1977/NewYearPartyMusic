@@ -10,7 +10,6 @@ import { createDjQueueReorderController } from "./modules/dj-queue-reorder.js";
 import { createDjCommandService } from "./modules/dj-command-service.js";
 import { createDjSpotifyConsole } from "./modules/dj-spotify-console.js";
 import { createDjAiAssistant } from "./modules/dj-ai-assistant.js";
-import { createDjAiAssistant } from "./modules/dj-ai-assistant.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -156,7 +155,7 @@ document.querySelector("#pause-toggle").addEventListener("click",()=>commands.up
 document.querySelector("#approval-toggle").addEventListener("click",()=>commands.updateSetting("auto_approve",!currentSettings.autoApprove));
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>commands.updateSetting("auto_queue",!currentSettings.autoQueue));
 
-const aiAssistant=createDjAiAssistant({api,refresh:()=>refresh()});
+createDjAiAssistant({api,refresh:()=>refresh()});
 
 const chatGPTButton=document.querySelector("#dj-chatgpt-help");
 chatGPTButton?.addEventListener("click",async()=>{
