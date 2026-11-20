@@ -15,6 +15,18 @@ function createTestApp() {
   return { app, env };
 }
 
+function blockedAttemptDb() {
+  return {
+    prepare() {
+      const statement = {
+        bind() { return statement; },
+        async first() { return null; },
+      };
+      return statement;
+    },
+  } as unknown as D1Database;
+}
+
 describe("guest HTTP routes", () => {
   it("rejects guest search without an event-scoped session", async () => {
     const { app, env } = createTestApp();
@@ -57,5 +69,16 @@ describe("guest HTTP routes", () => {
     expect(await response.json()).toEqual({
       error: "PartyQueue is not configured yet. Please contact the DJ.",
     });
+  });
+
+  it("blocks guest event-code attempts after the per-IP bucket is exhausted", async () => {
+    const { app, env } = createTestApp();
+    const response = await app.request("/api/guests/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "CF-Connecting-IP": "203.0.113.10" },
+      body: JSON.stringify({ nickname: "Guest", eventCode: "1234" }),
+    }, { ...env, APP_ENV: "production", DB: blockedAttemptDb() });
+    expect(response.status).toBe(429);
+    expect(response.headers.get("Retry-After")).toBe("900");
   });
 });
