@@ -1,5 +1,5 @@
 import type { Env } from "../platform/env";
-import { deleteExpiredAuthAttemptBuckets } from "../modules/identity/infrastructure/auth-attempt-d1-repository";
+import { deleteExpiredAuthAttemptBuckets } from "../platform/infrastructure/auth-attempt-d1-repository";
 import { cleanupCompletedRequests } from "../modules/requests/application/cleanup-completed-requests";
 import { createRequestRetentionRepository } from "../modules/requests/infrastructure/request-retention-repository";
 
