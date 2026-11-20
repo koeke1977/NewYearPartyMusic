@@ -1,11 +1,5 @@
-export type CatalogTrack = {
-  id: string;
-  uri: string;
-  name: string;
-  artists: string[];
-  albumImageUrl: string | null;
-  durationMs: number;
-};
+import type { CatalogTrack } from "../domain/catalog-track";
+export type { CatalogTrack } from "../domain/catalog-track";
 
 export type CatalogSearchResult =
   | { kind: "available"; tracks: CatalogTrack[] }
