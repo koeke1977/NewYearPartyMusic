@@ -50,7 +50,7 @@ export async function executeDJAssistant(input: {
     }
     const model = "@cf/google/gemma-4-26b-a4b-it";
     const { answer } = await runDJAssistantTurn(ai, model, system, user, neuronBudget);
-    await repository.writeAnswerCache(cacheKey, answer, []);
+    await repository.writeAnswerCache(cacheKey, answer);
     return { status: 200, body: { ok: true, provider, answer, spotifyMatches: [], cached: false, memoryUpdated } };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "AI-assistent is tijdelijk niet beschikbaar.";
