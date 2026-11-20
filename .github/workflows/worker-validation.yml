@@ -32,9 +32,14 @@ jobs:
       - name: Security characterization tests
         run: npm test
 
-      - name: Cloudflare Worker dry run
+      - name: Test Worker dry run
         run: npx wrangler deploy --dry-run
 
+      - name: Production static release preflight
+        run: npm run release:preflight
+
+      - name: Production Worker dry run
+        run: npx wrangler deploy --env production --dry-run
 
   ui-screenshot-baseline:
     name: Browser journeys and visual baselines
