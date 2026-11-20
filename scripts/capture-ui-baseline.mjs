@@ -65,6 +65,10 @@ async function main() {
     await mkdir(output, { recursive: true });
     for (const item of cases) {
       const page = await browser.newPage({ viewport: item.viewport, deviceScaleFactor: 1 });
+      page.on("pageerror", error => console.error("Browser page error (" + item.name + "):", error));
+      page.on("console", message => {
+        if (message.type() === "error") console.error("Browser console error (" + item.name + "):", message.text());
+      });
       if (item.dj) {
         await page.addInitScript(() => localStorage.setItem("partyqueue_dj_token", "visual-baseline-token"));
         await page.route("**/api/**", async route => {
@@ -78,7 +82,20 @@ async function main() {
         });
       }
       await page.goto("http://127.0.0.1:4173" + item.path, { waitUntil: "networkidle" });
-      if (item.dj) await page.locator("#dj-console").waitFor({ state: "visible" });
+      if (item.dj) {
+        await page.waitForFunction(() => {
+          const consoleView = document.querySelector("#dj-console");
+          return consoleView && !consoleView.hidden;
+        }, null, { timeout: 10000 }).catch(async error => {
+          const state = await page.evaluate(() => ({
+            tokenPresent: Boolean(localStorage.getItem("partyqueue_dj_token")),
+            consoleHidden: document.querySelector("#dj-console")?.hidden ?? null,
+            loginMessage: document.querySelector("#dj-login-message")?.textContent ?? null,
+            loginCardHidden: document.querySelector("#dj-login-card")?.hidden ?? null,
+          }));
+          throw new Error("DJ baseline initialization failed: " + JSON.stringify(state) + ". " + error.message);
+        });
+      }
       await page.waitForTimeout(900);
       await page.screenshot({ path: join(output, item.name + ".png"), fullPage: true, animations: "disabled" });
       await page.close();
