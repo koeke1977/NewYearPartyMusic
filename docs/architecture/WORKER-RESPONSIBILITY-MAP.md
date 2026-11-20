@@ -121,3 +121,10 @@ Identity policy and Spotify token exchange remain in their application/integrati
 - `platform/composition/dj-playback-workflows.ts`: adapter workflows connecting queue dispatch, fallback playlist startup and playback automation to Spotify/D1 dependencies.
 
 The Worker entrypoint now mounts system and feature route groups rather than owning their HTTP handlers. `scheduled/handler.ts` owns the scheduled-event adapter and delegates to the request cleanup use case.
+
+
+## Guest request persistence boundary
+
+The guest-request application workflows now depend on the application-owned `GuestRequestRepository` port in `modules/requests/application/guest-request-ports.ts`, rather than accepting a D1 binding or importing persistence functions. The D1 implementation is isolated in `modules/requests/infrastructure/guest-request-d1-repository.ts` and is wired at the Worker composition/route boundary. Track DTOs and repository data contracts are application-owned. The existing SQL statements, event scoping, rate limits, duplicate checks, status transitions and saved queue-order writes are retained.
+
+This is the first complete repository-port slice for the guest/DJ request lifecycle. Other request read models and DJ queue-management workflows still use direct D1-oriented repository functions and remain migration work; do not treat the entire requests module as fully inverted yet.
