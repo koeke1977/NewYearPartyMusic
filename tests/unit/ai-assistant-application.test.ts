@@ -23,7 +23,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     const ai = { run: vi.fn() };
     const result = await executeDJAssistant({
-      env: { EVENT_ID: "event-1", EVENT_NAME: "Test Party", AI: ai } as never,
+      eventId: "event-1", eventName: "Test Party", ai, searchSpotifyCatalog: async () => [],
       prompt: "Geef me wat disco-advies", repository, hash: async value => value,
     });
     expect(result.status).toBe(429);
@@ -36,7 +36,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     vi.mocked(repository.readAnswerCache).mockResolvedValue({ answer: "Prima!", spotifyMatches: [] });
     const result = await executeDJAssistant({
-      env: { EVENT_ID: "event-1", EVENT_NAME: "Test Party" } as never,
+      eventId: "event-1", eventName: "Test Party", searchSpotifyCatalog: async () => [],
       prompt: "Geef me disco-advies", repository, hash: async value => value,
     });
     expect(result.status).toBe(200);
