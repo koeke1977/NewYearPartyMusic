@@ -6,10 +6,9 @@ import { matchDjQueueProposal } from "./modules/dj-ai-queue-parser.js";
 import { createDjPollingController } from "./modules/dj-polling.js";
 import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
 import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./modules/dj-playback-display.js";
-import { createLatestRequestController } from "./modules/dj-request-guard.js";
 import { createLatestTaskQueue } from "./modules/dj-latest-task-queue.js";
-import { createSerialTaskQueue } from "./modules/dj-serial-task-queue.js";
 import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackSummary } from "./modules/dj-playback-state.js";
+import { createDjPlaybackCoordinator } from "./modules/dj-playback-coordinator.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -20,12 +19,21 @@ const message=document.querySelector("#dj-message");
 let token=getSavedDjToken();
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
-const spotifyStatusRequests=createLatestRequestController();
-const playbackCommands=createSerialTaskQueue();
 let queueDragId=null;
 let queueReorderBusy=false;
 let latestDJOverview=null;
 const api=createDjApi(()=>token);
+const playback=createDjPlaybackCoordinator({
+  getToken:()=>token,
+  sendCommand:action=>api("/api/dj/spotify/"+action,{method:"POST"}),
+  refreshStatus:()=>refreshSpotify(),
+  onCommandSuccess:action=>{
+    if(action==="play")syncPlaybackButtons(true,true);
+    if(action==="pause")syncPlaybackButtons(true,false);
+    message.textContent="Spotify command sent.";
+  },
+  onCommandError:error=>{message.textContent=error.message;},
+});
 const volumeWrites=createLatestTaskQueue(async(value,{isCurrent})=>{
   const status=document.querySelector("#master-volume-status");
   try{
@@ -43,7 +51,7 @@ const polling=createDjPollingController(refresh,refreshSpotify);
 function setLoggedIn(on){
   loginCard.hidden=on;consoleView.hidden=!on;
   if(on)polling.start();
-  else { polling.stop(); spotifyStatusRequests.invalidate(); volumeWrites.invalidate(); playbackCommands.invalidate(); }
+  else { polling.stop(); playback.invalidate(); volumeWrites.invalidate(); }
 }
 function stat(label,value,icon){const box=el("div","dj-stat");box.append(el("span","dj-stat-icon",icon));const copy=el("div","dj-stat-copy");copy.append(el("span","dj-muted",label),el("strong","",String(value)));box.append(copy);return box;}
 function formatMusicTime(ms){
@@ -294,16 +302,15 @@ document.querySelector("#approval-toggle").addEventListener("click",()=>updateSe
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>updateSetting("auto_queue",!currentSettings.autoQueue));
 
 async function refreshSpotify(){
-  // Never let a poll race an active transport command; the final command refreshes state.
-  if(playbackCommands.isBusy())return;
-  const requestId=spotifyStatusRequests.begin();
+  // The coordinator blocks polls during transport commands and rejects stale responses.
+  const requestId=playback.beginStatus();
   if(requestId===null)return;
   const state=document.querySelector("#spotify-connection-state");
   const device=document.querySelector("#spotify-device");
   const now=document.querySelector("#spotify-now-playing");
   try{
     const data=await api("/api/dj/spotify/status");
-    if(!spotifyStatusRequests.isCurrent(requestId))return;
+    if(!playback.isStatusCurrent(requestId))return;
     const playbackSummary=getSpotifyPlaybackSummary(data);
     state.textContent=playbackSummary.connection;
     const booth=document.querySelector("#partyqueue-booth");
@@ -334,7 +341,7 @@ async function refreshSpotify(){
     device.textContent=e.message;
     now.textContent="Connect your Spotify account to enable live playback.";
   }finally{
-    spotifyStatusRequests.complete(requestId);
+    playback.completeStatus(requestId);
   }
 }
 const masterVolume=document.querySelector("#master-volume");
@@ -350,25 +357,11 @@ document.querySelector("#spotify-connect").addEventListener("click",async()=>{
   catch(e){message.textContent=e.message;button.disabled=false;}
 });
 document.querySelectorAll("[data-spotify-command]").forEach(button=>button.addEventListener("click",async()=>{
-  const action=button.dataset.spotifyCommand;
-  const commandToken=token;
   button.disabled=true;
-  // A status request started before this command must not repaint stale playback state.
-  spotifyStatusRequests.invalidate();
   try{
-    await playbackCommands.enqueue(async({isCurrent})=>{
-      if(!isCurrent()||!commandToken||token!==commandToken)return {skipped:true};
-      await api("/api/dj/spotify/"+action,{method:"POST"});
-      if(!isCurrent()||token!==commandToken)return {skipped:true};
-      if(action==="play")syncPlaybackButtons(true,true);
-      if(action==="pause")syncPlaybackButtons(true,false);
-      message.textContent="Spotify command sent.";
-    });
-  }catch(e){
-    if(token===commandToken)message.textContent=e.message;
+    await playback.runCommand(button.dataset.spotifyCommand);
   }finally{
     button.disabled=false;
-    if(!playbackCommands.isBusy()&&token===commandToken&&commandToken)await refreshSpotify();
   }
 }));
 
