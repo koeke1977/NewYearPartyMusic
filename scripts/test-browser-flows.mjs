@@ -153,6 +153,11 @@ async function testDjJourney(browser) {
   assert.equal(await page.evaluate(() => localStorage.getItem("partyqueue_dj_token")), "dj-browser-test-token");
   assert.ok(calls.some(call => call.path === "/api/dj/overview"));
   assert.ok(calls.some(call => call.path === "/api/dj/spotify/status"));
+  const aiStyles = await page.evaluate(() => ({
+    actionsDisplay: getComputedStyle(document.querySelector(".dj-ai-actions")).display,
+    chatGptDisplay: getComputedStyle(document.querySelector(".dj-ai-chatgpt")).display,
+  }));
+  assert.deepEqual(aiStyles, { actionsDisplay: "grid", chatGptDisplay: "block" });
 
   await page.locator("#dj-logout").click();
   await page.waitForFunction(() => {
