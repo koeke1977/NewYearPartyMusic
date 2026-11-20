@@ -1,7 +1,6 @@
 import type { Env } from "../env";
 import { sha256 } from "../security/crypto";
 import { executeDJAssistant } from "../../modules/ai/application/execute-dj-assistant";
-import { searchSpotifyCatalogForAssistant } from "../../integrations/ai/spotify-catalog-search";
 import type { AssistantRepository } from "../../modules/ai/application/assistant-ports";
 import { loadAssistantContextSnapshot } from "../../modules/ai/infrastructure/assistant-context-repository";
 import {
@@ -22,7 +21,6 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
   };
   return executeDJAssistant({
     eventId: env.EVENT_ID, eventName: env.EVENT_NAME, ai: env.AI,
-    searchSpotifyCatalog: toolArguments => searchSpotifyCatalogForAssistant(env, toolArguments),
     prompt, repository, hash: sha256,
   });
 }
