@@ -9,6 +9,7 @@ import { createDailyAssistantNeuronBudget, ASSISTANT_MAX_OUTPUT_TOKENS } from ".
 import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
 import { buildEventMoment } from "./modules/ai/context/event-moment";
 import { buildDJAssistantContext, parseAcceptedSetHistory, parseSavedQueueOrder } from "./modules/ai/context/assistant-context";
+import { loadAssistantContextSnapshot } from "./modules/ai/infrastructure/assistant-context-repository";
 import { parseDJPreferences } from "./modules/ai/memory/dj-preferences";
 import { claimAssistantRateLimit, readAssistantAnswerCache, rememberDJPreferenceInDatabase, writeAssistantAnswerCache } from "./modules/ai/infrastructure/assistant-settings-repository";
 
@@ -120,26 +121,17 @@ app.post("/api/dj/ai/assistant", async (c) => {
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
-  const profileKey = "dj_ai_profile_" + c.env.EVENT_ID;
-  const historyKey = "dj_ai_history_" + c.env.EVENT_ID;
   const memoryUpdated = await rememberDJPreferenceInDatabase(c.env.DB, c.env.EVENT_ID, prompt);
-  const [rows, playedRows, countRows, orderSetting, profileSetting, historySetting] = await Promise.all([
-    c.env.DB.prepare("SELECT id,track_name,artist_name,duration_ms,status,queued_at,requested_at FROM requests WHERE event_id=? AND status IN ('pending','approved','queued') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, requested_at DESC LIMIT 100").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string;duration_ms:number|null;status:string;queued_at:string|null;requested_at:string}>(),
-    c.env.DB.prepare("SELECT track_name,artist_name FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 8").bind(c.env.EVENT_ID).all<{track_name:string;artist_name:string}>(),
-    c.env.DB.prepare("SELECT status,COUNT(*) AS count FROM requests WHERE event_id=? AND status IN ('pending','approved','queued','played') GROUP BY status").bind(c.env.EVENT_ID).all<{status:string;count:number}>(),
-    c.env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>(),
-    c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(profileKey).first<{value:string}>(),
-    c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(historyKey).first<{value:string}>()
-  ]);
+  const snapshot = await loadAssistantContextSnapshot(c.env.DB, c.env.EVENT_ID);
   const context = buildDJAssistantContext({
     event: c.env.EVENT_NAME,
     eventMoment: buildEventMoment(),
-    djPreferences: parseDJPreferences(profileSetting?.value),
-    acceptedSetHistory: parseAcceptedSetHistory(historySetting?.value),
-    tracks: rows.results || [],
-    playedTracks: playedRows.results || [],
-    requestCounts: countRows.results || [],
-    savedQueueOrder: parseSavedQueueOrder(orderSetting?.value),
+    djPreferences: parseDJPreferences(snapshot.djPreferences),
+    acceptedSetHistory: parseAcceptedSetHistory(snapshot.acceptedSetHistory),
+    tracks: snapshot.queue,
+    playedTracks: snapshot.playedTracks,
+    requestCounts: snapshot.requestCounts,
+    savedQueueOrder: parseSavedQueueOrder(snapshot.savedQueueOrder),
   });
   const { system, user } = buildDJAssistantPrompt(context, prompt);
   // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
