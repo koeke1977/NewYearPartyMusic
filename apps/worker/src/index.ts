@@ -296,7 +296,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
             description: "Exact Spotify search queries, preferably title plus artist.",
             items: { type: "string" },
             minItems: 1,
-            maxItems: 12
+            maxItems: 20
           }
         },
         required: ["queries"]
@@ -329,7 +329,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
       const queries = Array.isArray(args?.queries)
         ? args.queries.filter((q:any)=>typeof q==="string")
           .map((q:string)=>q.replace(/\s+/g," ").trim().slice(0,140))
-          .filter((q:string)=>q.length>2).slice(0,12)
+          .filter((q:string)=>q.length>2).slice(0,20)
         : [];
       if (queries.length) {
         // The model can search Spotify, but this tool has no write/playback capability.
