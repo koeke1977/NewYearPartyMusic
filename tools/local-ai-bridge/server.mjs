@@ -49,12 +49,18 @@ async function runClaude(system, user) {
   try {
     return await new Promise((resolve, reject) => {
       const args = ["-p", "--output-format", "text", "--no-session-persistence", "--system-prompt-file", systemPromptPath, "--tools", "", "--disallowedTools", "mcp__*"];
+      const childEnv = { ...process.env };
+      for (const key of [
+        "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL",
+        "ANTHROPIC_CUSTOM_HEADERS", "CLAUDE_CODE_USE_BEDROCK",
+        "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY",
+      ]) delete childEnv[key];
       const child = spawn(CLI, args, {
         shell: process.platform === "win32",
         windowsHide: true,
         cwd: tempDir,
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env },
+        env: childEnv,
       });
       let stdout = "";
       let stderr = "";
