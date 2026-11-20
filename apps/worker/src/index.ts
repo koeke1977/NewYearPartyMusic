@@ -214,14 +214,35 @@ app.post("/api/dj/ai/assistant", async (c) => {
   const queued = tracks.filter(t=>t.status==="queued").sort((a,b)=>(orderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(orderIndex.get(b.id)??Number.MAX_SAFE_INTEGER)||String(a.queued_at||a.requested_at).localeCompare(String(b.queued_at||b.requested_at)));
   const recent = playedRows.results || [];
   const current = recent[0];
+  const brusselsParts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Brussels", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(new Date());
+  const localPart = (type: string) => brusselsParts.find(part => part.type === type)?.value || "";
+  const localDate = localPart("year")+"-"+localPart("month")+"-"+localPart("day");
+  const localHour = Number(localPart("hour"));
+  const localMinute = Number(localPart("minute"));
+  const isNewYearsEve = localDate === "2026-12-31";
+  const minutesToMidnight = isNewYearsEve ? Math.max(0, 1440-(localHour*60+localMinute)) : null;
+  const eventMoment = {
+    belgianLocalTime: localDate+" "+localPart("hour")+":"+localPart("minute"),
+    isNewYearsEve2026: isNewYearsEve,
+    minutesToMidnight,
+    phase: !isNewYearsEve ? "rehearsal_or_non_event_day" :
+      minutesToMidnight! > 240 ? "early_evening" :
+      minutesToMidnight! > 90 ? "building_toward_midnight" :
+      minutesToMidnight! > 15 ? "countdown_peak_window_approaching" :
+      minutesToMidnight! >= 0 ? "midnight_peak" : "after_midnight"
+  };
   const context = {
     event: c.env.EVENT_NAME,
+    eventMoment,
     currentlyLastPlayed: current ? current.track_name+" — "+current.artist_name : "unknown",
-    upNext: queued.map(t=>t.track_name+" — "+t.artist_name),
+    upNext: queued.map(t=>t.track_name+" — "+t.artist_name+" ["+Math.round((t.duration_ms||0)/60000)+" min]"),
     recentPlayed: recent.map(t=>t.track_name+" — "+t.artist_name),
     requestMix: Object.fromEntries((countRows.results||[]).map(row=>[row.status,row.count]))
   };
-  const djKnowledge = "DJ KNOWLEDGE (compact rules): Build a set in short coherent blocks of 2–3 tracks, then bridge into the next style; avoid abrupt genre jumps and long repetitive blocks. Think in energy levels: low = relaxed/chill, medium = singalong/pop/indie groove, high = dance/EDM/rock anthems. Treat these labels as estimates from track/artist names only; never claim BPM, key, tempo or mood as measured facts. Shape a broad arc: warm-up, gradual lift, peak, brief breather when useful, then another peak or singalong finish. For transitions, match a shared artist, era, vocal feel or broad style; suggest a familiar bridge track only as an outside suggestion. When asked to reorder, return a concrete numbered order using every track actually listed in upNext exactly once. Explain transitions only when requested. If the queue is too short or metadata is ambiguous, say so rather than guessing.";
+  const djKnowledge = "DJ KNOWLEDGE (compact rules): Build coherent 2–3 track blocks and bridge styles smoothly. ENERGY: create a broad warm-up → gradual lift → peak → short breather when useful → second peak/singalong finale. BPM/tempo: use your general music knowledge to estimate whether tracks are slow, mid-tempo or fast and prefer adjacent tracks with compatible or gradually changing pace; avoid abrupt slow-to-fast jumps unless it is an intentional energy lift. Never invent exact BPM, key or beatmatching claims: no audio analysis or measured tempo data is available. DECADE + GENRE: use known release era and broad genre (disco, 70s, 80s, 90s, 00s, modern pop/dance/rock, etc.) to create short varied blocks and recognizable bridges; avoid clustering too many near-identical tracks or jumping eras/styles without a bridge. If a track's era or genre is uncertain, do not state it as fact. EVENT TIMING: use eventMoment. On 31 December 2026, shape the live set for the actual Belgian local time: early evening = warm-up and familiar mid-energy songs; 4–1.5 hours before midnight = steadily build; final 90 minutes = recognizable high-energy anthems and singalongs, with the strongest peak around midnight; first minutes after midnight = celebratory peak, then sustain and refresh energy. Do not force a midnight countdown arc during rehearsal or on another date. For queue optimization, balance all three new criteria with smooth transitions and energy, and return every upNext track exactly once. Never claim measured audio properties or crowd awareness. Outside bridge tracks must be clearly labelled as suggestions, never silently inserted. If metadata is ambiguous, say so rather than guessing.";
   const system = "You are DJ#DATUUR AI, a concise Dutch-language assistant for a live party DJ. Analyse only the supplied PartyQueue metadata. Give practical, specific advice in Dutch. Never claim to hear audio, know the crowd, access Spotify audio, or control playback. Never invent queued tracks; clearly label any outside suggestion. The DJ always decides. Keep normal advice under 120 words. When the DJ asks for 20 tracks, return exactly 20 concrete numbered tracks, one per line, in the format \"1. Titel — Artiest\". Never stop early; no intro or outro around a requested track list. When asked for a complete numbered queue order, include every requested track even if that exceeds 120 words.\n\n" + djKnowledge;
   const user = "PARTYQUEUE CONTEXT:\n"+JSON.stringify(context)+"\n\nDJ QUESTION:\n"+prompt;
   const provider = (c.env.AI_PROVIDER || "cloudflare").toLowerCase();
