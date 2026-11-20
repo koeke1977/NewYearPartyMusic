@@ -68,7 +68,7 @@ export async function reorderDjQueue(input: {
   const tracks = await input.repository.readQueuedRequestTracks(input.eventId);
   const trackById = new Map(tracks.map(track => [track.id, track]));
   if (tracks.length !== requested.length || requested.some(id => !trackById.has(id))) {
-    return { status: 409, body: { error: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." } };
+    return { ok: false, error: { code: "queue_changed", message: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." } };
   }
   const acceptedTracks = requested.map(id => trackById.get(id)!)
     .map(track => track.track_name + " — " + track.artist_name);
