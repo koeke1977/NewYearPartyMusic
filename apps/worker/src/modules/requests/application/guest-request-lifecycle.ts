@@ -117,7 +117,10 @@ export async function moderatePartyRequest(input: {
   const timestamp = input.action === "played" ? "played_at"
     : input.action === "queue" || autoQueue ? "queued_at"
     : input.action === "approve" ? "approved_at" : null;
-  await input.repository.updateRequestStatus(input.eventId, input.requestId, nextStatus, timestamp);
+  const changed = await input.repository.transitionRequestStatus(
+    input.eventId, input.requestId, transition.from, nextStatus, timestamp,
+  );
+  if (!changed) return { status: 409, body: { error: "Deze aanvraag is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." } };
   return { status: 200, body: { ok: true, status: nextStatus } };
 }
 
