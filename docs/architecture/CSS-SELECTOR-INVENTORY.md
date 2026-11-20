@@ -53,6 +53,6 @@ The first CSS foundation extraction is complete. Both HTML entrypoints now load 
 - `apps/web/styles/dj-request-search.css`: DJ-side guest search and request discovery.
 - `apps/web/styles/dj-queue.css`: request queue tiles, reordering and queue presentation.
 - `apps/web/styles/dj-ai.css`: DJ AI assistant presentation.
-- `apps/web/dj.html` loads `styles.css` followed by `styles/dj-console.css` to preserve the original cascade order. Guest page keeps its existing `styles.css` then `styles/guest.css` order.
+- `apps/web/dj.html` loads `styles.css` followed by `dj-layout.css`, `dj-playback.css`, `dj-request-search.css`, `dj-queue.css` and `dj-ai.css` to preserve the original cascade order. Guest page keeps its existing `styles.css` then `styles/guest.css` order.
 
 This extraction moves the existing declarations without rewriting selectors or values; visual baselines are required to validate that the page output remains unchanged.
