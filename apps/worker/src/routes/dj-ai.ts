@@ -1,9 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../platform/env";
 import { executeDJAssistant } from "../modules/ai/application/execute-dj-assistant";
-import { addDjTrackToPartyQueue } from "../modules/requests/application/guest-request-lifecycle";
-import { searchDjSpotifyTracks } from "../modules/music/application/search-spotify-tracks";
-import { searchSpotifyTracks, getSpotifyTrack } from "../integrations/spotify/catalog-api";
+import { addDjTrackFromEnvironment, searchDjTracksFromEnvironment } from "../platform/composition/guest-workflows";
 import { requireDJSession } from "./dj-auth";
 export const djAiRoutes = new Hono<{ Bindings: Env }>();
 djAiRoutes.use("/api/dj/*", requireDJSession("DJ-sessie verlopen. Meld opnieuw aan."));
@@ -19,10 +17,7 @@ djAiRoutes.post("/api/dj/ai/assistant", async (c) => {
 djAiRoutes.post("/api/dj/ai/music/search", async (c) => {
   let body: { queries?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const result = await searchDjSpotifyTracks({
-    queries: body.queries,
-    search: (query, limit) => searchSpotifyTracks(c.env, query, limit),
-  });
+  const result = await searchDjTracksFromEnvironment(c.env, body.queries);
   return c.json(result.body, result.status);
 });
 djAiRoutes.post("/api/dj/ai/music/add", async (c) => {
@@ -30,9 +25,6 @@ djAiRoutes.post("/api/dj/ai/music/add", async (c) => {
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const trackId = typeof body.trackId === "string" ? body.trackId.trim() : "";
   if (!/^[A-Za-z0-9]{22}$/.test(trackId)) return c.json({ error: "Ongeldig Spotify-track-ID." }, 400);
-  const result = await addDjTrackToPartyQueue({
-    db: c.env.DB,eventId: c.env.EVENT_ID,trackId,createId:()=>crypto.randomUUID(),
-    getSpotifyTrack:(id)=>getSpotifyTrack(c.env,id),
-  });
+  const result = await addDjTrackFromEnvironment(c.env, trackId);
   return c.json(result.body,result.status as 200);
 });
