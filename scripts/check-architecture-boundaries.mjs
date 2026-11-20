@@ -7,6 +7,7 @@ const moduleRoot = join(root, "apps/worker/src/modules");
 const applicationRoots = [
   join(moduleRoot, "ai/application"),
   join(moduleRoot, "music/application"),
+  join(moduleRoot, "music/domain"),
   join(moduleRoot, "playback/application"),
   join(moduleRoot, "queue/application"),
   join(moduleRoot, "requests/application"),
