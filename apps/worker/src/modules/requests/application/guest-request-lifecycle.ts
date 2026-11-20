@@ -85,3 +85,80 @@ export async function submitGuestTrackRequest(input: {
     return { status: 503, body: { error: error instanceof Error ? error.message : "Aanvraag kon niet worden opgeslagen." } };
   }
 }
+
+import type { SpotifyTrack } from "../../../integrations/spotify/types";
+import {
+  appendRequestToQueueOrder,
+  createDjQueueGuest,
+  findActiveTrackRequest,
+  findEventRequestStatus,
+  insertTrackRequest,
+  moveApprovedRequestToQueue,
+  readAutoQueueSetting,
+  updateRequestStatus,
+  type GuestRequestDatabase,
+} from "../infrastructure/guest-request-repository";
+
+type Result = { status:number; body:Record<string,unknown> };
+
+export async function moderatePartyRequest(input:{
+  db:GuestRequestDatabase;eventId:string;requestId:string;action:string;
+}):Promise<Result>{
+  const current=await findEventRequestStatus(input.db,input.eventId,input.requestId);
+  if(!current)return {status:404,body:{error:"Aanvraag niet gevonden."}};
+  const transitions:Record<string,{from:string[];to:string}>={
+    approve:{from:["pending"],to:"approved"},
+    reject:{from:["pending","approved","queued"],to:"rejected"},
+    played:{from:["approved","queued"],to:"played"},
+    queue:{from:["approved"],to:"queued"},
+  };
+  const transition=transitions[input.action];
+  const autoQueue=input.action==="approve" ? await readAutoQueueSetting(input.db) : false;
+  if(!transition||!transition.from.includes(current.status)){
+    return {status:409,body:{error:"Deze actie kan niet op deze aanvraag worden uitgevoerd."}};
+  }
+  const nextStatus=autoQueue?"queued":transition.to;
+  const timestamp=input.action==="played"?"played_at"
+    :input.action==="queue"||autoQueue?"queued_at"
+    :input.action==="approve"?"approved_at":null;
+  await updateRequestStatus(input.db,input.eventId,input.requestId,nextStatus,timestamp);
+  return {status:200,body:{ok:true,status:nextStatus}};
+}
+
+export async function queueApprovedPartyRequest(input:{
+  db:GuestRequestDatabase;eventId:string;requestId:string;
+}):Promise<Result>{
+  const row=await findEventRequestStatus(input.db,input.eventId,input.requestId);
+  if(!row||row.status!=="approved"){
+    return {status:409,body:{error:"Alleen goedgekeurde nummers kunnen naar de PartyQueue-wachtrij."}};
+  }
+  const changed=await moveApprovedRequestToQueue(input.db,input.eventId,input.requestId);
+  if(!changed)return {status:409,body:{error:"Alleen goedgekeurde nummers kunnen naar de PartyQueue-wachtrij."}};
+  return {status:200,body:{ok:true,status:"queued"}};
+}
+
+export async function addDjTrackToPartyQueue(input:{
+  db:GuestRequestDatabase;eventId:string;trackId:string;createId():string;
+  getSpotifyTrack(trackId:string):Promise<Response>;
+}):Promise<Result>{
+  try{
+    const duplicate=await findActiveTrackRequest(input.db,input.eventId,input.trackId);
+    if(duplicate)return {status:200,body:{ok:true,alreadyQueued:true,status:duplicate.status}};
+    const response=await input.getSpotifyTrack(input.trackId);
+    if(!response.ok)return {status:502,body:{error:"Spotify kon dit nummer niet meer ophalen."}};
+    const track=await response.json() as SpotifyTrack;
+    const guestId=await createDjQueueGuest(input.db,input.eventId);
+    const requestId=input.createId();
+    const artists=track.artists.map(artist=>artist.name);
+    await insertTrackRequest(input.db,{
+      id:requestId,event_id:input.eventId,guest_id:guestId,spotify_track_id:track.id,
+      track_uri:track.uri,track_name:track.name,artist_name:artists.join(", "),
+      album_image_url:track.album.images?.[1]?.url||track.album.images?.[0]?.url||null,
+      duration_ms:track.duration_ms,status:"queued",
+    });
+    await appendRequestToQueueOrder(input.db,requestId);
+    return {status:201,body:{ok:true,request:{id:requestId,name:track.name,artist:artists.join(", "),status:"queued"}}};
+  }catch(error){
+    return {status:502,body:{error:error instanceof Error?error.message:"Track toevoegen aan de wachtrij is mislukt."}};
+  }
+}
