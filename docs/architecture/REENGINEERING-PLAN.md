@@ -280,7 +280,7 @@ This audit is intentionally explicit about remaining mixed boundaries. Green CI 
 - Moves Cloudflare environment wiring for guest join, guest request submission, guest/DJ Spotify catalogue search and DJ AI track insertion into `platform/composition/guest-workflows.ts`.
 - Guest and DJ Hono route modules now retain request parsing, session checks, identifier validation and HTTP response serialization; they no longer construct D1/Spotify dependencies for these workflows.
 - Existing application use cases, D1 repository calls, Spotify catalogue endpoints, event scoping, rate limits, duplicate checks and request status policy are unchanged.
-- This is a composition-boundary improvement, not yet full dependency inversion: the request and music application modules still depend on concrete repository/provider shapes. Those ports and typed provider DTOs remain explicit follow-up work.
+- At that point this was a composition-boundary improvement. The subsequent typed request/catalogue ports documented below supersede the then-open provider/repository dependency work.
 
 
 
