@@ -34,7 +34,7 @@ describe("DJ Spotify playback controls", () => {
     await expect(executeDjSpotifyCommand({ action: "pause", sendCommand, setManualPause })).resolves.toEqual({
       status: 200, body: { ok: true },
     });
-    expect(setCommandArgs(sendCommand)).toEqual(["pause"]);
+    expect(sendCommand).toHaveBeenCalledWith("pause");
     expect(setManualPause).toHaveBeenLastCalledWith(true);
 
     await executeDjSpotifyCommand({ action: "play", sendCommand, setManualPause });
@@ -71,7 +71,4 @@ describe("DJ Spotify playback controls", () => {
     })).resolves.toEqual({ status: 503, body: { error: "D1 offline" } });
   });
 });
-
-function setCommandArgs(mock: ReturnType<typeof vi.fn>): unknown[] {
-  return mock.mock.calls.map(call => call[0]);
-}
+\n
