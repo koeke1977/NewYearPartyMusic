@@ -4,7 +4,6 @@ import { constantTimeEqual, sha256, toBase64Url } from "./platform/security/cryp
 import { createSessionToken, readSession } from "./modules/identity/session-token";
 import { loginDj, readDjSession } from "./modules/identity/dj-session";
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
-import type { SpotifyTrack } from "./integrations/spotify/types";
 import { exchangeSpotifyAuthorizationCode, spotifyFetch } from "./integrations/spotify/user-auth-service";
 import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
 import { dispatchNextTrack } from "./modules/queue/application/dispatch-next-track";
