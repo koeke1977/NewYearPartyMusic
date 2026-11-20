@@ -85,6 +85,7 @@ describe("DJ Spotify console", () => {
 
   it("disconnects Spotify and removes the saved DJ connection", async () => {
     const { spotify, api, elements } = setup();
+    spotify.bindControls();
     await spotify.refreshStatus();
     await elements["#spotify-disconnect"].listeners.click();
     expect(api).toHaveBeenCalledWith("/api/dj/spotify/connection", { method: "DELETE" });
