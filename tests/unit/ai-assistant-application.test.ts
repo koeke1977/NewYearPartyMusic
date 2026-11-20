@@ -5,10 +5,7 @@ import type { AssistantRepository } from "../../apps/worker/src/modules/ai/appli
 function createRepository(): AssistantRepository {
   return {
     rememberPreference: vi.fn(async () => false),
-    loadContext: vi.fn(async () => ({
-      queue: [], playedTracks: [], requestCounts: [], savedQueueOrder: null,
-      djPreferences: null, acceptedSetHistory: null,
-    })),
+    loadContext: vi.fn(async () => ({ requestCounts: [], djPreferences: null })),
     readAnswerCache: vi.fn(async () => null),
     writeAnswerCache: vi.fn(async () => {}),
     claimRateLimit: vi.fn(async () => true),
@@ -23,7 +20,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     const ai = { run: vi.fn() };
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party", ai, searchSpotifyCatalog: async () => [],
+      eventId: "event-1", eventName: "Test Party", ai,
       prompt: "Geef me wat disco-advies", repository, hash: async value => value,
     });
     expect(result.status).toBe(429);
@@ -36,11 +33,12 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     vi.mocked(repository.readAnswerCache).mockResolvedValue({ answer: "Prima!", spotifyMatches: [] });
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party", searchSpotifyCatalog: async () => [],
+      eventId: "event-1", eventName: "Test Party",
       prompt: "Geef me disco-advies", repository, hash: async value => value,
     });
     expect(result.status).toBe(200);
     expect(result.body.cached).toBe(true);
+    expect(result.body.spotifyMatches).toEqual([]);
     expect(repository.claimRateLimit).not.toHaveBeenCalled();
   });
 });
