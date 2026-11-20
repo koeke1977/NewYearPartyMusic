@@ -358,7 +358,7 @@ async function askDJAI(prompt,mode="advice"){
   button.disabled=true;actionButtons.forEach(b=>b.disabled=true);
   output.textContent="DJ#DATUUR AI denkt even mee…";
   try{
-    const result=await api("/api/dj/ai/assistant",{method:"POST",body:JSON.stringify({prompt})});
+    const result=mode==="import"?{answer:prompt,cached:false}:await api("/api/dj/ai/assistant",{method:"POST",body:JSON.stringify({prompt})});
     const answer=result.answer||"Geen advies ontvangen.";
     if(mode==="optimize"){
       output.textContent=answer+"\n\nWachtrij wordt gecontroleerd…";
@@ -379,7 +379,7 @@ async function askDJAI(prompt,mode="advice"){
       }else{
         output.textContent=answer+"\n\n⚠️ Ik heb geen volledige, eenduidige volgorde kunnen herkennen. Er is niets gewijzigd. Pas de volgorde eventueel handmatig aan.";
       }
-    }else if(mode==="starter"||mode==="fill"){
+    }else if(mode==="starter"||mode==="fill"||mode==="import"){
       const suggestions=[...answer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)]
         .map(match=>match[1].replace(/\*+/g,"").replace(/\s*\([^)]*\)\s*$/,"").trim())
         .filter(line=>line.includes("—")||line.includes("-"))
@@ -388,7 +388,7 @@ async function askDJAI(prompt,mode="advice"){
       const intro=el("p","",answer);
       output.append(intro);
       if(suggestions.length){
-        const hint=el("p","dj-ai-results-hint","Spotify-matches — kies de juiste uitvoering om die rechtstreeks aan UP NEXT toe te voegen.");
+        const hint=el("p","dj-ai-results-hint",mode==="import"?"Je lijst is herkend. Kies per nummer de juiste Spotify-uitvoering om die rechtstreeks aan UP NEXT toe te voegen.":"Spotify-matches — kies de juiste uitvoering om die rechtstreeks aan UP NEXT toe te voegen.");
         output.append(hint);
         const results=await api("/api/dj/ai/music/search",{method:"POST",body:JSON.stringify({queries:suggestions})});
         for(const group of results.results||[]){
@@ -426,7 +426,7 @@ async function askDJAI(prompt,mode="advice"){
 aiForm.addEventListener("submit",async event=>{
   event.preventDefault();
   const prompt=document.querySelector("#dj-ai-prompt").value.trim();
-  if(prompt)await askDJAI(prompt);
+  if(prompt){const trackLines=prompt.split(/\r?\n/).filter(line=>/^\s*(?:\d+[.)]\s*)?.+\s+[—–-]\s+.+/.test(line));await askDJAI(prompt,trackLines.length>=2?"import":"advice");}
 });
 document.querySelectorAll("[data-ai-action]").forEach(button=>button.addEventListener("click",async()=>{
   const action=button.dataset.aiAction;
