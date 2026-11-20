@@ -58,8 +58,8 @@ async function main() {
     const cases = [
       { name: "guest-desktop", path: "/", viewport: { width: 1440, height: 1000 }, dj: false },
       { name: "guest-mobile", path: "/", viewport: { width: 390, height: 844 }, dj: false },
-      { name: "dj-desktop", path: "/dj.html", viewport: { width: 1440, height: 1000 }, dj: true },
-      { name: "dj-mobile", path: "/dj.html", viewport: { width: 390, height: 844 }, dj: true },
+      { name: "dj-desktop", path: "/dj.html", viewport: { width: 1600, height: 1100 }, dj: true },
+      { name: "dj-responsive-check", path: "/dj.html", viewport: { width: 1024, height: 768 }, dj: true },
     ];
     const { mkdir } = await import("node:fs/promises");
     await mkdir(output, { recursive: true });
