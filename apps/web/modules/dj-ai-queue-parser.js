@@ -1,7 +1,7 @@
 function normalizeTrackText(value) {
   return value.toLocaleLowerCase("nl")
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
@@ -14,8 +14,8 @@ function parseProposedTrack(line) {
   let title = line.slice(0, split).trim();
   const artist = line.slice(split + (emDash >= 0 ? 1 : 3)).trim();
   title = title
-    .replace(/\\s+-\\s+(?:from\\b|edit\\b|original version\\b).*$/i, "")
-    .replace(/\\s*\\([^)]*\\)\\s*$/, "")
+    .replace(/\s+-\s+(?:from\b|edit\b|original version\b).*$/i, "")
+    .replace(/\s*\([^)]*\)\s*$/, "")
     .trim();
   return title && artist
     ? { title: normalizeTrackText(title), artist: normalizeTrackText(artist) }
@@ -23,8 +23,8 @@ function parseProposedTrack(line) {
 }
 
 export function matchDjQueueProposal(answer, queued) {
-  const lines = [...answer.matchAll(/^\\s*\\d+[.)]\\s*(.+?)\\s*$/gm)].map((match) =>
-    match[1].replace(/\\*+/g, "").trim(),
+  const lines = [...answer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)].map((match) =>
+    match[1].replace(/\*+/g, "").trim(),
   );
   const unused = new Set(queued.map((track) => track.id));
   const unmatchedLines = [];
