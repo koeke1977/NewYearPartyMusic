@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import type { Env } from "./platform/env";
 import { constantTimeEqual, sha256, toBase64Url } from "./platform/security/crypto";
-import { createSessionToken, readSession, type Session } from "./modules/identity/session-token";
+import { createSessionToken, readSession } from "./modules/identity/session-token";
+import { loginDj, readDjSession } from "./modules/identity/dj-session";
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
 import { exchangeSpotifyAuthorizationCode, spotifyFetch } from "./integrations/spotify/user-auth-service";
@@ -84,20 +85,22 @@ app.post("/api/requests", async (c) => {
 });
 
 
-async function requireDJ(request: Request, env: Env): Promise<Session | null> {
-  const session = await readSession(request, env.SESSION_SECRET);
-  if (!session || session.role !== "dj" || session.eventId !== env.EVENT_ID) return null;
-  return session;
+async function requireDJ(request: Request, env: Env): Promise<boolean> {
+  return !!(await readDjSession(request, env.SESSION_SECRET, env.EVENT_ID));
 }
 app.post("/api/dj/login", async (c) => {
-  if (!c.env.DJ_ACCESS_CODE_HASH) return c.json({ error: "DJ-toegang is nog niet geconfigureerd." }, 503);
   let body: { code?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
-  const code = typeof body.code === "string" ? body.code.trim() : "";
-  if (!code || code.length > 64 || (await sha256(code)) !== c.env.DJ_ACCESS_CODE_HASH.trim().toLowerCase()) return c.json({ error: "Onjuiste DJ-code." }, 401);
-  const expiresAt = Math.floor(Date.now() / 1000) + 28800;
-  const token = await createSessionToken({ sub: "dj", eventId: c.env.EVENT_ID, nickname: "DJ", role: "dj", exp: expiresAt }, c.env.SESSION_SECRET);
-  return c.json({ ok: true, token, expiresAt });
+  const result = await loginDj({
+    code: typeof body.code === "string" ? body.code.trim() : "",
+    expectedCodeHash: c.env.DJ_ACCESS_CODE_HASH,
+    sessionSecret: c.env.SESSION_SECRET,
+    eventId: c.env.EVENT_ID,
+    hashCode: sha256,
+    createToken: createSessionToken,
+    nowSeconds: () => Math.floor(Date.now() / 1000),
+  });
+  return c.json(result.body, result.status as 200 | 401 | 503);
 });
 app.post("/api/dj/ai/assistant", async (c) => {
   if (!await requireDJ(c.req.raw, c.env)) return c.json({ error: "DJ-sessie verlopen. Meld opnieuw aan." }, 401);
