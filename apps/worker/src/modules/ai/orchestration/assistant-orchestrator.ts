@@ -10,7 +10,7 @@ import {
   type SpotifyCatalogMatch,
 } from "../../../integrations/ai/spotify-catalog-search";
 import type { Env } from "../../../platform/env";
-import { ASSISTANT_MAX_OUTPUT_TOKENS } from "../infrastructure/neuron-budget";
+import { ASSISTANT_MAX_OUTPUT_TOKENS } from "../application/neuron-budget-policy";
 import type { AssistantNeuronBudget } from "../application/assistant-ports";
 
 export type DJAssistantRunResult = {
