@@ -90,7 +90,7 @@ The production release completed on 2026-11-20. The validated build reported 65 
 - [x] Typecheck, architecture check and 266 unit tests passed in the production build.
 - [x] Browser guest/DJ journeys passed in the GitHub CI run for the architecture release.
 - [x] Production Workers Logs and Traces enabled.
-- [x] Query-string redaction and Real-time Issues enabled in the production Wrangler configuration; deployment is triggered by the corresponding configuration commit.
+- [x] Query-string redaction and Real-time Issues enabled and verified in the active production Worker settings (version 5, 2026-11-20); Wrangler configuration also records these settings as source of truth.
 
 ### Event-day checks still requiring an authenticated human session
 
