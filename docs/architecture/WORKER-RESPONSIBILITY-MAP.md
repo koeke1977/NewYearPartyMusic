@@ -31,6 +31,9 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 
 ## Extracted platform components
 
+- `routes/system.ts`: public health and event configuration endpoints, kept separate from feature routes.
+- `scheduled/handler.ts`: Cloudflare scheduled-event adapter; delegates cleanup to the request-retention use case.
+
 - `durable-objects/queue-room.ts`: isolated Cloudflare Durable Object export. The Worker composition root re-exports `QueueRoom` so the Wrangler binding name remains unchanged.
 
 ## Extracted HTTP route modules
@@ -41,7 +44,10 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 
 Guest route tests verify unauthenticated search/request rejection and malformed join JSON handling without invoking D1 or Spotify.
 
-## Remaining entrypoint responsibilities
+## Remaining route-adapter responsibilities
+
+The Worker composition root now only mounts route groups, exports the Durable Object and delegates scheduled events. Health/config transport lives in `routes/system.ts`; scheduled-event transport lives in `scheduled/handler.ts`.
+
 
 | Current function / route | Current mixed responsibility | Intended owner |
 |---|---|---|
