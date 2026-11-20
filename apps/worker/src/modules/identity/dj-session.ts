@@ -1,6 +1,7 @@
-import { createSessionToken, readSession, type Session } from "./session-token";
+import type { Session } from "./session-token";
 
 type Result = { status: number; body: Record<string, unknown> };
+type SessionReader = (request: Request, secret: string) => Promise<Session | null>;
 
 export async function loginDj(input: {
   code: string;
@@ -29,8 +30,9 @@ export async function readDjSession(
   request: Request,
   sessionSecret: string,
   eventId: string,
+  readToken: SessionReader,
 ): Promise<Session | null> {
-  const session = await readSession(request, sessionSecret);
+  const session = await readToken(request, sessionSecret);
   if (!session || session.role !== "dj" || session.eventId !== eventId) return null;
   return session;
 }
