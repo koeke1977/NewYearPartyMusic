@@ -26,3 +26,17 @@ footer{display:flex;justify-content:space-between;gap:12px;margin-top:auto;paddi
 .button:disabled{opacity:.55;cursor:wait}
 .text-button{display:block;margin:17px auto 0;padding:7px;border:0;background:transparent;color:var(--muted);font:inherit;font-size:10px;cursor:pointer}
 .text-button:hover{color:var(--green)}
+
+.spotify-content-link {
+  color: #1ed760;
+  text-decoration: underline;
+  text-decoration-color: rgba(30, 215, 96, .55);
+  text-underline-offset: 2px;
+}
+.spotify-content-link:hover {
+  color: #fff;
+  text-decoration-color: currentColor;
+}
+.spotify-content-link[hidden] {
+  display: none;
+}
