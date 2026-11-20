@@ -16,6 +16,7 @@ function fakeDb(options:{
   duplicateAfterInsert?:{id:string;status:string}|null;
 }={}){
   const calls:Array<{sql:string;values:unknown[]}>= [];
+  let insertAttempted = false;
   const db={
     prepare(sql:string){
       let values:unknown[]=[];
