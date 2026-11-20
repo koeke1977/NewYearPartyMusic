@@ -13,6 +13,7 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-ai-queue-parser.js`: validates AI-proposed numbered lists against the live queued tracks and returns matched IDs plus unmatched lines; the existing unique-title fallback rule is preserved.
 - `modules/dj-ai-suggestions.js`: extracts bounded, normalized numbered track suggestions and preserves the Spotify-query fallback when the AI response contains no parseable list.
 - `modules/dj-polling.js`: owns the immediate refresh + five-second polling interval lifecycle and ensures a repeated start replaces the prior interval.
+- `modules/dj-playback-display.js`: pure playback display helpers for elapsed time, clamped progress percentage and playing/paused/waiting labels; DOM rendering remains in the DJ entrypoint.
 - `dj.js` remains the page composition/controller for login, rendering, moderation, playback and AI interactions until those flows have dedicated tests.
 
 `dj.html` now loads `dj.js` as a native ES module; no bundler or new runtime dependency was introduced.
@@ -30,7 +31,7 @@ The remaining DJ entrypoint still owns several separate concerns:
 | Request moderation | `runAction()`, action buttons | `dj/features/requests/` |
 | Settings controls | pause, auto-approve and auto-queue toggles | `dj/features/settings/` |
 | Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle extracted), then `dj/services/polling-service.ts` |
-| Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `dj/features/playback/` |
+| Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `dj/features/playback/`; pure time/progress calculations extracted to `modules/dj-playback-display.js` |
 | AI request lifecycle | `askDJAI()`, prompt actions, response display and loading state | `dj/features/ai-assistant/` |
 | AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `modules/dj-ai-queue-parser.js` (pure matching extracted), then `dj/features/ai-assistant/queue-proposal-parser.ts` |
 | AI Spotify suggestions | numbered title/artist extraction, search result groups, selected tracks, add-to-queue actions | `modules/dj-ai-suggestions.js` (pure suggestion extraction), then `dj/features/ai-assistant/track-suggestions-view.ts` |
