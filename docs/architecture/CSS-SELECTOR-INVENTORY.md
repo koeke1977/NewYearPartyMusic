@@ -34,8 +34,8 @@ The guest search uses several generic classes rather than a consistent `.guest-*
 
 1. Capture the guest page on desktop and mobile. Capture the DJ console primarily on a desktop viewport (1600×1100), with a single 1024×768 responsive sanity check; it is a PC-first control surface. The repeatable Playwright capture is in `scripts/capture-ui-baseline.mjs`; CI uploads `guest-desktop.png`, `guest-mobile.png`, `dj-desktop.png` and `dj-responsive-check.png` as the `partyqueue-ui-baseline` artifact. DJ captures use deterministic mock API data and a seeded test-only DJ token, never Spotify or production data.
 2. **Completed:** extract the six root design tokens to `styles/tokens.css` and the reset/base rules to `styles/base.css`, without changing their values.
-3. Identify shared controls and layout primitives from actual usage in both HTML entrypoints.
-4. Move guest-only selectors by verified markup ownership; do not rename classes in the same change.
+3. Shared `.text-button` and `.button:disabled` rules remain in `styles.css` because both pages use them.
+4. **Completed:** move the guest-only search/results/request selectors and their mobile overrides to `styles/guest.css`, loaded only by `index.html`; class names and values are unchanged.
 5. Move DJ-only selectors, keeping booth animations and responsive rules with their owning component.
 6. Compare screenshots after each move and check computed styles at every existing breakpoint.
 7. Remove the original rules only after visual and browser-level checks pass.
