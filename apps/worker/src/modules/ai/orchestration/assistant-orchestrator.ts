@@ -11,7 +11,7 @@ import {
 } from "../../../integrations/ai/spotify-catalog-search";
 import type { Env } from "../../../platform/env";
 import { ASSISTANT_MAX_OUTPUT_TOKENS } from "../infrastructure/neuron-budget";
-import type { DailyAssistantNeuronBudget } from "../infrastructure/neuron-budget";
+import type { AssistantNeuronBudget } from "../application/assistant-ports";
 
 export type DJAssistantRunResult = {
   answer: string;
@@ -28,7 +28,7 @@ export async function runDJAssistantTurn(
   model: string,
   system: string,
   user: string,
-  neuronBudget: DailyAssistantNeuronBudget,
+  neuronBudget: AssistantNeuronBudget,
 ): Promise<DJAssistantRunResult> {
   const first = await runCloudflareAI(ai, model, {
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
