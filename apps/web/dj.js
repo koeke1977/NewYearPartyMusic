@@ -4,6 +4,7 @@ import { element as el } from "./modules/dom.js";
 import { orderedQueued } from "./modules/dj-queue.js";
 import { matchDjQueueProposal } from "./modules/dj-ai-queue-parser.js";
 import { createDjPollingController } from "./modules/dj-polling.js";
+import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -389,14 +390,7 @@ async function askDJAI(prompt,mode="advice"){
         output.textContent=answer+"\n\n⚠️ Ik kon slechts "+ids.length+" van de "+queued.length+" nummers eenduidig koppelen. Er is niets gewijzigd. Niet herkend: "+(unmatchedLines.length?unmatchedLines.join(" | "):"controleer of de AI alle wachtrijtracks heeft opgenomen.");
       }
     }else if(mode==="starter"||mode==="fill"||mode==="import"){
-      const normalizedAnswer=answer.replace(/\\n/g,"\n").replace(/\\r/g,"");
-      const suggestions=[...normalizedAnswer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)]
-        .map(match=>match[1].replace(/\*+/g,"").replace(/\s*\([^)]*\)\s*$/,"").replace(/[\u2013\u2014]/g," — ").replace(/\s+/g," ").trim())
-        .filter(line=>line.includes("—")||line.includes("-"))
-        .map(line=>line.replace(/^\s*[-•]\s*/,"").trim().slice(0,140))
-        .filter(line=>line.length>2)
-        .slice(0,20);
-      if(!suggestions.length&&result.spotifyMatches?.length)result.spotifyMatches.forEach(group=>suggestions.push(group.query));
+      const suggestions=extractDjTrackSuggestions(answer,result.spotifyMatches);
       output.replaceChildren();
       const intro=el("p","",answer);
       output.append(intro);
