@@ -82,7 +82,7 @@ export function createDjOverviewView({
     documentRef.querySelector("#pause-state").textContent = currentSettings.requestsPaused ? "PAUSED" : "ACCEPTING";
     documentRef.querySelector("#approval-state").textContent = currentSettings.autoApprove ? "AUTO" : "DJ";
 
-    const overview = createDjOverviewModelementFactory(data);
+    const overview = createDjOverviewModel(data);
     const { requests, queueOrder, queued, liveRequests, queuePositions, nextQueued } = overview;
     const stats = documentRef.querySelector("#dj-stats");
     stats.replaceChildren(
