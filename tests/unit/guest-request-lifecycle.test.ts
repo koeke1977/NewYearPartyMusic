@@ -79,13 +79,13 @@ describe("guest request lifecycle", () => {
     const limited=fakeDb({count:20});
     expect(await submitGuestTrackRequest({
       db:limited.db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
-      createId:()=>"request",getSpotifyTrack:vi.fn(),
+      createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:429});
 
     const duplicate=fakeDb({duplicate:{id:"existing"}});
     expect(await submitGuestTrackRequest({
       db:duplicate.db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
-      createId:()=>"request",getSpotifyTrack:vi.fn(),
+      createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:409});
   });
 
