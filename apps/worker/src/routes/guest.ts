@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { Env } from "../platform/env";
 import { readSession } from "../platform/composition/session-token";
+import { allowAuthAttempt } from "../platform/composition/auth-attempt-guard";
 import { guestRequestErrorStatus } from "./guest-request-http";
 import {
   joinGuestFromEnvironment, submitGuestRequestFromEnvironment, searchGuestTracksFromEnvironment,
@@ -11,6 +12,11 @@ export const guestRoutes = new Hono<{ Bindings: Env }>();
 guestRoutes.post("/guests/join", async (c) => {
   if (!c.env.EVENT_ACCESS_CODE_HASH || !c.env.SESSION_SECRET) {
     return c.json({ error: "PartyQueue is not configured yet. Please contact the DJ." }, 503);
+  }
+  if (!await allowAuthAttempt(c.env, c.req.raw, "guest_join")) {
+    return c.json({ error: "Te veel aanmeldpogingen vanaf dit netwerk. Probeer het over 15 minuten opnieuw." }, 429, {
+      "Retry-After": "900",
+    });
   }
   let body: { nickname?: unknown; eventCode?: unknown };
   try {
