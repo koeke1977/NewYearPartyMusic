@@ -9,7 +9,7 @@ export interface GuestRequestRepository {
   countRecentGuestRequests(guestId:string):Promise<number>;
   countOpenGuestRequests(guestId:string):Promise<number>;
   findActiveTrackRequest(eventId:string,trackId:string):Promise<{id:string;status?:string}|null>;
-  insertTrackRequest(request:StoredTrackRequest):Promise<void>;
+  insertTrackRequest(request:StoredTrackRequest):Promise<boolean>;
   createDjQueueGuest(eventId:string):Promise<string>;
   appendRequestToQueueOrder(requestId:string):Promise<void>;
   findEventRequestStatus(eventId:string,requestId:string):Promise<{id:string;status:string}|null>;
