@@ -1,6 +1,6 @@
 import { element } from "./dom.js";
 
-// Renders Spotify search results and delegates each request action to the controller.
+// Renders Spotify search results with a direct Spotify content link and delegates requests.
 export function renderGuestTrackResults(results, tracks, onRequest, elementFactory = element) {
   results.replaceChildren();
   for (const track of tracks) {
@@ -16,10 +16,15 @@ export function renderGuestTrackResults(results, tracks, onRequest, elementFacto
     }
 
     const details = elementFactory("div", "track-details");
-    details.append(
+    const spotifyLink = elementFactory("a", "spotify-content-link");
+    spotifyLink.href = "https://open.spotify.com/track/" + encodeURIComponent(track.id);
+    spotifyLink.target = "_blank";
+    spotifyLink.rel = "noopener noreferrer";
+    spotifyLink.append(
       elementFactory("strong", "track-name", track.name),
       elementFactory("span", "track-artist", track.artists.join(", ")),
     );
+    details.append(spotifyLink);
     const duration = Math.floor(track.durationMs / 60000) + ":" +
       String(Math.floor(track.durationMs / 1000) % 60).padStart(2, "0");
     details.append(elementFactory("span", "track-duration", duration));
