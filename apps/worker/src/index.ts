@@ -4,6 +4,7 @@ import { constantTimeEqual, decryptSecret, encryptSecret, sha256, toBase64Url } 
 import { createSessionToken, readSession, type Session } from "./modules/identity/session-token";
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
+import { claimSpotifyRefreshLock, invalidateSpotifyAccessToken, readEncryptedSpotifyTokens, releaseSpotifyRefreshLock, saveEncryptedSpotifyTokens } from "./integrations/spotify/user-auth-repository";
 import { executeDJAssistant } from "./modules/ai/application/execute-dj-assistant";
 
 
@@ -254,51 +255,62 @@ app.post("/api/dj/settings/:key", async (c) => {
 });
 
 async function saveSpotifyTokens(env: Env, accessToken: string, refreshToken: string, expiresIn: number) {
-  const [accessEnc, refreshEnc] = await Promise.all([encryptSecret(accessToken,env.SESSION_SECRET),encryptSecret(refreshToken,env.SESSION_SECRET)]);
-  await env.DB.prepare("INSERT INTO spotify_auth (id,access_token_enc,refresh_token_enc,expires_at,updated_at) VALUES ('main',?,?,?,CURRENT_TIMESTAMP) ON CONFLICT(id) DO UPDATE SET access_token_enc=excluded.access_token_enc,refresh_token_enc=excluded.refresh_token_enc,expires_at=excluded.expires_at,updated_at=CURRENT_TIMESTAMP")
-    .bind(accessEnc,refreshEnc,Date.now()+expiresIn*1000).run();
+  const [accessEnc, refreshEnc] = await Promise.all([
+    encryptSecret(accessToken, env.SESSION_SECRET),
+    encryptSecret(refreshToken, env.SESSION_SECRET),
+  ]);
+  await saveEncryptedSpotifyTokens(env.DB, accessEnc, refreshEnc, Date.now() + expiresIn * 1000);
 }
 async function spotifyUserToken(env: Env): Promise<string> {
   // Serialize refresh-token rotation across concurrent Worker requests.
   const owner = crypto.randomUUID();
   for (let attempt = 0; attempt < 16; attempt++) {
-    const row = await env.DB.prepare("SELECT access_token_enc,refresh_token_enc,expires_at FROM spotify_auth WHERE id='main'").first<{access_token_enc:string;refresh_token_enc:string;expires_at:number}>();
+    const row = await readEncryptedSpotifyTokens(env.DB);
     if (!row) throw new Error("Koppel eerst je Spotify-account via de DJ-console.");
-    if (row.expires_at > Date.now()+60000) return decryptSecret(row.access_token_enc,env.SESSION_SECRET);
-    const claim = await env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('spotify_token_refresh_lock',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-30 seconds')").bind(owner).run();
-    if (!claim.meta.changes) {
-      await new Promise(resolve => setTimeout(resolve,200));
+    if (row.expires_at > Date.now() + 60000) return decryptSecret(row.access_token_enc, env.SESSION_SECRET);
+    if (!await claimSpotifyRefreshLock(env.DB, owner)) {
+      await new Promise(resolve => setTimeout(resolve, 200));
       continue;
     }
     try {
       // Another request may have refreshed while this request was waiting to acquire the lock.
-      const latest = await env.DB.prepare("SELECT access_token_enc,refresh_token_enc,expires_at FROM spotify_auth WHERE id='main'").first<{access_token_enc:string;refresh_token_enc:string;expires_at:number}>();
+      const latest = await readEncryptedSpotifyTokens(env.DB);
       if (!latest) throw new Error("Spotify-koppeling ontbreekt.");
-      if (latest.expires_at > Date.now()+60000) return await decryptSecret(latest.access_token_enc,env.SESSION_SECRET);
-      const refreshToken = await decryptSecret(latest.refresh_token_enc,env.SESSION_SECRET);
-      const basic = btoa(env.SPOTIFY_CLIENT_ID+":"+env.SPOTIFY_CLIENT_SECRET);
-      const response = await fetch("https://accounts.spotify.com/api/token",{method:"POST",headers:{Authorization:"Basic "+basic,"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({grant_type:"refresh_token",refresh_token:refreshToken})});
+      if (latest.expires_at > Date.now() + 60000) return await decryptSecret(latest.access_token_enc, env.SESSION_SECRET);
+      const refreshToken = await decryptSecret(latest.refresh_token_enc, env.SESSION_SECRET);
+      const basic = btoa(env.SPOTIFY_CLIENT_ID + ":" + env.SPOTIFY_CLIENT_SECRET);
+      const response = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: { Authorization: "Basic " + basic, "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: refreshToken }),
+      });
       if (!response.ok) {
-        const detail = (await response.text()).slice(0,300);
-        throw new Error("Spotify-token vernieuwen mislukt (HTTP "+response.status+"). "+detail);
+        const detail = (await response.text()).slice(0, 300);
+        throw new Error("Spotify-token vernieuwen mislukt (HTTP " + response.status + "). " + detail);
       }
-      const data = await response.json() as {access_token:string;expires_in:number;refresh_token?:string};
-      await saveSpotifyTokens(env,data.access_token,data.refresh_token||refreshToken,data.expires_in);
+      const data = await response.json() as { access_token: string; expires_in: number; refresh_token?: string };
+      await saveSpotifyTokens(env, data.access_token, data.refresh_token || refreshToken, data.expires_in);
       return data.access_token;
     } finally {
-      await env.DB.prepare("DELETE FROM settings WHERE key='spotify_token_refresh_lock' AND value=?").bind(owner).run();
+      await releaseSpotifyRefreshLock(env.DB, owner);
     }
   }
   throw new Error("Spotify-token wordt momenteel door een andere aanvraag vernieuwd. Probeer zo opnieuw.");
 }
 async function spotifyFetch(env: Env, path: string, init: RequestInit = {}): Promise<Response> {
   let token = await spotifyUserToken(env);
-  let response = await fetch("https://api.spotify.com/v1"+path,{...init,headers:{...(init.headers||{}),Authorization:"Bearer "+token}});
+  let response = await fetch("https://api.spotify.com/v1" + path, {
+    ...init,
+    headers: { ...(init.headers || {}), Authorization: "Bearer " + token },
+  });
   if (response.status === 401) {
     // The cached token may have been revoked or rotated by another concurrent request.
-    await env.DB.prepare("UPDATE spotify_auth SET expires_at=0 WHERE id='main'").run();
+    await invalidateSpotifyAccessToken(env.DB);
     token = await spotifyUserToken(env);
-    response = await fetch("https://api.spotify.com/v1"+path,{...init,headers:{...(init.headers||{}),Authorization:"Bearer "+token}});
+    response = await fetch("https://api.spotify.com/v1" + path, {
+      ...init,
+      headers: { ...(init.headers || {}), Authorization: "Bearer " + token },
+    });
   }
   return response;
 }
