@@ -97,7 +97,7 @@ describe("DJ request lifecycle",()=>{
       id:"new-request",name:"AI selected song",artist:"Artist",status:"queued",
     }}});
     expect(calls.some(call=>call.sql.startsWith("INSERT OR IGNORE INTO guests"))).toBe(true);
-    const insert=calls.find(call=>call.sql.startsWith("INSERT INTO requests"));
+    const insert=calls.find(call=>call.sql.includes("INTO requests"));
     expect(insert?.values).toContain("queued");
     expect(insert?.values).toContain("Artist");
     const orderWrite=calls.find(call=>call.sql.includes("partyqueue_order")&&call.sql.startsWith("INSERT INTO settings"));
@@ -121,6 +121,6 @@ describe("DJ request lifecycle",()=>{
       trackGateway:{getTrack:async()=>null},
     });
     expect(result).toMatchObject({status:502});
-    expect(calls.some(call=>call.sql.startsWith("INSERT INTO requests"))).toBe(false);
+    expect(calls.some(call=>call.sql.includes("INTO requests"))).toBe(false);
   });
 });
