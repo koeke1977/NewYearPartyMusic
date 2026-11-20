@@ -30,7 +30,7 @@ describe("queue advancement policy", () => {
   it("does not advance while Spotify is playing", async () => {
     const { db } = fakeDb();
     const dispatchNext = vi.fn();
-    const result = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext, startFallback: vi.fn() }, true);
+    const result = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext }, true);
     expect(result).toEqual({ advanced: false });
     expect(dispatchNext).not.toHaveBeenCalled();
   });
@@ -41,7 +41,7 @@ describe("queue advancement policy", () => {
       spotify_last_partyqueue_track: { value: last(1000) },
     }, 2);
     const dispatchNext = vi.fn();
-    const result = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext, startFallback: vi.fn(), now: () => 200000 }, false);
+    const result = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext, now: () => 200000 }, false);
     expect(result).toEqual({ advanced: false });
     expect(dispatchNext).not.toHaveBeenCalled();
   });
@@ -49,17 +49,17 @@ describe("queue advancement policy", () => {
   it("waits for the 2.5-second end tolerance and dispatches when due", async () => {
     const { db } = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } }, 1);
     const dispatchNext = vi.fn(async () => ({ ok: true }));
-    const before = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext, startFallback: vi.fn(), now: () => 178400 }, false);
+    const before = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext, now: () => 178400 }, false);
     expect(before.advanced).toBe(false);
-    const due = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext, startFallback: vi.fn(), now: () => 178501 }, false);
+    const due = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext, now: () => 178501 }, false);
     expect(due).toEqual({ advanced: true });
     expect(dispatchNext).toHaveBeenCalledTimes(1);
   });
 
   it("treats dispatch-lock contention as normal and surfaces real dispatch errors", async () => {
     const { db } = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } }, 1);
-    const busy = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext: async () => ({ ok: false, busy: true }), startFallback: vi.fn(), now: () => 200000 }, false);
-    const failed = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext: async () => ({ ok: false, error: "Spotify fout" }), startFallback: vi.fn(), now: () => 200000 }, false);
+    const busy = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext: async () => ({ ok: false, busy: true }), now: () => 200000 }, false);
+    const failed = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext: async () => ({ ok: false, error: "Spotify fout" }), now: () => 200000 }, false);
     expect(busy).toEqual({ advanced: false });
     expect(failed).toEqual({ advanced: false, error: "Spotify fout" });
   });
@@ -67,7 +67,7 @@ describe("queue advancement policy", () => {
   it("ignores malformed persisted last-track state", async () => {
     const { db } = fakeDb({ spotify_last_partyqueue_track: { value: "{bad" } }, 1);
     const dispatchNext = vi.fn();
-    const result = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext, startFallback: vi.fn() }, false);
+    const result = await maybeAdvancePartyQueue({ db, eventId: "event", dispatchNext }, false);
     expect(result).toEqual({ advanced: false });
     expect(dispatchNext).not.toHaveBeenCalled();
   });
@@ -80,9 +80,9 @@ describe("Spotify fallback policy", () => {
       spotify_last_partyqueue_track: { value: last(1000) },
     });
     const startFallback = vi.fn();
-    expect(await maybeStartSpotifyFallback({ db: paused.db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => 200000 }, null, false)).toBe(false);
+    expect(await maybeStartSpotifyFallback({ db: paused.db, eventId: "event", startFallback, now: () => 200000 }, null, false)).toBe(false);
     const queued = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } }, 1);
-    expect(await maybeStartSpotifyFallback({ db: queued.db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => 200000 }, null, false)).toBe(false);
+    expect(await maybeStartSpotifyFallback({ db: queued.db, eventId: "event", startFallback, now: () => 200000 }, null, false)).toBe(false);
     expect(startFallback).not.toHaveBeenCalled();
   });
 
@@ -90,23 +90,23 @@ describe("Spotify fallback policy", () => {
     const now = 200000;
     const startFallback = vi.fn();
     const active = fakeDb({ spotify_fallback_active: { value: "true" } });
-    expect(await maybeStartSpotifyFallback({ db: active.db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => now }, null, false)).toBe(true);
+    expect(await maybeStartSpotifyFallback({ db: active.db, eventId: "event", startFallback, now: () => now }, null, false)).toBe(true);
     const starting = fakeDb({ spotify_fallback_active: { value: "starting", updated_at: "1970-01-01 00:03:19" } });
-    expect(await maybeStartSpotifyFallback({ db: starting.db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => now }, null, false)).toBe(false);
+    expect(await maybeStartSpotifyFallback({ db: starting.db, eventId: "event", startFallback, now: () => now }, null, false)).toBe(false);
     const retry = fakeDb({
       spotify_fallback_retry_after: { value: String(now + 10000) },
       spotify_last_partyqueue_track: { value: last(1000) },
     });
-    expect(await maybeStartSpotifyFallback({ db: retry.db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => now }, null, false)).toBe(false);
+    expect(await maybeStartSpotifyFallback({ db: retry.db, eventId: "event", startFallback, now: () => now }, null, false)).toBe(false);
     const tooEarly = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } });
-    expect(await maybeStartSpotifyFallback({ db: tooEarly.db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => 177000 }, null, false)).toBe(false);
+    expect(await maybeStartSpotifyFallback({ db: tooEarly.db, eventId: "event", startFallback, now: () => 177000 }, null, false)).toBe(false);
     expect(startFallback).not.toHaveBeenCalled();
   });
 
   it("does not replace the same PartyQueue track while it is still playing", async () => {
     const { db } = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } });
     const startFallback = vi.fn();
-    const result = await maybeStartSpotifyFallback({ db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => 200000 }, "spotify:track:last", true);
+    const result = await maybeStartSpotifyFallback({ db, eventId: "event", startFallback, now: () => 200000 }, "spotify:track:last", true);
     expect(result).toBe(false);
     expect(startFallback).not.toHaveBeenCalled();
   });
@@ -114,7 +114,7 @@ describe("Spotify fallback policy", () => {
   it("claims fallback once, starts it and clears previous failure state", async () => {
     const { db, writes } = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } });
     const startFallback = vi.fn(async () => {});
-    const result = await maybeStartSpotifyFallback({ db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => 200000 }, null, false);
+    const result = await maybeStartSpotifyFallback({ db, eventId: "event", startFallback, now: () => 200000 }, null, false);
     expect(result).toBe(true);
     expect(startFallback).toHaveBeenCalledTimes(1);
     expect(writes.some(write => write.sql.includes("spotify_fallback_active','starting'"))).toBe(true);
@@ -125,7 +125,7 @@ describe("Spotify fallback policy", () => {
   it("backs off for one minute and persists the Spotify error on failure", async () => {
     const { db, writes } = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } });
     const startFallback = vi.fn(async () => { throw new Error("Spotify offline"); });
-    const result = await maybeStartSpotifyFallback({ db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => 200000 }, null, false);
+    const result = await maybeStartSpotifyFallback({ db, eventId: "event", startFallback, now: () => 200000 }, null, false);
     expect(result).toBe(false);
     expect(writes.some(write => write.sql.includes("spotify_fallback_error") && write.values[0] === "Spotify offline")).toBe(true);
     expect(writes.some(write => write.sql.includes("spotify_fallback_active','false'"))).toBe(true);
@@ -135,7 +135,7 @@ describe("Spotify fallback policy", () => {
   it("does not start fallback if another status poll owns the start lease", async () => {
     const { db } = fakeDb({ spotify_last_partyqueue_track: { value: last(1000) } }, 0, 0);
     const startFallback = vi.fn();
-    const result = await maybeStartSpotifyFallback({ db, eventId: "event", dispatchNext: vi.fn(), startFallback, now: () => 200000 }, null, false);
+    const result = await maybeStartSpotifyFallback({ db, eventId: "event", startFallback, now: () => 200000 }, null, false);
     expect(result).toBe(false);
     expect(startFallback).not.toHaveBeenCalled();
   });
