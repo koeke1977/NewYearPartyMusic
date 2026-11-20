@@ -41,7 +41,7 @@ export function joinGuestFromEnvironment(env: Env, nickname: string, eventCode: 
 
 export function submitGuestRequestFromEnvironment(env: Env, guestId: string, trackId: string) {
   return submitGuestTrackRequest({
-    db: env.DB, eventId: env.EVENT_ID, guestId, trackId,
+    repository: createGuestRequestRepository(env.DB), eventId: env.EVENT_ID, guestId, trackId,
     createId: () => crypto.randomUUID(),
     trackGateway: { getTrack: (id) => getGuestRequestTrack(env, id) },
   });
@@ -49,7 +49,7 @@ export function submitGuestRequestFromEnvironment(env: Env, guestId: string, tra
 
 export function addDjTrackFromEnvironment(env: Env, trackId: string) {
   return addDjTrackToPartyQueue({
-    db: env.DB, eventId: env.EVENT_ID, trackId,
+    repository: createGuestRequestRepository(env.DB), eventId: env.EVENT_ID, trackId,
     createId: () => crypto.randomUUID(),
     trackGateway: { getTrack: (id) => getGuestRequestTrack(env, id) },
   });
