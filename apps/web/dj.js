@@ -2,16 +2,14 @@ import { createDjApi } from "./modules/dj-api.js";
 import { clearDjToken, getSavedDjToken, saveDjToken } from "./modules/dj-session.js";
 import { element as el } from "./modules/dom.js";
 import { orderedQueued } from "./modules/dj-queue.js";
-import { matchDjQueueProposal } from "./modules/dj-ai-queue-parser.js";
 import { createDjPollingController } from "./modules/dj-polling.js";
-import { extractDjTrackSuggestions } from "./modules/dj-ai-suggestions.js";
 import { createDjPlaybackCoordinator } from "./modules/dj-playback-coordinator.js";
 import { buildDjChatGptPrompt } from "./modules/dj-chatgpt-handoff.js";
-import { resolveDjAiPrompt } from "./modules/dj-ai-intent.js";
 import { createDjOverviewModel } from "./modules/dj-overview-model.js";
 import { createDjQueueReorderController } from "./modules/dj-queue-reorder.js";
 import { createDjCommandService } from "./modules/dj-command-service.js";
 import { createDjSpotifyConsole } from "./modules/dj-spotify-console.js";
+import { createDjAiAssistant } from "./modules/dj-ai-assistant.js";
 import { createDjAiAssistant } from "./modules/dj-ai-assistant.js";
 
 const loginCard=document.querySelector("#dj-login-card");
