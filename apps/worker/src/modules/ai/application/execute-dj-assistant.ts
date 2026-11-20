@@ -1,4 +1,4 @@
-import type { CloudflareAIClient, AssistantRepository } from "./assistant-ports";
+import type { CloudflareAIClient, AssistantRepository, LocalAIAssistantClient } from "./assistant-ports";
 
 import { runDJAssistantTurn } from "../orchestration/assistant-orchestrator";
 import { buildEventMoment } from "../context/event-moment";
@@ -14,6 +14,7 @@ export async function executeDJAssistant(input: {
   eventId: string;
   eventName: string;
   ai?: CloudflareAIClient;
+  localAI?: LocalAIAssistantClient;
   prompt: string;
   repository: AssistantRepository;
   hash(value: string): Promise<string>;
@@ -32,6 +33,26 @@ export async function executeDJAssistant(input: {
   const cached = await repository.readAnswerCache(cacheKey);
   if (cached) {
     return { status: 200, body: { ok: true, provider, answer: cached.answer, spotifyMatches: [], cached: true, memoryUpdated } };
+  }
+
+  if (input.localAI) {
+    if (!await repository.claimRateLimit()) {
+      return { status: 429, body: { error: "Geef DJ#DATUUR AI even een paar seconden." } };
+    }
+    try {
+      const answer = await input.localAI.complete(system, user);
+      await repository.writeAnswerCache(cacheKey, answer);
+      return { status: 200, body: { ok: true, provider: "claude-code-local", answer, spotifyMatches: [], cached: false, memoryUpdated } };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Lokale Claude-assistent is tijdelijk niet beschikbaar.";
+      const usageLimitReached = /usage limit|rate limit|limit reached|weekly limit|five-hour limit|capacity|429/i.test(errorMessage);
+      return {
+        status: usageLimitReached ? 429 : 502,
+        body: { error: usageLimitReached
+          ? "Claude heeft zijn abonnementslimiet bereikt. Er wordt niet overgeschakeld naar betaalde API-kosten; probeer later opnieuw."
+          : "De lokale AI-bridge is niet bereikbaar of Claude Code is niet beschikbaar: " + errorMessage },
+      };
+    }
   }
 
   const neuronBudget = await repository.createNeuronBudget();
