@@ -9,7 +9,7 @@ Private, QR-based music request and DJ playback application for New Year's Eve 2
 - One host-owned Spotify Premium account controls playback.
 - Guests can search Spotify and request tracks; the DJ can moderate requests, manage queue order and control playback.
 - AI provides general DJ advice and unverified track ideas only. Spotify metadata and the live queue are excluded from AI; the DJ searches Spotify separately and explicitly adds tracks. AI does not reorder the queue.
-- Initial limits: 2 open requests per guest and 5 requests per 30 minutes.
+- Guest request policy: unlimited active/queued tracks per guest, with a rolling limit of 20 requests per guest per 60 minutes. Duplicate active tracks remain blocked.
 - Visual direction: dark club / neon green.
 
 ## Stack
@@ -53,7 +53,7 @@ PartyQueue does not stream audio. Spotify playback is controlled through the Web
 ## Current application capabilities
 - Guest join with event code and nickname and signed 12-hour session.
 - Spotify catalogue search and track requests with event-scoped guest validation.
-- Configurable open-request and 30-minute rate limits, duplicate protection and DJ moderation.
+- Unlimited active requests per guest, a rolling 20-per-60-minute guest request limit, duplicate protection and DJ moderation.
 - DJ login and event-scoped protected routes.
 - Spotify DJ OAuth, encrypted token storage and serialized token refresh.
 - DJ overview, queue ordering, request moderation and Spotify playback controls.

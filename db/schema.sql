@@ -56,8 +56,7 @@ VALUES ('NYE2026', 'New Year''s Eve 2026', '2026-12-31T18:00:00+01:00', '2027-01
 
 INSERT OR IGNORE INTO settings (key, value) VALUES
   ('auto_approve', 'true'),
-  ('max_open_requests_per_guest', '2'),
-  ('max_requests_per_30_minutes', '5'),
+  ('max_requests_per_hour', '20'),
   ('requests_paused', 'false');
 
 

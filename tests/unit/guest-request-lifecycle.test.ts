@@ -4,7 +4,7 @@ import { joinPartyGuest, submitGuestTrackRequest } from "../../apps/worker/src/m
 
 function fakeDb(options: {
   event?: unknown; guest?: unknown; settings?: Array<{key:string;value:string}>;
-  count?: number; countAfterInsert?: number; openCount?: number; openCountAfterInsert?: number;
+  count?: number; countAfterInsert?: number;
   duplicate?: unknown; insertChanges?: number;
 } = {}) {
   const calls: Array<{sql:string;values:unknown[]}> = [];
@@ -18,7 +18,6 @@ function fakeDb(options: {
           calls.push({sql,values:[...values]});
           if (sql.includes("FROM events")) return options.event === undefined ? {id:"event-1"} : options.event;
           if (sql.includes("FROM guests")) return options.guest === undefined ? {id:"guest-1"} : options.guest;
-          if (sql.includes("COUNT(*)") && sql.includes("status IN")) return {count:insertAttempted ? (options.openCountAfterInsert ?? options.openCount ?? 0) : (options.openCount ?? 0)};
           if (sql.includes("COUNT(*)")) return {count:insertAttempted ? (options.countAfterInsert ?? options.count ?? 0) : (options.count ?? 0)};
           if (sql.includes("FROM requests") && sql.includes("spotify_track_id")) return options.duplicate ?? null;
           return null;
@@ -77,7 +76,7 @@ describe("guest request lifecycle", () => {
     expect(calls).toHaveLength(0);
   });
 
-  it("enforces event-scoped guest, pause, open-request and 30-minute rate limits, and duplicate checks", async () => {
+  it("enforces event-scoped guest, pause, hourly rate limit and duplicate checks", async () => {
     const missing=fakeDb({guest:null});
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(missing.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
@@ -90,20 +89,21 @@ describe("guest request lifecycle", () => {
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({ok:false,error:{code:"requests_paused"}});
 
-    const openLimited=fakeDb({openCount:2,settings:[{key:"max_open_requests_per_guest",value:"2"}]});
-    const openLimitGateway=vi.fn();
-    expect(await submitGuestTrackRequest({
-      repository:createGuestRequestRepository(openLimited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
-      createId:()=>"request",trackGateway:{getTrack:openLimitGateway},
-    })).toMatchObject({ok:false,error:{code:"open_request_limit",message:"Je hebt het maximum van 2 openstaande aanvragen bereikt."}});
-    expect(openLimitGateway).not.toHaveBeenCalled();
+    const unlimited=fakeDb({count:0,settings:[{key:"max_requests_per_hour",value:"20"}]});
+    const unlimitedResult=await submitGuestTrackRequest({
+      repository:createGuestRequestRepository(unlimited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
+      createId:()=>"request",trackGateway:{getTrack:async()=>spotifyTrack},
+    });
+    expect(unlimitedResult).toMatchObject({ok:true});
+    const unlimitedInsert=unlimited.calls.find(call=>call.sql.includes("INTO requests"));
+    expect(unlimitedInsert?.sql).not.toContain("status IN ('pending','approved','queued')");
 
-    const limited=fakeDb({count:5,settings:[{key:"max_requests_per_30_minutes",value:"5"}]});
+    const limited=fakeDb({count:20,settings:[{key:"max_requests_per_hour",value:"20"}]});
     expect(await submitGuestTrackRequest({
       repository:createGuestRequestRepository(limited.db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({ok:false,error:{code:"request_rate_limit"}});
-    expect(limited.calls.some(call=>call.sql.includes("datetime('now','-30 minutes')"))).toBe(true);
+    expect(limited.calls.some(call=>call.sql.includes("datetime('now','-1 hour')"))).toBe(true);
 
     const duplicate=fakeDb({duplicate:{id:"existing"}});
     expect(await submitGuestTrackRequest({
@@ -126,30 +126,20 @@ describe("guest request lifecycle", () => {
     const insert=calls.find(call=>call.sql.includes("INTO requests"));
     expect(insert?.sql).toContain("INSERT OR IGNORE INTO requests");
     expect(insert?.sql).toContain("SELECT");
-    expect(insert?.sql).toContain("status IN ('pending','approved','queued')");
-    expect(insert?.sql).toContain("requested_at >= datetime('now','-30 minutes')");
-    expect(insert?.values.slice(-4)).toEqual(["guest-1",2,"guest-1",5]);
+    expect(insert?.sql).toContain("requested_at >= datetime('now','-1 hour')");
+    expect(insert?.values.slice(-2)).toEqual(["guest-1",20]);
     expect(insert?.values).toContain("queued");
     expect(insert?.values).toContain("Artist A, Artist B");
     expect(insert?.values).toContain("https://image.example/medium");
   });
 
-  it("enforces the open-request limit atomically when two requests race", async () => {
-    const {db}=fakeDb({openCount:1,openCountAfterInsert:2,insertChanges:0});
+  it("enforces the rolling 60-minute limit atomically when requests race", async () => {
+    const {db}=fakeDb({count:19,countAfterInsert:20,insertChanges:0});
     const result=await submitGuestTrackRequest({
       repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
       createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
     });
-    expect(result).toMatchObject({ok:false,error:{code:"open_request_limit",message:"Je hebt het maximum van 2 openstaande aanvragen bereikt."}});
-  });
-
-  it("enforces the rolling 30-minute limit atomically when requests race", async () => {
-    const {db}=fakeDb({count:4,countAfterInsert:5,insertChanges:0});
-    const result=await submitGuestTrackRequest({
-      repository:createGuestRequestRepository(db),eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
-      createId:()=>"request-raced",trackGateway:{getTrack:async()=>spotifyTrack},
-    });
-    expect(result).toMatchObject({ok:false,error:{code:"request_rate_limit",message:"Je maximum van 5 aanvragen per 30 minuten is bereikt."}});
+    expect(result).toMatchObject({ok:false,error:{code:"request_rate_limit",message:"Je maximum van 20 aanvragen per uur is bereikt."}});
   });
 
   it("rejects a duplicate when another request wins the concurrent insert race", async () => {

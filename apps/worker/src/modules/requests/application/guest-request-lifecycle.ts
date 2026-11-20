@@ -5,7 +5,7 @@ type Result = { status: number; body: Record<string, unknown> };
 
 export type GuestRequestErrorCode =
   | "not_configured" | "invalid_guest_input" | "invalid_event_code" | "event_inactive"
-  | "guest_not_found" | "requests_paused" | "open_request_limit" | "request_rate_limit"
+  | "guest_not_found" | "requests_paused" | "request_rate_limit"
   | "duplicate_track" | "track_unavailable" | "request_unavailable";
 
 export type GuestRequestOutcome<T> =
@@ -68,16 +68,10 @@ export async function submitGuestTrackRequest(input: {
     return { ok: false, error: { code: "requests_paused", message: "De DJ heeft aanvragen tijdelijk gepauzeerd." } };
   }
 
-  const openRequestLimit = positiveIntegerSetting(config.max_open_requests_per_guest, 2);
-  const openRequestCount = await input.repository.countOpenGuestRequests(input.guestId);
-  if (openRequestCount >= openRequestLimit) {
-    return { ok: false, error: { code: "open_request_limit", message: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
-  }
-
-  const rateLimit = positiveIntegerSetting(config.max_requests_per_30_minutes, 5);
+  const rateLimit = positiveIntegerSetting(config.max_requests_per_hour, 20);
   const recentCount = await input.repository.countRecentGuestRequests(input.guestId);
   if (recentCount >= rateLimit) {
-    return { ok: false, error: { code: "request_rate_limit", message: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
+    return { ok: false, error: { code: "request_rate_limit", message: "Je maximum van " + rateLimit + " aanvragen per uur is bereikt." } };
   }
 
   const duplicate = await input.repository.findActiveTrackRequest(input.eventId, input.trackId);
@@ -94,15 +88,11 @@ export async function submitGuestTrackRequest(input: {
       track_uri: track.uri, track_name: track.name, artist_name: artists.join(", "),
       album_image_url: track.albumImageUrl,
       duration_ms: track.durationMs, status,
-    }, { maxOpenRequests: openRequestLimit, maxRequestsPer30Minutes: rateLimit });
+    }, { maxRequestsPerHour: rateLimit });
     if (!inserted) {
-      const latestOpenCount = await input.repository.countOpenGuestRequests(input.guestId);
-      if (latestOpenCount >= openRequestLimit) {
-        return { ok: false, error: { code: "open_request_limit", message: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
-      }
       const latestRecentCount = await input.repository.countRecentGuestRequests(input.guestId);
       if (latestRecentCount >= rateLimit) {
-        return { ok: false, error: { code: "request_rate_limit", message: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
+        return { ok: false, error: { code: "request_rate_limit", message: "Je maximum van " + rateLimit + " aanvragen per uur is bereikt." } };
       }
       return { ok: false, error: { code: "duplicate_track", message: "Dit nummer staat al in de wachtrij." } };
     }

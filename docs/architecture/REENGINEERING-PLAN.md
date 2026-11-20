@@ -348,7 +348,7 @@ The new regressions cover both races. Full CI run [44777146224](https://github.c
 The request/queue persistence boundary now enforces concurrency-sensitive invariants in single D1 statements:
 
 - **Active-track uniqueness:** a partial unique index on `(event_id, spotify_track_id)` applies to `pending`, `approved` and `queued`. Conflict-safe inserts preserve guest 409 and DJ `alreadyQueued` behavior; terminal states free the track.
-- **Guest quotas:** the open-request count and rolling 30-minute count are checked in the same `INSERT ... SELECT` that creates the guest request. The earlier reads remain as fast prechecks and provide clear error messages, while the database predicate closes the race.
+- **Guest request quota:** there is no per-guest open/active queue cap. A rolling limit of 20 requests per guest per 60 minutes is checked in the same `INSERT ... SELECT` that creates the request, so concurrent submissions cannot exceed the hourly quota.
 - **Moderation:** state changes include the expected previous state in the `UPDATE` predicate; a stale concurrent action updates zero rows and returns 409.
 - **Queue ordering:** adding a DJ track appends its ID using one SQLite JSON upsert rather than reading and rewriting the entire array. Concurrent additions no longer lose each other's order entries.
 - **Guest join:** the session token is signed before inserting the guest row, so a signing failure cannot leave an orphan record.
