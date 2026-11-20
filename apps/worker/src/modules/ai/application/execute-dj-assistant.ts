@@ -9,14 +9,14 @@ import {
 } from "../context/assistant-context";
 import { buildDJAssistantPrompt } from "../prompts/dj-assistant";
 import { parseDJPreferences } from "../memory/dj-preferences";
-import { loadAssistantContextSnapshot } from "./assistant-context-repository";
+import { loadAssistantContextSnapshot } from "../infrastructure/assistant-context-repository";
 import {
   claimAssistantRateLimit,
   readAssistantAnswerCache,
   rememberDJPreferenceInDatabase,
   writeAssistantAnswerCache,
-} from "./assistant-settings-repository";
-import { createDailyAssistantNeuronBudget, ASSISTANT_MAX_OUTPUT_TOKENS } from "./neuron-budget";
+} from "../infrastructure/assistant-settings-repository";
+import { createDailyAssistantNeuronBudget, ASSISTANT_MAX_OUTPUT_TOKENS } from "../infrastructure/neuron-budget";
 
 export type DJAssistantHttpResult = {
   status: number;
