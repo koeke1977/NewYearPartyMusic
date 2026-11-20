@@ -13,7 +13,7 @@ function setup({ values = {}, response, fetchImpl } = {}) {
   const submitButton = { disabled: false, textContent: "IK DOE MEE ↗" };
   const showMusicSearch = vi.fn();
   const saveGuestSession = vi.fn();
-  const FormDataCtor = vi.fn(() => ({ get: key => values[key] }));
+  const FormDataCtor = vi.fn(function FormDataMock() { return { get: key => values[key] }; });
   const request = fetchImpl || vi.fn(async () => response);
   createGuestJoinController({
     form, message, card, submitButton, showMusicSearch, saveGuestSession,
