@@ -42,6 +42,41 @@ describe("DJ command service", () => {
     expect(refresh).toHaveBeenCalledOnce();
   });
 
+  it("dispatches the next PartyQueue request and refreshes playback", async () => {
+    const track = { name: "Track A", artist: "Artist A" };
+    const api = vi.fn(async () => ({ track }));
+    const refresh = vi.fn(async () => {});
+    const refreshPlayback = vi.fn(async () => {});
+    const onTrackStarted = vi.fn();
+    const onMessage = vi.fn();
+    const button = { disabled: false };
+    const service = createDjCommandService({ api, refresh, onMessage });
+
+    await service.runNextRequest({ button, onTrackStarted, refreshPlayback });
+
+    expect(api).toHaveBeenCalledWith("/api/dj/spotify/next-request", { method: "POST" });
+    expect(onTrackStarted).toHaveBeenCalledWith(track);
+    expect(refreshPlayback).toHaveBeenCalledOnce();
+    expect(refresh).toHaveBeenCalledTimes(2);
+    expect(onMessage).toHaveBeenCalledWith("Now playing PartyQueue request: Track A — Artist A");
+  });
+
+  it("reports a busy next-request command without starting a track", async () => {
+    const api = vi.fn(async () => ({ busy: true, error: "NEXT wordt al verwerkt." }));
+    const onMessage = vi.fn();
+    const onTrackStarted = vi.fn();
+    const service = createDjCommandService({ api, refresh: vi.fn(), onMessage });
+
+    await service.runNextRequest({
+      button: { disabled: false },
+      onTrackStarted,
+      refreshPlayback: vi.fn(),
+    });
+
+    expect(onTrackStarted).not.toHaveBeenCalled();
+    expect(onMessage).toHaveBeenCalledWith("NEXT wordt al verwerkt.");
+  });
+
   it("does not send overlapping queue reorder writes", async () => {
     let release;
     const gate = new Promise(resolve => { release = resolve; });
