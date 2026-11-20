@@ -14,12 +14,7 @@ interface Env {
   SPOTIFY_CLIENT_ID: string;
   SPOTIFY_CLIENT_SECRET: string;
   AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };
-  AI_PROVIDER?: string;
   AI_MODEL?: string;
-  OPENAI_API_KEY?: string;
-  OPENAI_MODEL?: string;
-  ANTHROPIC_API_KEY?: string;
-  ANTHROPIC_MODEL?: string;
 }
 
 type Session = { sub: string; eventId: string; nickname: string; exp: number; role?: string };
@@ -217,7 +212,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
     }
   }
   const [rows, playedRows, countRows, orderSetting, profileSetting, historySetting] = await Promise.all([
-    c.env.DB.prepare("SELECT id,track_name,artist_name,duration_ms,status,queued_at,requested_at FROM requests WHERE event_id=? AND status IN ('pending','approved','queued') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, requested_at DESC LIMIT 45").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string;duration_ms:number|null;status:string;queued_at:string|null;requested_at:string}>(),
+    c.env.DB.prepare("SELECT id,track_name,artist_name,duration_ms,status,queued_at,requested_at FROM requests WHERE event_id=? AND status IN ('pending','approved','queued') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, requested_at DESC LIMIT 100").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string;duration_ms:number|null;status:string;queued_at:string|null;requested_at:string}>(),
     c.env.DB.prepare("SELECT track_name,artist_name FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 8").bind(c.env.EVENT_ID).all<{track_name:string;artist_name:string}>(),
     c.env.DB.prepare("SELECT status,COUNT(*) AS count FROM requests WHERE event_id=? AND status IN ('pending','approved','queued','played') GROUP BY status").bind(c.env.EVENT_ID).all<{status:string;count:number}>(),
     c.env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>(),
@@ -272,7 +267,8 @@ app.post("/api/dj/ai/assistant", async (c) => {
   const djKnowledge = "DJ KNOWLEDGE (compact rules): The DJ wants creative freedom, variety and deliberate surprises, not a perfectly uniform playlist. STYLE CHANGES ARE ALLOWED AND OFTEN DESIRABLE: you may place a disco/dance/90s/80s/rock block between ballads, jump from slow to fast, switch decade or genre sharply, or create a deliberate contrast. Never reject or discourage a requested style change just because it breaks musical flow. Treat a block of 2–6 tracks in one style/decade as a valid DJ technique. Offer smooth bridges when useful, but they are optional—not a requirement. ENERGY: shape warm-up, lift, peak, breather and singalong moments when useful; intentional drops and sudden lifts are valid. BPM/tempo: estimate only broad slow/mid/fast feel from general music knowledge; do not require adjacent tracks to have compatible tempo. Never invent exact BPM, key or beatmatching claims: no audio analysis or measured tempo data is available. DECADE + GENRE: use era and genre to create varied blocks, themed runs and surprising contrasts; do not force chronological or genre continuity. If a track's era or genre is uncertain, do not state it as fact. EVENT TIMING: use eventMoment. On 31 December 2026, shape the live set for the actual Belgian local time: early evening = warm-up; 4–1.5 hours before midnight = build; final 90 minutes = recognizable high-energy anthems and singalongs, with a strong peak around midnight; after midnight = celebratory peak, then sustain and refresh energy. Do not force a midnight countdown arc during rehearsal or on another date. For queue optimization, creatively rearrange all supplied upNext tracks; preserve every track exactly once, but prioritize the DJ's requested style, decade, energy or block over smooth transitions. Never claim measured audio properties or crowd awareness. Outside tracks may be suggested proactively when useful, clearly labelled as suggestions; never silently insert them into the queue. If the DJ names a track to add, help identify it for Spotify selection rather than refusing because it differs stylistically.";
   const system = "You are DJ#DATUUR AI, a concise Dutch-language assistant for a live party DJ. Analyse only the supplied PartyQueue metadata. Give practical, specific advice in Dutch. Never claim to hear audio, know the crowd, access Spotify audio, or control playback. Never invent queued tracks; clearly label any outside suggestion. The DJ always decides. Treat djPreferences in the supplied context as persistent preferences and apply them unless the DJ explicitly overrides them for this request. Use acceptedSetHistory as examples of previously approved set choices, not as a rigid template; do not repeat a past order automatically. Keep normal advice under 120 words. When the DJ asks for 20 tracks, return exactly 20 concrete numbered tracks, one per line, in the format \"1. Titel — Artiest\". Never stop early; no intro or outro around a requested track list. When asked for a complete numbered queue order, include every requested track even if that exceeds 120 words. For queue optimization, first count the supplied upNext entries and output exactly that many numbered lines. Each supplied entry must appear exactly once: never duplicate a track, never omit a track, and never add a track that is not in upNext. Before answering, verify that the output line count equals the upNext entry count and that no track is repeated.\n\n" + djKnowledge;
   const user = "PARTYQUEUE CONTEXT:\n"+JSON.stringify(context)+"\n\nDJ QUESTION:\n"+prompt;
-  const provider = (c.env.AI_PROVIDER || "cloudflare").toLowerCase();
+  // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
+  const provider = "cloudflare";
   // Reuse an identical answer for ten minutes while the queue context remains unchanged.
   // This avoids spending Workers AI Neurons on repeated DJ questions.
   const cacheKey = await sha256(provider + "\\n" + system + "\\n" + user);
@@ -287,18 +283,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
   try {
     let answer = "";
-    if (provider === "openai") {
-      if (!c.env.OPENAI_API_KEY) return c.json({ error: "OpenAI is nog niet geconfigureerd. Voeg OPENAI_API_KEY toe als Worker secret." }, 503);
-      const response = await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+c.env.OPENAI_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({model:c.env.OPENAI_MODEL||"gpt-6-luna",messages:[{role:"developer",content:system},{role:"user",content:user}],max_completion_tokens:850})});
-      const data:any=await response.json(); if(!response.ok)throw new Error("OpenAI HTTP "+response.status+": "+JSON.stringify(data.error||{}).slice(0,220));
-      answer=data.choices?.[0]?.message?.content||"Geen antwoord ontvangen.";
-    } else if (provider === "anthropic") {
-      if (!c.env.ANTHROPIC_API_KEY) return c.json({ error: "Claude is nog niet geconfigureerd. Voeg ANTHROPIC_API_KEY toe als Worker secret." }, 503);
-      const response = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"x-api-key":c.env.ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","content-type":"application/json"},body:JSON.stringify({model:c.env.ANTHROPIC_MODEL||"claude-haiku-5-5",max_tokens:850,system,messages:[{role:"user",content:user}]})});
-      const data:any=await response.json(); if(!response.ok)throw new Error("Claude HTTP "+response.status+": "+JSON.stringify(data.error||{}).slice(0,220));
-      answer=(data.content||[]).filter((part:any)=>part.type==="text").map((part:any)=>part.text).join("\n")||"Geen antwoord ontvangen.";
-    } else {
-      if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
+          if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
       const result:any=await c.env.AI.run(c.env.AI_MODEL||"@cf/google/gemma-4-26b-a4b-it",{
         messages:[{role:"system",content:system},{role:"user",content:user}],
         max_tokens:1400,
@@ -316,12 +301,17 @@ app.post("/api/dj/ai/assistant", async (c) => {
         console.error("DJ AI returned no text", JSON.stringify({provider,keys:result&&typeof result==="object"?Object.keys(result):[],usage:result?.usage||null}));
         throw new Error("Cloudflare AI gaf geen antwoordtekst terug. Probeer het opnieuw.");
       }
-    }
     const finalAnswer = String(answer).slice(0,8000);
     await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer})).run();
     return c.json({ ok:true,provider,answer:finalAnswer,cached:false,memoryUpdated });
   } catch(error) {
-    return c.json({ error:error instanceof Error?error.message:"AI-assistent is tijdelijk niet beschikbaar." },502);
+    const errorMessage = error instanceof Error ? error.message : "AI-assistent is tijdelijk niet beschikbaar.";
+    const freeQuotaReached = /neuron|daily.{0,20}(limit|quota)|quota|usage limit|exceeded.{0,20}(limit|quota)|HTTP 429/i.test(errorMessage);
+    return c.json({
+      error: freeQuotaReached
+        ? "Het gratis Cloudflare AI-dagbudget lijkt bereikt. DJ#DATUUR AI probeert geen betalende provider; probeer opnieuw na de dagelijkse reset om 00:00 UTC."
+        : errorMessage
+    }, freeQuotaReached ? 429 : 502);
   }
 });
 app.post("/api/dj/ai/music/search", async (c) => {
