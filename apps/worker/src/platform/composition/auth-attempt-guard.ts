@@ -10,9 +10,9 @@ export async function allowAuthAttempt(
   scope: AuthAttemptScope,
 ): Promise<boolean> {
   const policy = AUTH_ATTEMPT_POLICIES[scope];
+  if (!env.SESSION_SECRET) return true;
   const clientIp = request.headers.get("CF-Connecting-IP");
   if (!clientIp) return env.APP_ENV !== "production";
-  if (!env.SESSION_SECRET) return env.APP_ENV !== "production";
   const ipHash = await signPayload(scope + ":" + clientIp, env.SESSION_SECRET);
   return consumeAuthAttempt(env.DB, scope, ipHash, policy.maxAttempts, policy.windowSeconds);
 }
