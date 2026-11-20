@@ -91,8 +91,16 @@ These are infrastructure composition adapters, not domain/application modules.
 - Preserve queue dispatch lease expiry, ordering and only-mark-played-after-Spotify-success semantics.
 - Preserve playback polling auto-advance/fallback behaviour.
 - Preserve D1 event scoping, guest rate limits, duplicate checks, request transitions and 30-day cleanup rules.
-- No production D1 writes, secret changes, Spotify playback or deployment as part of architecture work.
+- The current Cloudflare Worker, D1 and Spotify OAuth connection are test-only. Test rows/tokens are disposable and may be reset or recreated during architecture work. Keep secrets protected and never commit them.
 
 ## Validation status
 
-For application-code commit `d820d1e27cdb7d7ca9305fae92fd27755c726e87`, Worker validation run #201 passed TypeScript validation, security characterization tests, Cloudflare Worker dry-run, guest/DJ browser journeys and screenshot baseline capture. The follow-up commits `3b1ac3b6d33e4be77df7b051df96667b09dedbe0` and the current documentation snapshot only update architecture/risk documentation; they do not change application code. No production deployment or production data change was performed. A green validation run does not mean the remaining architecture work above is complete.
+GitHub Actions run [44769018405](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44769018405) passed on head `8247bc1d0d7651f31e805d8f01827237ddec103b`:
+
+- TypeScript validation.
+- Security characterization tests.
+- Cloudflare Worker bundle dry-run.
+- Guest and DJ browser journeys.
+- Desktop/responsive screenshot baseline capture.
+
+The screenshot artifact `partyqueue-ui-baseline` was uploaded successfully. This validates the current behaviour and tests; the architecture work below remains open. The current deployed Cloudflare resources are test-only, not a live production service.
