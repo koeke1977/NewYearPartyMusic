@@ -31,6 +31,7 @@ app.get("/api/config", (c) => c.json({
 }));
 
 app.post("/api/guests/join", async (c) => {
+  if (!c.env.EVENT_ACCESS_CODE_HASH || !c.env.SESSION_SECRET) return c.json({ error: "PartyQueue is not configured yet. Please contact the DJ." }, 503);
   let body: { nickname?: unknown; eventCode?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const result = await joinPartyGuest({
