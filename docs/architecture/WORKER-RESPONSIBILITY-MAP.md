@@ -41,7 +41,7 @@ This map is based on the current `apps/worker/src/index.ts` after the first extr
 | Route group | Module | Responsibility |
 |---|---|---|
 | System health and public event configuration | `routes/system.ts` | Preserve the public health/config HTTP contracts |
-| Guest join, guest Spotify search and guest request submission | `routes/guest.ts` | Parse guest HTTP input, enforce event-scoped guest sessions, call request/music use cases and serialize their existing responses |
+| Guest join, guest Spotify search and guest request submission | `routes/guest.ts` (HTTP/session boundary) and `platform/composition/guest-workflows.ts` (environment wiring for guest and DJ catalogue workflows) | Parse guest HTTP input, enforce event-scoped guest sessions, call request/music use cases and serialize their existing responses |
 
 Guest route tests verify unauthenticated search/request rejection and malformed join JSON handling without invoking D1 or Spotify.
 
