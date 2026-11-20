@@ -34,9 +34,9 @@ export async function joinPartyGuest(input: {
   const event = await input.repository.findActiveEvent(input.eventId);
   if (!event) return { status: 403, body: { error: "Dit feest is momenteel niet actief." } };
   const guestId = input.createId();
-  await input.repository.insertGuest({ id: guestId, eventId: event.id, nickname: input.nickname });
   const expiresAt = input.nowSeconds() + 60 * 60 * 12;
   const token = await input.createToken({ sub: guestId, eventId: event.id, nickname: input.nickname, exp: expiresAt }, input.sessionSecret);
+  await input.repository.insertGuest({ id: guestId, eventId: event.id, nickname: input.nickname });
   return {
     status: 201,
     body: { ok: true, guest: { id: guestId, nickname: input.nickname }, sessionToken: token, expiresAt },
