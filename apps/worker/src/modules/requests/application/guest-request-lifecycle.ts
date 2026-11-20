@@ -3,6 +3,15 @@ import type { CatalogTrack } from "../../music/domain/catalog-track";
 
 type Result = { status: number; body: Record<string, unknown> };
 
+export type GuestRequestErrorCode =
+  | "not_configured" | "invalid_guest_input" | "invalid_event_code" | "event_inactive"
+  | "guest_not_found" | "requests_paused" | "open_request_limit" | "request_rate_limit"
+  | "duplicate_track" | "track_unavailable" | "request_unavailable";
+
+export type GuestRequestOutcome<T> =
+  | { ok: true; value: T }
+  | { ok: false; error: { code: GuestRequestErrorCode; message: string } };
+
 function positiveIntegerSetting(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
@@ -21,25 +30,25 @@ export async function joinPartyGuest(input: {
   createToken(payload: { sub: string; eventId: string; nickname: string; exp: number }, secret: string): Promise<string>;
   createId(): string;
   nowSeconds(): number;
-}): Promise<Result> {
+}): Promise<GuestRequestOutcome<{ guest: { id: string; nickname: string }; sessionToken: string; expiresAt: number }>> {
   if (!input.expectedCodeHash || !input.sessionSecret) {
-    return { status: 503, body: { error: "PartyQueue is not configured yet. Please contact the DJ." } };
+    return { ok: false, error: { code: "not_configured", message: "PartyQueue is not configured yet. Please contact the DJ." } };
   }
   if (input.nickname.length < 2 || input.nickname.length > 24 || !input.eventCode || input.eventCode.length > 32) {
-    return { status: 400, body: { error: "Vul een nickname (2–24 tekens) en de feestcode in." } };
+    return { ok: false, error: { code: "invalid_guest_input", message: "Vul een nickname (2–24 tekens) en de feestcode in." } };
   }
   if ((await input.hashCode(input.eventCode)) !== input.expectedCodeHash.trim().toLowerCase()) {
-    return { status: 401, body: { error: "Die feestcode klopt niet. Vraag de DJ om de juiste code." } };
+    return { ok: false, error: { code: "invalid_event_code", message: "Die feestcode klopt niet. Vraag de DJ om de juiste code." } };
   }
   const event = await input.repository.findActiveEvent(input.eventId);
-  if (!event) return { status: 403, body: { error: "Dit feest is momenteel niet actief." } };
+  if (!event) return { ok: false, error: { code: "event_inactive", message: "Dit feest is momenteel niet actief." } };
   const guestId = input.createId();
   const expiresAt = input.nowSeconds() + 60 * 60 * 12;
   const token = await input.createToken({ sub: guestId, eventId: event.id, nickname: input.nickname, exp: expiresAt }, input.sessionSecret);
   await input.repository.insertGuest({ id: guestId, eventId: event.id, nickname: input.nickname });
   return {
-    status: 201,
-    body: { ok: true, guest: { id: guestId, nickname: input.nickname }, sessionToken: token, expiresAt },
+    ok: true,
+    value: { guest: { id: guestId, nickname: input.nickname }, sessionToken: token, expiresAt },
   };
 }
 
@@ -50,33 +59,33 @@ export async function submitGuestTrackRequest(input: {
   trackId: string;
   createId(): string;
   trackGateway: GuestRequestTrackGateway;
-}): Promise<Result> {
+}): Promise<GuestRequestOutcome<{ request: { id: string; name: string; artists: string[]; status: string } }>> {
   const guest = await input.repository.findEventGuest(input.guestId, input.eventId);
-  if (!guest) return { status: 401, body: { error: "Gast niet gevonden. Meld je opnieuw aan." } };
+  if (!guest) return { ok: false, error: { code: "guest_not_found", message: "Gast niet gevonden. Meld je opnieuw aan." } };
 
   const config = await input.repository.readGuestRequestSettings();
   if (config.requests_paused === "true") {
-    return { status: 403, body: { error: "De DJ heeft aanvragen tijdelijk gepauzeerd." } };
+    return { ok: false, error: { code: "requests_paused", message: "De DJ heeft aanvragen tijdelijk gepauzeerd." } };
   }
 
   const openRequestLimit = positiveIntegerSetting(config.max_open_requests_per_guest, 2);
   const openRequestCount = await input.repository.countOpenGuestRequests(input.guestId);
   if (openRequestCount >= openRequestLimit) {
-    return { status: 429, body: { error: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
+    return { ok: false, error: { code: "open_request_limit", message: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
   }
 
   const rateLimit = positiveIntegerSetting(config.max_requests_per_30_minutes, 5);
   const recentCount = await input.repository.countRecentGuestRequests(input.guestId);
   if (recentCount >= rateLimit) {
-    return { status: 429, body: { error: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
+    return { ok: false, error: { code: "request_rate_limit", message: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
   }
 
   const duplicate = await input.repository.findActiveTrackRequest(input.eventId, input.trackId);
-  if (duplicate) return { status: 409, body: { error: "Dit nummer staat al in de wachtrij." } };
+  if (duplicate) return { ok: false, error: { code: "duplicate_track", message: "Dit nummer staat al in de wachtrij." } };
 
   try {
     const track = await input.trackGateway.getTrack(input.trackId);
-    if (!track) return { status: 400, body: { error: "We konden dit nummer niet meer ophalen bij Spotify." } };
+    if (!track) return { ok: false, error: { code: "track_unavailable", message: "We konden dit nummer niet meer ophalen bij Spotify." } };
     const requestId = input.createId();
     const status = config.auto_approve === "true" ? (config.auto_queue === "true" ? "queued" : "approved") : "pending";
     const artists = track.artists;
@@ -89,17 +98,17 @@ export async function submitGuestTrackRequest(input: {
     if (!inserted) {
       const latestOpenCount = await input.repository.countOpenGuestRequests(input.guestId);
       if (latestOpenCount >= openRequestLimit) {
-        return { status: 429, body: { error: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
+        return { ok: false, error: { code: "open_request_limit", message: "Je hebt het maximum van " + openRequestLimit + " openstaande aanvragen bereikt." } };
       }
       const latestRecentCount = await input.repository.countRecentGuestRequests(input.guestId);
       if (latestRecentCount >= rateLimit) {
-        return { status: 429, body: { error: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
+        return { ok: false, error: { code: "request_rate_limit", message: "Je maximum van " + rateLimit + " aanvragen per 30 minuten is bereikt." } };
       }
-      return { status: 409, body: { error: "Dit nummer staat al in de wachtrij." } };
+      return { ok: false, error: { code: "duplicate_track", message: "Dit nummer staat al in de wachtrij." } };
     }
-    return { status: 201, body: { ok: true, request: { id: requestId, name: track.name, artists, status } } };
+    return { ok: true, value: { request: { id: requestId, name: track.name, artists, status } } };
   } catch (error) {
-    return { status: 503, body: { error: error instanceof Error ? error.message : "Aanvraag kon niet worden opgeslagen." } };
+    return { ok: false, error: { code: "request_unavailable", message: error instanceof Error ? error.message : "Aanvraag kon niet worden opgeslagen." } };
   }
 }
 
