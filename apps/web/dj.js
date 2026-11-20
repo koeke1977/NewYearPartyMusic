@@ -9,6 +9,7 @@ import { formatTrackTime, getTrackProgress, getTrackProgressStatus } from "./mod
 import { createLatestTaskQueue } from "./modules/dj-latest-task-queue.js";
 import { normalizeSpotifyVolume, getSpotifyPlaybackControls, getSpotifyPlaybackSummary } from "./modules/dj-playback-state.js";
 import { createDjPlaybackCoordinator } from "./modules/dj-playback-coordinator.js";
+import { buildDjChatGptPrompt } from "./modules/dj-chatgpt-handoff.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -503,22 +504,7 @@ chatGPTButton?.addEventListener("click",async()=>{
   }
   const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
   const nowPlaying=(document.querySelector("#spotify-now-playing")?.textContent||"Niet beschikbaar").trim();
-  const queueText=queued.length
-    ? queued.map((track,index)=>(index+1)+". "+track.track_name+" — "+track.artist_name).join("\n")
-    : "(UP NEXT is momenteel leeg)";
-  const prompt=[
-    "Je bent mijn tweede DJ-adviseur voor DJ#DATUUR / PartyQueue, een Oud & Nieuw-feest in België.",
-    "Geef advies in het Nederlands. Denk creatief en durf bewust van genre, decennium en energie te wisselen. Forceer geen vloeiende overgangen.",
-    "Gebruik de live context hieronder. Beweer niet dat je de muziek of het publiek hoort of ziet. Voeg niets zelf toe aan Spotify of PartyQueue; geef alleen een voorstel dat ik zelf kan uitvoeren.",
-    "",
-    "MOMENTEEL OP SPOTIFY:",
-    nowPlaying,
-    "",
-    "UP NEXT ("+queued.length+" tracks):",
-    queueText,
-    "",
-    "Geef een concreet DJ-advies op basis van deze huidige set. Benoem eventuele zwakke plekken en geef bruikbare alternatieven. Bewaar alle bestaande tracks wanneer je een nieuwe volgorde voorstelt."
-  ].join("\n");
+  const prompt=buildDjChatGptPrompt({queuedTracks:queued,nowPlaying});
   window.open("https://chatgpt.com/","_blank","noopener,noreferrer");
   chatGPTButton.disabled=true;
   try{
