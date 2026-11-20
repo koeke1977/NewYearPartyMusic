@@ -1,37 +1,55 @@
-import type { SpotifyTrack } from "../../../integrations/spotify/types";
+export type CatalogTrack = {
+  id: string;
+  uri: string;
+  name: string;
+  artists: string[];
+  albumImageUrl: string | null;
+  durationMs: number;
+};
+
+export type CatalogSearchResult =
+  | { kind: "available"; tracks: CatalogTrack[] }
+  | { kind: "rate-limited" }
+  | { kind: "unavailable"; status: number };
+
+/** Application-owned port result: no Spotify wire DTOs or Fetch Response objects cross this boundary. */
+export interface SpotifyCatalogSearchGateway {
+  search(query: string, limit: number): Promise<CatalogSearchResult>;
+}
 
 type Result = { status: 200 | 400 | 429 | 502 | 503; body: Record<string, unknown> };
-type SearchResponse = { tracks?: { items?: SpotifyTrack[] } };
 
-function mapTrack(track: SpotifyTrack) {
+function guestTrackView(track: CatalogTrack) {
   return {
     id: track.id,
     uri: track.uri,
     name: track.name,
-    artists: track.artists.map(artist => artist.name),
-    albumImageUrl: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null,
-    durationMs: track.duration_ms,
+    artists: track.artists,
+    albumImageUrl: track.albumImageUrl,
+    durationMs: track.durationMs,
   };
 }
 
 export async function searchGuestSpotifyTracks(input: {
   query: string;
-  search(query: string, limit: number): Promise<Response>;
+  gateway: SpotifyCatalogSearchGateway;
 }): Promise<Result> {
   const query = input.query.trim();
   if (query.length < 2 || query.length > 100) {
     return { status: 400, body: { error: "Zoek op minstens 2 en maximaal 100 tekens." } };
   }
   try {
-    const response = await input.search(query, 8);
-    if (response.status === 429) {
+    const result = await input.gateway.search(query, 8);
+    if (result.kind === "rate-limited") {
       return { status: 429, body: { error: "Spotify krijgt even veel zoekopdrachten. Probeer zo meteen opnieuw." } };
     }
-    if (!response.ok) {
-      return { status: 502, body: { error: "Spotify zoeken is mislukt (HTTP " + response.status + ")." } };
+    if (result.kind === "unavailable") {
+      return { status: 502, body: { error: "Spotify zoeken is mislukt (HTTP " + result.status + ")." } };
     }
-    const data = await response.json() as SearchResponse;
-    return { status: 200, body: { tracks: (data.tracks?.items || []).map(mapTrack), attribution: "Music data provided by Spotify" } };
+    return {
+      status: 200,
+      body: { tracks: result.tracks.map(guestTrackView), attribution: "Music data provided by Spotify" },
+    };
   } catch (error) {
     return { status: 503, body: { error: error instanceof Error ? error.message : "Spotify is tijdelijk niet beschikbaar." } };
   }
@@ -39,7 +57,7 @@ export async function searchGuestSpotifyTracks(input: {
 
 export async function searchDjSpotifyTracks(input: {
   queries: unknown;
-  search(query: string, limit: number): Promise<Response>;
+  gateway: SpotifyCatalogSearchGateway;
 }): Promise<Result> {
   if (!Array.isArray(input.queries) || input.queries.length > 20 || !input.queries.every(query => typeof query === "string")) {
     return { status: 400, body: { error: "Geef maximaal 20 trackzoekopdrachten door." } };
@@ -52,17 +70,10 @@ export async function searchDjSpotifyTracks(input: {
   }
   try {
     const results = await Promise.all(queries.map(async query => {
-      const response = await input.search(query, 3);
-      if (!response.ok) return { query, tracks: [] };
-      const data = await response.json() as SearchResponse;
+      const result = await input.gateway.search(query, 3);
       return {
         query,
-        tracks: (data.tracks?.items || []).map(track => ({
-          id: track.id, uri: track.uri, name: track.name,
-          artists: track.artists.map(artist => artist.name),
-          durationMs: track.duration_ms,
-          albumImageUrl: track.album.images?.[1]?.url || track.album.images?.[0]?.url || null,
-        })),
+        tracks: result.kind === "available" ? result.tracks.map(guestTrackView) : [],
       };
     }));
     return { status: 200, body: { ok: true, results } };
