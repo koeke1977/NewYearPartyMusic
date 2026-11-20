@@ -435,6 +435,9 @@ async function askDJAI(prompt,mode="advice"){
         output.append(summary);
       });
       output.append(addSelected);
+      }else{
+        output.append(el("p","dj-ai-results-hint","Ik kon geen genummerde tracks uit het antwoord halen. Vraag de AI om een lijst met Titel — Artiest."));
+      }
     }else{
       output.textContent=(result.cached?"↻ Eerder advies (wachtrij ongewijzigd)\n\n":"")+answer;
     }
