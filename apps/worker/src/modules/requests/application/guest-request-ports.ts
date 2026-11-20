@@ -14,6 +14,6 @@ export interface GuestRequestRepository {
   appendRequestToQueueOrder(requestId:string):Promise<void>;
   findEventRequestStatus(eventId:string,requestId:string):Promise<{id:string;status:string}|null>;
   readAutoQueueSetting():Promise<boolean>;
-  updateRequestStatus(eventId:string,requestId:string,status:string,timestampColumn:"approved_at"|"queued_at"|"played_at"|null):Promise<void>;
+  transitionRequestStatus(eventId:string,requestId:string,fromStatuses:string[],status:string,timestampColumn:"approved_at"|"queued_at"|"played_at"|null):Promise<boolean>;
   moveApprovedRequestToQueue(eventId:string,requestId:string):Promise<boolean>;
 }
