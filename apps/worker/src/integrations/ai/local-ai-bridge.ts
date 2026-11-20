@@ -10,7 +10,8 @@ export function createLocalAIBridgeClient(input: {
   accessClientSecret?: string;
   fetcher?: typeof fetch;
 }): LocalAIBridgeClient | undefined {
-  if (!input.url || !input.token) return undefined;
+  if (!input.url && !input.token) return undefined;
+  if (!input.url || !input.token) throw new Error("Configure both LOCAL_AI_BRIDGE_URL and LOCAL_AI_BRIDGE_TOKEN, or neither.");
   const endpoint = new URL(input.url);
   const localHost = endpoint.hostname === "localhost" || endpoint.hostname === "127.0.0.1";
   if (endpoint.protocol !== "https:" && !(endpoint.protocol === "http:" && localHost)) {
