@@ -296,3 +296,12 @@ This audit is intentionally explicit about remaining mixed boundaries. Green CI 
 - Extracted modules/dj-spotify-console-view.js: DOM-only Spotify console rendering now owns status, device, track, volume, progress, transport-button, fallback-preview and offline presentation. The console controller retains API calls, stale-response coordination, volume-write sequencing and event binding.
 - Added focused unit coverage for the AI action workflows and the typed Spotify gateway. The existing console controller tests exercise the extracted view through its public integration.
 - No production Worker, Spotify playback, secrets or Cloudflare D1 data were touched. The architecture allows disposable/local D1 reconstruction during future migration work; production resources remain behind a separately approved release step.
+
+
+### Follow-up: queue dispatch persistence port — 2026-11-20
+
+- Introduced an application-owned QueueDispatchRepository contract for the critical NEXT workflow: acquire/release lease, list queued tracks, read saved order, conditionally mark played, clear fallback state and persist last-track state.
+- Moved D1-specific SQL behind queue-dispatch-d1-repository.ts and wired it in platform/composition/dj-playback-workflows.ts.
+- dispatch-next-track.ts now depends on the repository port and Spotify playback callback only. It no longer imports D1 types or infrastructure functions.
+- Reworked dispatch characterization tests to use a fake application port. They verify lock contention, empty queue, saved ordering, successful side-effect order, Spotify rejection and concurrent state change without D1 or real Spotify.
+- The lock lease, 30-second expiry, queue order, HTTP success criteria, request state transition and playback state persistence remain unchanged.
