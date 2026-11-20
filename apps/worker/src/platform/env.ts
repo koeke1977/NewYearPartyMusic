@@ -13,4 +13,6 @@ export interface Env {
   SPOTIFY_CLIENT_SECRET: string;
   AI?: { run(model: string, input: Record<string, unknown>): Promise<any> };  LOCAL_AI_BRIDGE_URL?: string;
   LOCAL_AI_BRIDGE_TOKEN?: string;
+  LOCAL_AI_ACCESS_CLIENT_ID?: string;
+  LOCAL_AI_ACCESS_CLIENT_SECRET?: string;
 }
