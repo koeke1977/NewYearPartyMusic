@@ -10,7 +10,9 @@ The DJ entrypoint has started its first low-risk extraction. It now imports:
 - `modules/dj-session.js`: reads, writes and clears the existing `partyqueue_dj_token` localStorage key.
 - `modules/dom.js`: shared safe text-based DOM element factory, also used by the guest UI.
 - `modules/dj-queue.js`: pure ordering of queued requests using saved order and the existing chronological fallback.
-- `dj.js` remains the page composition/controller for login, polling, rendering, moderation, playback and AI until those flows have dedicated tests.
+- `modules/dj-ai-queue-parser.js`: validates AI-proposed numbered lists against the live queued tracks and returns matched IDs plus unmatched lines; the existing unique-title fallback rule is preserved.
+- `modules/dj-polling.js`: owns the immediate refresh + five-second polling interval lifecycle and ensures a repeated start replaces the prior interval.
+- `dj.js` remains the page composition/controller for login, rendering, moderation, playback and AI interactions until those flows have dedicated tests.
 
 `dj.html` now loads `dj.js` as a native ES module; no bundler or new runtime dependency was introduced.
 
@@ -26,10 +28,10 @@ The remaining DJ entrypoint still owns several separate concerns:
 | Queue presentation | `orderedQueued()`, `renderDeck()`, `trackLine()`, drag/drop handlers | `modules/dj-queue.js` (ordering extracted), then `dj/features/queue/` |
 | Request moderation | `runAction()`, action buttons | `dj/features/requests/` |
 | Settings controls | pause, auto-approve and auto-queue toggles | `dj/features/settings/` |
-| Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `dj/services/polling-service.ts` |
+| Polling lifecycle | `refresh()`, `refreshSpotify()`, timers and in-flight guards | `modules/dj-polling.js` (interval lifecycle extracted), then `dj/services/polling-service.ts` |
 | Spotify playback controls | connect, play/pause/next/previous, volume, device and progress rendering | `dj/features/playback/` |
 | AI request lifecycle | `askDJAI()`, prompt actions, response display and loading state | `dj/features/ai-assistant/` |
-| AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `dj/features/ai-assistant/queue-proposal-parser.ts` |
+| AI queue proposal parsing | numbered-line parsing, title/artist matching, duplicate/omission checks and confirmation UI | `modules/dj-ai-queue-parser.js` (pure matching extracted), then `dj/features/ai-assistant/queue-proposal-parser.ts` |
 | AI Spotify suggestions | search result groups, selected tracks, add-to-queue actions | `dj/features/ai-assistant/track-suggestions-view.ts` |
 | ChatGPT hand-off | context formatting, queue snapshot, opening ChatGPT | `dj/features/ai-assistant/chatgpt-handoff.ts` |
 
