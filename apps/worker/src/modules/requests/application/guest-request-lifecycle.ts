@@ -1,4 +1,3 @@
-import type { SpotifyTrack } from "../../../integrations/spotify/types";
 import {
   appendRequestToQueueOrder,
   countRecentGuestRequests,
@@ -17,6 +16,19 @@ import {
 } from "../infrastructure/guest-request-repository";
 
 type Result = { status: number; body: Record<string, unknown> };
+
+export type GuestRequestTrack = {
+  id: string;
+  uri: string;
+  name: string;
+  artists: Array<{ name: string }>;
+  album?: { images?: Array<{ url: string }> };
+  duration_ms: number;
+};
+
+export type GuestRequestTrackGateway = {
+  getTrack(trackId: string): Promise<GuestRequestTrack | null>;
+};
 
 export async function joinPartyGuest(input: {
   db: GuestRequestDatabase;
@@ -57,7 +69,7 @@ export async function submitGuestTrackRequest(input: {
   guestId: string;
   trackId: string;
   createId(): string;
-  getSpotifyTrack(trackId: string): Promise<Response>;
+  trackGateway: GuestRequestTrackGateway;
 }): Promise<Result> {
   const guest = await findEventGuest(input.db, input.guestId, input.eventId);
   if (!guest) return { status: 401, body: { error: "Gast niet gevonden. Meld je opnieuw aan." } };
@@ -77,9 +89,8 @@ export async function submitGuestTrackRequest(input: {
   if (duplicate) return { status: 409, body: { error: "Dit nummer staat al in de wachtrij." } };
 
   try {
-    const response = await input.getSpotifyTrack(input.trackId);
-    if (!response.ok) return { status: 400, body: { error: "We konden dit nummer niet meer ophalen bij Spotify." } };
-    const track = await response.json() as SpotifyTrack;
+    const track = await input.trackGateway.getTrack(input.trackId);
+    if (!track) return { status: 400, body: { error: "We konden dit nummer niet meer ophalen bij Spotify." } };
     const requestId = input.createId();
     const status = config.auto_approve === "true" ? (config.auto_queue === "true" ? "queued" : "approved") : "pending";
     const artists = track.artists.map(artist => artist.name);
@@ -147,9 +158,8 @@ export async function addDjTrackToPartyQueue(input: {
   try {
     const duplicate = await findActiveTrackRequest(input.db, input.eventId, input.trackId);
     if (duplicate) return { status: 200, body: { ok: true, alreadyQueued: true, status: duplicate.status } };
-    const response = await input.getSpotifyTrack(input.trackId);
-    if (!response.ok) return { status: 502, body: { error: "Spotify kon dit nummer niet meer ophalen." } };
-    const track = await response.json() as SpotifyTrack;
+    const track = await input.trackGateway.getTrack(input.trackId);
+    if (!track) return { status: 502, body: { error: "Spotify kon dit nummer niet meer ophalen." } };
     const guestId = await createDjQueueGuest(input.db, input.eventId);
     const requestId = input.createId();
     const artists = track.artists.map(artist => artist.name);

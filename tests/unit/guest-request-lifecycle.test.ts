@@ -67,7 +67,7 @@ describe("guest request lifecycle", () => {
     const missing=fakeDb({guest:null});
     expect(await submitGuestTrackRequest({
       db:missing.db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
-      createId:()=>"request",getSpotifyTrack:vi.fn(),
+      createId:()=>"request",trackGateway:{getTrack:vi.fn()},
     })).toMatchObject({status:401});
 
     const paused=fakeDb({settings:[{key:"requests_paused",value:"true"}]});
@@ -93,12 +93,9 @@ describe("guest request lifecycle", () => {
     const {db,calls}=fakeDb({settings:[
       {key:"auto_approve",value:"true"},{key:"auto_queue",value:"true"},
     ]});
-    const getSpotifyTrack=vi.fn(async()=>new Response(JSON.stringify(spotifyTrack),{
-      status:200,headers:{"Content-Type":"application/json"},
-    }));
     const result=await submitGuestTrackRequest({
       db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
-      createId:()=>"request-new",getSpotifyTrack,
+      createId:()=>"request-new",trackGateway:{getTrack:vi.fn(async()=>spotifyTrack)},
     });
     expect(result).toEqual({status:201,body:{
       ok:true,request:{id:"request-new",name:"Test Song",artists:["Artist A","Artist B"],status:"queued"},
@@ -113,7 +110,7 @@ describe("guest request lifecycle", () => {
     const {db,calls}=fakeDb();
     const result=await submitGuestTrackRequest({
       db,eventId:"event-1",guestId:"guest-1",trackId:spotifyTrack.id,
-      createId:()=>"request",getSpotifyTrack:async()=>new Response("not found",{status:404}),
+      createId:()=>"request",trackGateway:{getTrack:async()=>null},
     });
     expect(result).toMatchObject({status:400});
     expect(calls.some(call=>call.sql.startsWith("INSERT INTO requests"))).toBe(false);
