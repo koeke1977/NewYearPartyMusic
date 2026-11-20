@@ -201,11 +201,28 @@ app.post("/api/dj/ai/assistant", async (c) => {
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
-  const [rows, playedRows, countRows, orderSetting] = await Promise.all([
+  const profileKey = "dj_ai_profile_" + c.env.EVENT_ID;
+  const historyKey = "dj_ai_history_" + c.env.EVENT_ID;
+  const explicitPreference = /\b(onthoud|vanaf nu|voortaan|mijn voorkeur|ik wil altijd|ik hou van|ik houd van|ik verkies)\b/i.test(prompt);
+  let memoryUpdated = false;
+  if (explicitPreference) {
+    const existingProfile = await c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(profileKey).first<{value:string}>();
+    let preferences: string[] = [];
+    try { preferences = JSON.parse(existingProfile?.value || "[]"); } catch { preferences = []; }
+    const preference = prompt.replace(/\s+/g," ").trim().slice(0,240);
+    if (preference && !preferences.includes(preference)) {
+      preferences = [...preferences, preference].slice(-20);
+      await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(profileKey,JSON.stringify(preferences)).run();
+      memoryUpdated = true;
+    }
+  }
+  const [rows, playedRows, countRows, orderSetting, profileSetting, historySetting] = await Promise.all([
     c.env.DB.prepare("SELECT id,track_name,artist_name,duration_ms,status,queued_at,requested_at FROM requests WHERE event_id=? AND status IN ('pending','approved','queued') ORDER BY CASE status WHEN 'queued' THEN 0 WHEN 'approved' THEN 1 ELSE 2 END, requested_at DESC LIMIT 45").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string;duration_ms:number|null;status:string;queued_at:string|null;requested_at:string}>(),
     c.env.DB.prepare("SELECT track_name,artist_name FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 8").bind(c.env.EVENT_ID).all<{track_name:string;artist_name:string}>(),
     c.env.DB.prepare("SELECT status,COUNT(*) AS count FROM requests WHERE event_id=? AND status IN ('pending','approved','queued','played') GROUP BY status").bind(c.env.EVENT_ID).all<{status:string;count:number}>(),
-    c.env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>()
+    c.env.DB.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{value:string}>(),
+    c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(profileKey).first<{value:string}>(),
+    c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(historyKey).first<{value:string}>()
   ]);
   const tracks = rows.results || [];
   let savedOrder: string[] = [];
@@ -238,9 +255,15 @@ app.post("/api/dj/ai/assistant", async (c) => {
       minutesToMidnight! > 15 ? "countdown_peak_window_approaching" :
       "midnight_peak"
   };
+  let djPreferences: string[] = [];
+  let djHistory: Array<{at:string;tracks:string[]}> = [];
+  try { djPreferences = JSON.parse(profileSetting?.value || "[]"); } catch { djPreferences = []; }
+  try { djHistory = JSON.parse(historySetting?.value || "[]"); } catch { djHistory = []; }
   const context = {
     event: c.env.EVENT_NAME,
     eventMoment,
+    djPreferences,
+    acceptedSetHistory: djHistory.slice(-5),
     currentlyLastPlayed: current ? current.track_name+" — "+current.artist_name : "unknown",
     upNext: queued.map(t=>t.track_name+" — "+t.artist_name+" ["+Math.round((t.duration_ms||0)/60000)+" min]"),
     recentPlayed: recent.map(t=>t.track_name+" — "+t.artist_name),
@@ -257,7 +280,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
   if (cachedRow?.updated_at && Date.now() - Date.parse(cachedRow.updated_at + "Z") < 10 * 60 * 1000) {
     try {
       const cached = JSON.parse(cachedRow.value) as {key:string;answer:string};
-      if (cached.key === cacheKey && cached.answer) return c.json({ok:true,provider,answer:cached.answer,cached:true});
+      if (cached.key === cacheKey && cached.answer) return c.json({ok:true,provider,answer:cached.answer,cached:true,memoryUpdated});
     } catch { /* Ignore an invalid cache entry and generate a fresh answer. */ }
   }
   const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
@@ -296,7 +319,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
     }
     const finalAnswer = String(answer).slice(0,8000);
     await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer})).run();
-    return c.json({ ok:true,provider,answer:finalAnswer,cached:false });
+    return c.json({ ok:true,provider,answer:finalAnswer,cached:false,memoryUpdated });
   } catch(error) {
     return c.json({ error:error instanceof Error?error.message:"AI-assistent is tijdelijk niet beschikbaar." },502);
   }
@@ -391,7 +414,17 @@ app.post("/api/dj/queue/reorder", async (c) => {
   const currentIds = (current.results || []).map(row => row.id);
   const requested = body.order as string[];
   if (new Set(requested).size !== requested.length || requested.length !== currentIds.length || currentIds.some(id => !requested.includes(id))) return c.json({ error: "De wachtrij is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw." }, 409);
+  const orderedTracks = await c.env.DB.prepare("SELECT id,track_name,artist_name FROM requests WHERE event_id=? AND status='queued'").bind(c.env.EVENT_ID).all<{id:string;track_name:string;artist_name:string}>();
+  const trackById = new Map((orderedTracks.results || []).map(track => [track.id,track]));
+  const acceptedTracks = requested.map(id => trackById.get(id)).filter(Boolean).map(track => track!.track_name+" — "+track!.artist_name);
   await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('partyqueue_order',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify(requested)).run();
+  const historyKey = "dj_ai_history_" + c.env.EVENT_ID;
+  const previousHistory = await c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(historyKey).first<{value:string}>();
+  let history: Array<{at:string;tracks:string[]}> = [];
+  try { history = JSON.parse(previousHistory?.value || "[]"); } catch { history = []; }
+  history.push({at:new Date().toISOString(),tracks:acceptedTracks});
+  history = history.slice(-5);
+  await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(historyKey,JSON.stringify(history)).run();
   return c.json({ ok: true, order: requested });
 });
 app.post("/api/dj/requests/:id/:action", async (c) => {
