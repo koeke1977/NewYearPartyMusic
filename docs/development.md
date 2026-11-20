@@ -1,68 +1,56 @@
 # Development checklist
 
-This checklist describes the current application and the next safe engineering steps. Do not treat completed features as unimplemented simply because an older checklist said so.
+This checklist reflects the current implementation on `refactor/architecture-foundation`. It is the working source of truth; do not revive obsolete tasks from earlier project notes.
 
-## Current baseline
+## Environment
 
-- [x] Single-event scope and production hostname documented
-- [x] Cloudflare Worker + Hono application deployed
-- [x] Cloudflare D1 schema and production data present
-- [x] Guest registration and session handling
-- [x] Spotify catalogue search
-- [x] Music request submission and request limits
-- [x] DJ authentication and dashboard
-- [x] Request moderation and queue management
-- [x] Spotify OAuth, token persistence and playback controls
-- [x] DJ#DATUUR AI assistant endpoints and UI
+- The deployed Cloudflare Worker, D1 database and Spotify OAuth connection are test-only.
+- PartyQueue has not been used for a real event or real production users.
+- Existing D1 rows, test credentials and Spotify OAuth state are disposable. Resetting or recreating them is acceptable when it simplifies engineering or schema work.
+- Keep secrets out of source control and browser code. Security boundaries remain mandatory even though the data is disposable.
 
-## Architecture reengineering
+## Application capabilities
 
-- [x] Create isolated branch for architecture work
-- [x] Record repository and production baseline
-- [x] Document target modular-monolith architecture
-- [x] Record production data safety constraints
-- [x] Inventory every API route, method, auth rule and response contract
-- [x] Map Worker and frontend responsibilities to target modules
-- [ ] Complete a function-level dependency and side-effect map
-- [x] Add and pass initial crypto/session compatibility characterization tests before further implementation
-- [x] Extract Worker environment type, cryptographic primitives and session-token service
-- [ ] Extract D1 repositories and application use cases
-- [x] Extract Spotify catalogue token cache, track type and catalogue API adapter
-- [ ] Extract Spotify OAuth token store, refresh lifecycle and authenticated user API adapter
-- [ ] Extract queue and playback services
-- [x] Extract the pure DJ assistant prompt builder and Belgian event-time calculation
-- [ ] Split AI orchestration, providers, context, memory, tool dispatch and use cases
-- [ ] Split Hono routes into transport-only modules
-- [ ] Split DJ frontend API/auth/state/polling/features/rendering
-- [ ] Inventory and split CSS by actual selector ownership
-- [x] Add CI typecheck, security-test and Cloudflare Worker dry-run workflow (lint/dependency-boundary checks remain)
-- [ ] Validate database migrations on disposable data
-- [ ] Prepare production backup/export and rollback runbook
-- [ ] Open reviewed release PR before any production deployment
+- [x] Guest join with event code and nickname
+- [x] Spotify catalogue search and track requests
+- [x] Configurable guest request limits, duplicate protection and moderation
+- [x] DJ authentication and protected routes
+- [x] Spotify OAuth, encrypted token persistence and refresh lifecycle
+- [x] DJ overview, queue ordering, moderation and playback controls
+- [x] Queue dispatch lease and playback automation
+- [x] AI music advice and proposals with DJ authorization
+- [x] Free-tier AI budget and bounded read-only Spotify catalogue tool
 
-## Initial extraction delivered
+## Architecture work completed
 
-- `apps/worker/src/platform/env.ts` owns Worker binding types.
-- `apps/worker/src/platform/security/crypto.ts` owns SHA-256, HMAC, base64url, constant-time comparison and AES-GCM token encryption.
-- `apps/worker/src/modules/identity/session-token.ts` owns signed bearer-session creation and validation.
-- `apps/worker/src/integrations/spotify/catalog-token.ts` owns the isolate-local client-credentials token cache.
-- `apps/worker/src/integrations/spotify/catalog-api.ts` owns Spotify catalogue search and track lookup HTTP requests.
-- `apps/worker/src/integrations/spotify/types.ts` owns the Spotify track response contract.
-- `apps/worker/src/modules/ai/prompts/dj-assistant.ts` owns DJ assistant system/user prompt construction.
-- `apps/worker/src/modules/ai/context/event-moment.ts` owns deterministic Belgian event-time phase calculation.
-- AI responsibility boundaries and remaining work are documented in `docs/architecture/AI-RESPONSIBILITY-MAP.md`.
-- `docs/architecture/WORKER-RESPONSIBILITY-MAP.md` and `FRONTEND-RESPONSIBILITY-MAP.md` record the remaining extraction boundaries.
-- The existing Worker entrypoint now consumes those modules; API paths and token/encryption formats are intentionally unchanged.
-- Vitest tests cover legacy session-token compatibility, legacy encrypted Spotify-token compatibility, Spotify catalogue adapter behaviour and DJ assistant prompt rules/context.
-- Latest validation run passed TypeScript, all characterization tests and Worker dry-run.
+- [x] Binding engineering standard and modular-monolith target architecture
+- [x] Worker route groups and composition adapters
+- [x] Worker identity, request, queue, playback, Spotify and AI modules
+- [x] D1 repository extraction for guest requests, DJ queue, retention, AI context/settings/budget and queue dispatch
+- [x] Spotify catalogue, OAuth/user-auth, playback and status gateway adapters
+- [x] Native frontend ES modules for guest and DJ features
+- [x] DJ playback sequencing, stale-response guards and serialized writes
+- [x] CSS ownership split, selector inventory and browser screenshot baselines
+- [x] API inventory and Worker/frontend/AI responsibility maps
+- [x] Release guard and test-environment runbook
+- [x] TypeScript, security characterization tests, Worker dry-run and browser journeys green on current PR head
 
-## Change safety requirements
+## Remaining architecture work
 
-- Preserve existing API URLs, request/response shapes, auth semantics and user experience unless a separately approved change is covered by tests.
-- Never reset, drop or recreate production D1 tables as part of refactoring.
-- Never overwrite or reset the existing Spotify OAuth record or secrets.
-- Do not deploy to the production Worker from this architecture branch.
-- Use a disposable local/test database for migration development.
-- Each extraction step must pass typecheck and relevant tests before proceeding.
+1. Complete dependency inversion for the remaining request, music and playback workflows; application code should consume application-owned repository/provider ports rather than concrete D1 bindings or Fetch responses.
+2. Audit the AI assistant and Spotify console modules for remaining controller/view mixing; split only where there is a real responsibility boundary.
+3. Add automated dependency-boundary checks after the ports and module ownership are stable.
+4. Review CSS selector duplication/unused rules and accessibility without changing the visual language unintentionally.
+5. Add focused linting and formatting only if it can be introduced without unnecessary dependencies or broad churn.
+6. Keep full CI green after each coherent extraction.
 
-See [architecture/REENGINEERING-PLAN.md](architecture/REENGINEERING-PLAN.md) for the detailed design and acceptance criteria.
+## Change principles
+
+- Preserve user-visible behaviour and API contracts unless a deliberate behaviour change is separately tested.
+- Prefer correcting architecture over preserving disposable test data or legacy test schemas.
+- Rebuild the test D1 database or reconnect the test Spotify account when that is the cleanest path.
+- Keep Spotify secrets and session credentials server-side and out of Git.
+- AI remains advisory: only DJ-authorized workflows may mutate requests, queue order or playback.
+- Avoid paid services, new frameworks and unnecessary runtime dependencies.
+
+See [architecture/REENGINEERING-PLAN.md](architecture/REENGINEERING-PLAN.md) and [the environment runbook](runbooks/PRODUCTION-READINESS.md) for details.
