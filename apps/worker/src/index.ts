@@ -278,6 +278,30 @@ app.post("/api/dj/ai/assistant", async (c) => {
       });
     } catch { /* Ignore an invalid cache entry and generate a fresh answer. */ }
   }
+
+  // Conservative PartyQueue guardrail: stay below the 10,000 free daily Neurons,
+  // leaving 2,500 Neurons as a buffer for other Workers AI usage in the account.
+  // Gemma 4 pricing: 9,091 input and 27,273 output Neurons per million tokens.
+  const dailyNeuronBudget = 7500;
+  const usageDate = new Date().toISOString().slice(0,10);
+  const usageKey = "dj_ai_neurons_" + usageDate;
+  const usageRow = await c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(usageKey).first<{value:string}>();
+  let estimatedDailyNeurons = Math.max(0,Number(usageRow?.value||"0")||0);
+  const estimateNeurons = (inputCharacters:number,outputTokens:number) => Math.ceil(
+    ((Math.ceil(inputCharacters/3)*9091)+(outputTokens*27273))/1000000*1.5
+  );
+  const initialReserve = estimateNeurons(system.length+user.length,1400);
+  if (estimatedDailyNeurons+initialReserve > dailyNeuronBudget) {
+    return c.json({error:"DJ#DATUUR AI heeft zijn veilige dagbudget bereikt. Er worden geen extra AI-aanroepen gedaan; morgen vanaf 00:00 UTC is er opnieuw gratis budget."},429);
+  }
+  const recordEstimatedUsage = async (response:any,inputCharacters:number,maxOutputTokens:number) => {
+    const usage = response?.usage || response?.result?.usage || response?.choices?.[0]?.usage || {};
+    const promptTokens = Number(usage.prompt_tokens)||Math.ceil(inputCharacters/3);
+    const completionTokens = Number(usage.completion_tokens)||maxOutputTokens;
+    const estimate = estimateNeurons(promptTokens*3,completionTokens);
+    await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=CAST(CAST(settings.value AS REAL)+CAST(excluded.value AS REAL) AS TEXT),updated_at=CURRENT_TIMESTAMP").bind(usageKey,String(estimate)).run();
+    estimatedDailyNeurons+=estimate;
+  };
   const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
   if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
   try {
@@ -315,6 +339,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
     let answer:any = typeof first==="string" ? first :
       first?.response || first?.result?.response ||
       first?.choices?.[0]?.message?.content || first?.output_text || "";
+    await recordEstimatedUsage(first,system.length+user.length,1400);
     let spotifyMatches:Array<{query:string;tracks:any[]}> = [];
     const calls = [
       ...(Array.isArray(first?.tool_calls) ? first.tool_calls : []),
@@ -357,18 +382,25 @@ app.post("/api/dj/ai/assistant", async (c) => {
         }));
 
         // A single bounded follow-up gives the model the verified Spotify results.
-        const followup:any = await c.env.AI.run(model,{
-          messages:[
-            {role:"system",content:system+" When verified Spotify search results are supplied, recommend only tracks present in those results and preserve exact Spotify titles and artists."},
-            {role:"user",content:user+"\n\nVERIFIED SPOTIFY SEARCH RESULTS:\n"+JSON.stringify(spotifyMatches)}
-          ],
-          max_tokens:1400,
-          temperature:0.35,
-          chat_template_kwargs:{enable_thinking:false}
-        });
-        answer = typeof followup==="string" ? followup :
-          followup?.response || followup?.result?.response ||
-          followup?.choices?.[0]?.message?.content || followup?.output_text || answer;
+        const followupUser = user+"\n\nVERIFIED SPOTIFY SEARCH RESULTS:\n"+JSON.stringify(spotifyMatches);
+        const followupReserve = estimateNeurons(system.length+followupUser.length+180,1400);
+        if (estimatedDailyNeurons+followupReserve <= dailyNeuronBudget) {
+          const followup:any = await c.env.AI.run(model,{
+            messages:[
+              {role:"system",content:system+" When verified Spotify search results are supplied, recommend only tracks present in those results and preserve exact Spotify titles and artists."},
+              {role:"user",content:followupUser}
+            ],
+            max_tokens:1400,
+            temperature:0.35,
+            chat_template_kwargs:{enable_thinking:false}
+          });
+          await recordEstimatedUsage(followup,system.length+followupUser.length+180,1400);
+          answer = typeof followup==="string" ? followup :
+            followup?.response || followup?.result?.response ||
+            followup?.choices?.[0]?.message?.content || followup?.output_text || answer;
+        } else {
+          answer = "Ik heb de Spotify-zoekopdrachten gecontroleerd. Het veilige AI-dagbudget laat vandaag geen extra analyse meer toe; kies hieronder zelf de juiste Spotify-uitvoering.";
+        }
       }
     }
 
