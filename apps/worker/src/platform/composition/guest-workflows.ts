@@ -3,7 +3,7 @@ import { sha256 } from "../security/crypto";
 import { createSessionToken } from "./session-token";
 import { joinPartyGuest, submitGuestTrackRequest, addDjTrackToPartyQueue, type GuestRequestTrack } from "../../modules/requests/application/guest-request-lifecycle";
 import { searchGuestSpotifyTracks, searchDjSpotifyTracks } from "../../modules/music/application/search-spotify-tracks";
-import { getSpotifyTrack, searchSpotifyTracks } from "../../integrations/spotify/catalog-api";
+import { getSpotifyTrack, searchSpotifyCatalog } from "../../integrations/spotify/catalog-api";
 import { createGuestRequestRepository } from "../../modules/requests/infrastructure/guest-request-d1-repository";
 
 async function getGuestRequestTrack(env: Env, trackId: string): Promise<GuestRequestTrack | null> {
@@ -57,12 +57,12 @@ export function addDjTrackFromEnvironment(env: Env, trackId: string) {
 
 export function searchGuestTracksFromEnvironment(env: Env, query: string) {
   return searchGuestSpotifyTracks({
-    query, search: (value, limit) => searchSpotifyTracks(env, value, limit),
+    query, gateway: { search: (value, limit) => searchSpotifyCatalog(env, value, limit) },
   });
 }
 
 export function searchDjTracksFromEnvironment(env: Env, queries: unknown) {
   return searchDjSpotifyTracks({
-    queries, search: (value, limit) => searchSpotifyTracks(env, value, limit),
+    queries, gateway: { search: (value, limit) => searchSpotifyCatalog(env, value, limit) },
   });
 }
