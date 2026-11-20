@@ -38,10 +38,7 @@ describe("AI assistant settings repository", () => {
     const now = Date.parse("2026-12-31T20:00:00.000Z");
     const value = JSON.stringify({ key: "key-1", answer: "Ga voor disco", spotifyMatches: [{ query: "disco", tracks: [] }] });
     const { db } = fakeDb({ first: { value, updated_at: "2026-12-31 19:55:00" } });
-    await expect(readAssistantAnswerCache(db, "key-1", now)).resolves.toEqual({
-      answer: "Ga voor disco",
-      spotifyMatches: [{ query: "disco", tracks: [] }],
-    });
+    await expect(readAssistantAnswerCache(db, "key-1", now)).resolves.toEqual({ answer: "Ga voor disco" });
   });
 
   it("misses on wrong keys, expired rows and malformed JSON", async () => {
@@ -56,8 +53,8 @@ describe("AI assistant settings repository", () => {
 
   it("writes cache payload with its cache key", async () => {
     const { db, bind, run } = fakeDb();
-    await writeAssistantAnswerCache(db, "key-2", "antwoord", []);
-    expect(bind).toHaveBeenCalledWith(JSON.stringify({ key: "key-2", answer: "antwoord", spotifyMatches: [] }));
+    await writeAssistantAnswerCache(db, "key-2", "antwoord");
+    expect(bind).toHaveBeenCalledWith(JSON.stringify({ key: "key-2", answer: "antwoord" }));
     expect(run).toHaveBeenCalledOnce();
   });
 
