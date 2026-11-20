@@ -37,7 +37,7 @@ export async function setDjSpotifyVolume(input: {
 
 export async function executeDjSpotifyCommand(input: {
   action: string;
-  sendCommand(action: SpotifyTransportAction): Promise<Response>;
+  sendCommand(action: PlaybackCommand): Promise<Response>;
   setManualPause(paused: boolean): Promise<void>;
 }): Promise<Result> {
   const allowed: readonly string[] = ["play", "pause", "next", "previous"];
@@ -45,7 +45,7 @@ export async function executeDjSpotifyCommand(input: {
     return { status: 400, body: { error: "Onbekend Spotify-commando." } };
   }
   try {
-    const action = input.action as SpotifyTransportAction;
+    const action = input.action as PlaybackCommand;
     const response = await input.sendCommand(action);
     if (!response.ok && response.status !== 204) {
       const detail = (await response.text()).slice(0, 400);
