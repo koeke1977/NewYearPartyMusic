@@ -21,10 +21,10 @@ This checklist describes the current application and the next safe engineering s
 - [x] Record repository and production baseline
 - [x] Document target modular-monolith architecture
 - [x] Record production data safety constraints
-- [ ] Inventory every API route, method, auth rule and response contract
+- [x] Inventory every API route, method, auth rule and response contract
 - [ ] Map each existing function/file to a single responsibility
-- [ ] Add characterization tests before moving implementation code
-- [ ] Extract Worker platform, crypto and session primitives
+- [ ] Add and pass characterization tests before moving further implementation code (initial crypto/session compatibility tests added)
+- [x] Extract Worker environment type, cryptographic primitives and session-token service
 - [ ] Extract D1 repositories and application use cases
 - [ ] Extract Spotify OAuth/token/API adapter
 - [ ] Extract queue and playback services
@@ -32,10 +32,18 @@ This checklist describes the current application and the next safe engineering s
 - [ ] Split Hono routes into transport-only modules
 - [ ] Split DJ frontend API/auth/state/polling/features/rendering
 - [ ] Inventory and split CSS by actual selector ownership
-- [ ] Add lint, formatting, dependency-boundary and test checks
+- [x] Add CI typecheck, security-test and Cloudflare Worker dry-run workflow (lint/dependency-boundary checks remain)
 - [ ] Validate database migrations on disposable data
 - [ ] Prepare production backup/export and rollback runbook
 - [ ] Open reviewed release PR before any production deployment
+
+## Initial extraction delivered
+
+- `apps/worker/src/platform/env.ts` owns Worker binding types.
+- `apps/worker/src/platform/security/crypto.ts` owns SHA-256, HMAC, base64url, constant-time comparison and AES-GCM token encryption.
+- `apps/worker/src/modules/identity/session-token.ts` owns signed bearer-session creation and validation.
+- The existing Worker entrypoint now consumes those modules; API paths and token/encryption formats are intentionally unchanged.
+- Vitest security compatibility tests cover legacy session tokens and legacy encrypted Spotify-token compatibility.
 
 ## Change safety requirements
 
