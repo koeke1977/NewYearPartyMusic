@@ -13,6 +13,7 @@ import { buildDjChatGptPrompt } from "./modules/dj-chatgpt-handoff.js";
 import { resolveDjAiPrompt } from "./modules/dj-ai-intent.js";
 import { createDjOverviewModel } from "./modules/dj-overview-model.js";
 import { createDjQueueReorderController } from "./modules/dj-queue-reorder.js";
+import { createDjCommandService } from "./modules/dj-command-service.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -23,9 +24,9 @@ const message=document.querySelector("#dj-message");
 let token=getSavedDjToken();
 let currentSettings={requestsPaused:false,autoApprove:true,autoQueue:false};
 let spotifyQueuePreview=null;
-let queueReorderBusy=false;
 let latestDJOverview=null;
 const api=createDjApi(()=>token);
+const commands=createDjCommandService({api,refresh:()=>refresh(),onMessage:text=>{message.textContent=text;}});
 const playback=createDjPlaybackCoordinator({
   getToken:()=>token,
   sendCommand:action=>api("/api/dj/spotify/"+action,{method:"POST"}),
@@ -217,7 +218,7 @@ function render(data){
     info.append(el("strong","dj-track-name",r.track_name),el("span","dj-muted",r.artist_name),el("span","dj-requester","REQUESTED BY "+(r.nickname||"GUEST").toUpperCase()));
     info.append(el("span","dj-status status-"+r.status,r.status.replace("_"," ").toUpperCase()));card.append(info);
     const actions=el("div","dj-actions");
-    const addAction=(action,label,cls)=>{const b=el("button",cls,label);b.type="button";b.addEventListener("click",()=>runAction(r.id,action,b));actions.append(b);};
+    const addAction=(action,label,cls)=>{const b=el("button",cls,label);b.type="button";b.addEventListener("click",()=>commands.runRequestAction(r.id,action,b));actions.append(b);};
     if(r.status==="pending")addAction("approve","✓ APPROVE","dj-action dj-positive");
     if(r.status==="approved")addAction("queue","＋ CUE TO QUEUE","dj-action dj-positive");
     if(["pending","approved","queued"].includes(r.status))addAction("reject","✕ REJECT","dj-action dj-negative");
@@ -226,31 +227,10 @@ function render(data){
     requestList.append(card);
   }
 }
-async function saveQueueOrder(order){
-  if(queueReorderBusy)return;
-  queueReorderBusy=true;
-  message.textContent="Saving new play order…";
-  try{
-    await api("/api/dj/queue/reorder",{method:"POST",body:JSON.stringify({order})});
-    message.textContent="Play order updated.";
-    await refresh();
-  }catch(e){message.textContent=e.message;await refresh();}
-  finally{queueReorderBusy=false;}
-}
-const queueReorder=createDjQueueReorderController(requestList,saveQueueOrder);
+const queueReorder=createDjQueueReorderController(requestList,order=>commands.saveQueueOrder(order));
 async function refresh(){
   try{const data=await api("/api/dj/overview");render(data);}
   catch(e){if(e.message.toLowerCase().includes("sessie")){logout();return;}message.textContent=e.message;}
-}
-async function runAction(id,action,button){
-  button.disabled=true;message.textContent="Sending command to the booth…";
-  try{if(action==="queue") await api("/api/dj/spotify/queue/"+encodeURIComponent(id),{method:"POST"});else await api("/api/dj/requests/"+encodeURIComponent(id)+"/"+action,{method:"POST"});message.textContent="Deck updated.";await refresh();}
-  catch(e){message.textContent=e.message;button.disabled=false;}
-}
-async function updateSetting(key,enabled){
-  message.textContent="Updating party controls…";
-  try{await api("/api/dj/settings/"+key,{method:"POST",body:JSON.stringify({enabled})});message.textContent="Party controls updated.";await refresh();}
-  catch(e){message.textContent=e.message;}
 }
 function logout(){token="";clearDjToken();setLoggedIn(false);}
 loginForm.addEventListener("submit",async e=>{
@@ -260,9 +240,9 @@ loginForm.addEventListener("submit",async e=>{
   finally{button.disabled=false;}
 });
 document.querySelector("#dj-logout").addEventListener("click",logout);
-document.querySelector("#pause-toggle").addEventListener("click",()=>updateSetting("requests_paused",!currentSettings.requestsPaused));
-document.querySelector("#approval-toggle").addEventListener("click",()=>updateSetting("auto_approve",!currentSettings.autoApprove));
-document.querySelector("#auto-queue-toggle").addEventListener("click",()=>updateSetting("auto_queue",!currentSettings.autoQueue));
+document.querySelector("#pause-toggle").addEventListener("click",()=>commands.updateSetting("requests_paused",!currentSettings.requestsPaused));
+document.querySelector("#approval-toggle").addEventListener("click",()=>commands.updateSetting("auto_approve",!currentSettings.autoApprove));
+document.querySelector("#auto-queue-toggle").addEventListener("click",()=>commands.updateSetting("auto_queue",!currentSettings.autoQueue));
 
 async function refreshSpotify(){
   // The coordinator blocks polls during transport commands and rejects stale responses.
