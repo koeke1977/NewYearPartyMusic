@@ -6,6 +6,8 @@ import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/cat
 import type { SpotifyTrack } from "./integrations/spotify/types";
 import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
 import { buildEventMoment } from "./modules/ai/context/event-moment";
+import { buildDJAssistantContext, parseAcceptedSetHistory, parseSavedQueueOrder } from "./modules/ai/context/assistant-context";
+import { parseDJPreferences, rememberDJPreference } from "./modules/ai/memory/dj-preferences";
 
 
 const app = new Hono<{ Bindings: Env }>();
@@ -117,16 +119,14 @@ app.post("/api/dj/ai/assistant", async (c) => {
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
   const profileKey = "dj_ai_profile_" + c.env.EVENT_ID;
   const historyKey = "dj_ai_history_" + c.env.EVENT_ID;
-  const explicitPreference = /\b(onthoud|vanaf nu|voortaan|mijn voorkeur|ik wil altijd|ik hou van|ik houd van|ik verkies)\b/i.test(prompt);
   let memoryUpdated = false;
-  if (explicitPreference) {
+  // Avoid a D1 read for ordinary prompts; only explicit memory requests touch the profile.
+  if (rememberDJPreference(undefined, prompt).updated) {
     const existingProfile = await c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(profileKey).first<{value:string}>();
-    let preferences: string[] = [];
-    try { preferences = JSON.parse(existingProfile?.value || "[]"); } catch { preferences = []; }
-    const preference = prompt.replace(/\s+/g," ").trim().slice(0,240);
-    if (preference && !preferences.includes(preference)) {
-      preferences = [...preferences, preference].slice(-20);
-      await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(profileKey,JSON.stringify(preferences)).run();
+    const preferenceUpdate = rememberDJPreference(existingProfile?.value, prompt);
+    if (preferenceUpdate.updated) {
+      await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES (?,?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP")
+        .bind(profileKey, JSON.stringify(preferenceUpdate.preferences)).run();
       memoryUpdated = true;
     }
   }
@@ -138,28 +138,16 @@ app.post("/api/dj/ai/assistant", async (c) => {
     c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(profileKey).first<{value:string}>(),
     c.env.DB.prepare("SELECT value FROM settings WHERE key=?").bind(historyKey).first<{value:string}>()
   ]);
-  const tracks = rows.results || [];
-  let savedOrder: string[] = [];
-  try { savedOrder = JSON.parse(orderSetting?.value || "[]"); } catch { savedOrder = []; }
-  const orderIndex = new Map(savedOrder.map((id,index)=>[id,index]));
-  const queued = tracks.filter(t=>t.status==="queued").sort((a,b)=>(orderIndex.get(a.id)??Number.MAX_SAFE_INTEGER)-(orderIndex.get(b.id)??Number.MAX_SAFE_INTEGER)||String(a.queued_at||a.requested_at).localeCompare(String(b.queued_at||b.requested_at)));
-  const recent = playedRows.results || [];
-  const current = recent[0];
-  const eventMoment = buildEventMoment();
-  let djPreferences: string[] = [];
-  let djHistory: Array<{at:string;tracks:string[]}> = [];
-  try { djPreferences = JSON.parse(profileSetting?.value || "[]"); } catch { djPreferences = []; }
-  try { djHistory = JSON.parse(historySetting?.value || "[]"); } catch { djHistory = []; }
-  const context = {
+  const context = buildDJAssistantContext({
     event: c.env.EVENT_NAME,
-    eventMoment,
-    djPreferences,
-    acceptedSetHistory: djHistory.slice(-5),
-    currentlyLastPlayed: current ? current.track_name+" — "+current.artist_name : "unknown",
-    upNext: queued.map(t=>t.track_name+" — "+t.artist_name+" ["+Math.round((t.duration_ms||0)/60000)+" min]"),
-    recentPlayed: recent.map(t=>t.track_name+" — "+t.artist_name),
-    requestMix: Object.fromEntries((countRows.results||[]).map(row=>[row.status,row.count]))
-  };
+    eventMoment: buildEventMoment(),
+    djPreferences: parseDJPreferences(profileSetting?.value),
+    acceptedSetHistory: parseAcceptedSetHistory(historySetting?.value),
+    tracks: rows.results || [],
+    playedTracks: playedRows.results || [],
+    requestCounts: countRows.results || [],
+    savedQueueOrder: parseSavedQueueOrder(orderSetting?.value),
+  });
   const { system, user } = buildDJAssistantPrompt(context, prompt);
   // This app deliberately uses Cloudflare Workers AI only; never route to a paid external API.
   const provider = "cloudflare";
