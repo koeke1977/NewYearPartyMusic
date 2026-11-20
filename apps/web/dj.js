@@ -2,6 +2,7 @@ import { createDjApi } from "./modules/dj-api.js";
 import { clearDjToken, getSavedDjToken, saveDjToken } from "./modules/dj-session.js";
 import { element as el } from "./modules/dom.js";
 import { orderedQueued } from "./modules/dj-queue.js";
+import { matchDjQueueProposal } from "./modules/dj-ai-queue-parser.js";
 
 const loginCard=document.querySelector("#dj-login-card");
 const loginForm=document.querySelector("#dj-login-form");
@@ -359,37 +360,7 @@ async function askDJAI(prompt,mode="advice"){
       output.textContent=answer+"\n\nWachtrij wordt gecontroleerd…";
       const overview=await api("/api/dj/overview");
       const queued=orderedQueued(overview.requests||[],overview.queueOrder||[]);
-      const lines=[...answer.matchAll(/^\s*\d+[.)]\s*(.+?)\s*$/gm)].map(m=>m[1].replace(/\*+/g,"").trim());
-      const norm=s=>s.toLocaleLowerCase("nl").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/&/g," and ").replace(/[^a-z0-9]+/g," ").trim();
-      const parseLine=line=>{
-        const em=line.lastIndexOf("—")>=0?line.lastIndexOf("—"):line.lastIndexOf("–");
-        const split=em>=0?em:line.lastIndexOf(" - ");
-        if(split<0)return null;
-        let title=line.slice(0,split).trim(),artist=line.slice(split+(em>=0?1:3)).trim();
-        title=title.replace(/\s+-\s+(?:from\b|edit\b|original version\b).*$/i,"").replace(/\s*\([^)]*\)\s*$/,"").trim();
-        return title&&artist?{title:norm(title),artist:norm(artist)}:null;
-      };
-      const unused=new Set(queued.map(track=>track.id));
-      const unmatchedLines=[];
-      const ids=lines.map(line=>{
-        const parsed=parseLine(line);if(!parsed){unmatchedLines.push(line);return null;}
-        let best=null,bestScore=0;
-        const titleOnlyCandidates=[];
-        for(const track of queued){
-          if(!unused.has(track.id))continue;
-          const title=norm(track.track_name),artist=norm(track.artist_name);
-          const titleMatch=title===parsed.title||title.startsWith(parsed.title+" ")||parsed.title.startsWith(title+" ");
-          const artistMatch=artist===parsed.artist||artist.includes(parsed.artist)||parsed.artist.includes(artist);
-          if(titleMatch)titleOnlyCandidates.push(track);
-          const score=(title===parsed.title?4:titleMatch?2:0)+(artistMatch?3:0);
-          if(titleMatch&&artistMatch&&score>bestScore){best=track;bestScore=score;}
-        }
-        // If the AI supplied the wrong artist, accept the title only when exactly one unused queued track matches it.
-        if(!best&&titleOnlyCandidates.length===1)best=titleOnlyCandidates[0];
-        if(best){unused.delete(best.id);return best.id;}
-        unmatchedLines.push(line);
-        return null;
-      }).filter(Boolean);
+      const { ids, unmatchedLines } = matchDjQueueProposal(answer, queued);
       if(queued.length&&ids.length===queued.length&&new Set(ids).size===queued.length){
         output.replaceChildren(el("p","",answer));
         const confirmPanel=el("div","dj-ai-confirm-panel");
