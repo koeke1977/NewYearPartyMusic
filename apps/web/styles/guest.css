@@ -1,15 +1,35 @@
 /* Guest music search and request presentation */
-.search-form{display:grid;grid-template-columns:1fr auto;gap:9px}
+.search-form{display:grid;grid-template-columns:minmax(0,1fr);gap:9px}
 .search-form .button{margin-top:0;padding:0 15px}
+.search-label{display:block;margin:5px 0 2px;color:#d5ddd7;font-size:12px;font-weight:800;letter-spacing:.04em}
+.track-search-input{width:100%;min-width:0;min-height:58px;padding:0 16px;border:1px solid rgba(220,235,225,.24);border-radius:12px;background:#090e0b;color:var(--text);font:inherit;font-size:16px;font-weight:500;box-shadow:inset 0 1px 0 rgba(255,255,255,.025);transition:border-color .18s,box-shadow .18s,background .18s}
+.track-search-input::placeholder{color:#a0aaa3;opacity:1}
+.track-search-input:focus{border-color:var(--green);background:#0b120d;box-shadow:0 0 0 3px rgba(30,215,96,.16);outline:none}
+.search-hint{margin:13px 0 16px;color:#b8c2bb;font-size:14px;line-height:1.5}
 .request-button:disabled{opacity:.55;cursor:wait}
 .track-results{display:grid;gap:10px;margin-top:14px}
 .track-item{display:flex;align-items:center;gap:12px;min-width:0;padding:10px;border:1px solid var(--border);border-radius:13px;background:rgba(7,11,8,.65)}
 .track-cover{width:54px;height:54px;flex:0 0 54px;object-fit:cover;border-radius:7px;background:#18221b}
 .track-cover-empty{display:grid;place-items:center;color:var(--green);font-size:24px}
 .track-details{display:grid;gap:4px;min-width:0;flex:1}
-.track-name{overflow:hidden;color:var(--text);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
-.track-artist{overflow:hidden;color:var(--muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap}
-.track-duration{color:#748078;font-size:9px}
-.request-button{min-height:35px;padding:0 11px;border:1px solid rgba(30,215,96,.5);border-radius:8px;background:rgba(30,215,96,.1);color:var(--green);font:inherit;font-size:9px;font-weight:900;letter-spacing:.07em;cursor:pointer}
+.spotify-content-link{display:block;min-width:0;overflow:hidden;color:inherit;text-decoration:none}
+.track-name{display:block;min-width:0;overflow:hidden;color:var(--text);font-size:12px;text-overflow:ellipsis;white-space:nowrap}
+.track-artist{display:block;min-width:0;overflow:hidden;margin-top:2px;color:var(--muted);font-size:10px;text-overflow:ellipsis;white-space:nowrap}
+.track-duration{color:#87938b;font-size:10px}
+.request-button{flex:0 0 auto;min-height:42px;padding:0 12px;border:1px solid rgba(30,215,96,.58);border-radius:9px;background:rgba(30,215,96,.1);color:var(--green);font:inherit;font-size:9px;font-weight:900;letter-spacing:.07em;white-space:nowrap;cursor:pointer}
 .request-button:hover,.request-button.request-sent{background:var(--green);color:#061009}
-@media(max-width:440px){.search-form{grid-template-columns:1fr}.search-form .button{min-height:45px}.track-item{gap:9px;padding:8px}.track-cover{width:46px;height:46px;flex-basis:46px}.request-button{padding:0 8px;font-size:8px}}
+@media(max-width:440px){
+  .search-form{grid-template-columns:minmax(0,1fr)}
+  .search-form .button{min-height:45px}
+  .track-item{gap:9px;padding:8px}
+  .track-cover{width:46px;height:46px;flex-basis:46px}
+  .track-details{flex:1 1 0}
+  .track-name{font-size:12px}
+  .track-artist{font-size:10px}
+  .request-button{min-height:40px;padding:0 9px;font-size:8px;letter-spacing:.04em}
+}
+@media(max-width:360px){
+  .track-item{gap:7px}
+  .track-cover{width:42px;height:42px;flex-basis:42px}
+  .request-button{padding:0 7px;font-size:7px}
+}
