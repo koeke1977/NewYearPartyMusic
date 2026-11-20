@@ -25,8 +25,8 @@ This inventory is a characterization baseline for the current Hono Worker. It re
 | POST | `/api/dj/ai/music/add` | DJ bearer | Verifies a Spotify track, creates/uses the DJ guest, inserts it as queued and updates saved queue order. |
 | GET | `/api/dj/overview` | DJ bearer | Reads settings, active requests and recent played tracks; returns dashboard summary and normalized queue order. |
 | POST | `/api/dj/queue/reorder` | DJ bearer | Validates/replaces queue order and records the accepted set in DJ history. |
-| POST | `/api/dj/requests/:id/:action` | DJ bearer | Applies an allowed request status transition (approve, reject, queue, played, etc.); may auto-queue on approval depending on settings. |
-| POST | `/api/dj/settings/:key` | DJ bearer | Updates an allow-listed boolean DJ setting. |
+| POST | `/api/dj/requests/:id/:action` | DJ bearer | Applies only the current allow-listed transitions: `approve` (pending → approved or queued when auto-queue is enabled), `reject` (pending/approved/queued → rejected), `played` (approved/queued → played), `queue` (approved → queued). |
+| POST | `/api/dj/settings/:key` | DJ bearer | Updates only `requests_paused`, `auto_approve` or `auto_queue`; body requires a boolean `enabled`. |
 | POST | `/api/dj/spotify/connect` | DJ bearer | Creates Spotify OAuth state and redirects to Spotify authorization; sets a short-lived HttpOnly state cookie. |
 | GET | `/auth/spotify/callback` | Spotify OAuth state cookie | Validates state, exchanges authorization code, encrypts and stores Spotify tokens, then redirects to DJ console. |
 | GET | `/api/dj/spotify/status` | DJ bearer | Reads playback/device/track state **and can trigger queue auto-advance or fallback playlist playback**. This endpoint is not side-effect-free. |
