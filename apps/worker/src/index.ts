@@ -4,6 +4,7 @@ import { constantTimeEqual, decryptSecret, encryptSecret, sha256, toBase64Url } 
 import { createSessionToken, readSession, type Session } from "./modules/identity/session-token";
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
+import { extractCloudflareAssistantText, extractCloudflareToolCalls, runCloudflareAI } from "./integrations/ai/cloudflare-ai";
 import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
 import { buildEventMoment } from "./modules/ai/context/event-moment";
 import { buildDJAssistantContext, parseAcceptedSetHistory, parseSavedQueueOrder } from "./modules/ai/context/assistant-context";
@@ -185,7 +186,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
       }
     }];
 
-    const first:any = await c.env.AI.run(model,{
+    const first:any = await runCloudflareAI(c.env.AI, model, {
       messages:[{role:"system",content:system},{role:"user",content:user}],
       tools:musicTools,
       tool_choice:"auto",
@@ -195,20 +196,10 @@ app.post("/api/dj/ai/assistant", async (c) => {
       chat_template_kwargs:{enable_thinking:false}
     });
 
-    let answer:any = typeof first==="string" ? first :
-      first?.response || first?.result?.response ||
-      first?.choices?.[0]?.message?.content || first?.output_text || "";
+    let answer:any = extractCloudflareAssistantText(first);
     let spotifyMatches:Array<{query:string;tracks:any[]}> = [];
-    const calls = [
-      ...(Array.isArray(first?.tool_calls) ? first.tool_calls : []),
-      ...(Array.isArray(first?.result?.tool_calls) ? first.result.tool_calls : []),
-      ...(Array.isArray(first?.choices?.[0]?.message?.tool_calls) ? first.choices[0].message.tool_calls : []),
-      ...(Array.isArray(first?.result?.choices?.[0]?.message?.tool_calls) ? first.result.choices[0].message.tool_calls : [])
-    ];
-    const searchCall = calls.map((call:any)=>({
-      name:call?.name||call?.function?.name,
-      arguments:call?.arguments??call?.function?.arguments
-    })).find((call:any)=>call.name==="searchSpotifyTracks");
+    const calls = extractCloudflareToolCalls(first);
+    const searchCall = calls.find((call) => call.name === "searchSpotifyTracks");
 
     if (searchCall) {
       let args:any = searchCall.arguments || {};
@@ -235,7 +226,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
         }));
 
         // A single bounded follow-up gives the model the verified Spotify results.
-        const followup:any = await c.env.AI.run(model,{
+        const followup:any = await runCloudflareAI(c.env.AI, model, {
           messages:[
             {role:"system",content:system+" When verified Spotify search results are supplied, recommend only tracks present in those results and preserve exact Spotify titles and artists."},
             {role:"user",content:user+"\n\nVERIFIED SPOTIFY SEARCH RESULTS:\n"+JSON.stringify(spotifyMatches)}
@@ -244,9 +235,7 @@ app.post("/api/dj/ai/assistant", async (c) => {
           temperature:0.35,
           chat_template_kwargs:{enable_thinking:false}
         });
-        answer = typeof followup==="string" ? followup :
-          followup?.response || followup?.result?.response ||
-          followup?.choices?.[0]?.message?.content || followup?.output_text || answer;
+        answer = extractCloudflareAssistantText(followup) || answer;
       }
     }
 
