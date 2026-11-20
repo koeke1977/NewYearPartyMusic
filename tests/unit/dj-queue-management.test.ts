@@ -70,7 +70,7 @@ describe("DJ queue management", () => {
 
   it("normalizes malformed saved order rather than failing the overview", async () => {
     const { db } = fakeDb({ active: [request("q1", "queued", "2026-11-20", "2026-11-20")], settings: [{ key: "partyqueue_order", value: "{bad" }] });
-    const result = await getDjOverview({ db, eventId: "event-1" });
+    const result = await getDjOverview({ repository: createDjQueueRepository(db), eventId: "event-1" });
     expect(result.queueOrder).toEqual(["q1"]);
   });
 
@@ -95,7 +95,7 @@ describe("DJ queue management", () => {
     const cases: unknown[] = [["a", "a"], ["a"], ["a", "foreign"], "not-an-array", [1, "b"], new Array(101).fill("a")];
     for (const order of cases) {
       const { db, calls } = fakeDb({ queuedIds: ["a", "b"], tracks: [{ id: "a", track_name: "A", artist_name: "X" }, { id: "b", track_name: "B", artist_name: "Y" }] });
-      const result = await reorderDjQueue({ db, eventId: "event-1", order });
+      const result = await reorderDjQueue({ repository: createDjQueueRepository(db), eventId: "event-1", order });
       expect(result.status).toBe(order === "not-an-array" || (Array.isArray(order) && (order.length > 100 || !order.every(item => typeof item === "string"))) ? 400 : 409);
       expect(calls.some(call => call.sql.startsWith("INSERT INTO settings"))).toBe(false);
     }
@@ -111,7 +111,7 @@ describe("DJ queue management", () => {
   it("validates setting allow-list and boolean value before writing", async () => {
     const { db, calls } = fakeDb();
     expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "spotify_client_secret", enabled: true })).toMatchObject({ status: 400 });
-    expect(await updateDjSetting({ db, key: "auto_queue", enabled: "true" })).toMatchObject({ status: 400 });
+    expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "auto_queue", enabled: "true" })).toMatchObject({ status: 400 });
     expect(await updateDjSetting({ db, key: "auto_queue", enabled: false })).toEqual({ status: 200, body: { ok: true, enabled: false } });
     const write = calls.find(call => call.sql.startsWith("INSERT INTO settings"));
     expect(write?.values).toEqual(["auto_queue", "false"]);

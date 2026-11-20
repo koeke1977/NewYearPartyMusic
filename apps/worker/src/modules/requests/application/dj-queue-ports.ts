@@ -1,4 +1,10 @@
-import type { DjOverviewRequest, DjQueueTrack } from "../infrastructure/dj-queue-repository";
+export type DjOverviewRequest = {
+  id: string; spotify_track_id: string; track_uri: string; track_name: string;
+  artist_name: string; album_image_url: string | null; duration_ms: number;
+  status: string; moderation_reason: string | null; requested_at: string;
+  queued_at: string | null; nickname: string; played_at?: string | null;
+};
+export type DjQueueTrack = { id: string; track_name: string; artist_name: string };
 
 export interface DjQueueRepository {
   readActiveRequests(eventId: string): Promise<{ results?: DjOverviewRequest[] }>;
