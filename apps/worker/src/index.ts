@@ -5,6 +5,7 @@ import { createSessionToken, readSession, type Session } from "./modules/identit
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
 import { runDJAssistantTurn } from "./modules/ai/orchestration/assistant-orchestrator";
+import { createDailyAssistantNeuronBudget, ASSISTANT_MAX_OUTPUT_TOKENS } from "./modules/ai/infrastructure/neuron-budget";
 import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
 import { buildEventMoment } from "./modules/ai/context/event-moment";
 import { buildDJAssistantContext, parseAcceptedSetHistory, parseSavedQueueOrder } from "./modules/ai/context/assistant-context";
@@ -162,6 +163,12 @@ app.post("/api/dj/ai/assistant", async (c) => {
       });
     } catch { /* Ignore an invalid cache entry and generate a fresh answer. */ }
   }
+  // Keep the free Workers AI usage below the account's 10,000 daily Neurons.
+  // Reserve 2,500 Neurons for other Workers AI usage outside PartyQueue.
+  const neuronBudget = await createDailyAssistantNeuronBudget(c.env.DB);
+  if (!neuronBudget.canAfford(system.length + user.length, ASSISTANT_MAX_OUTPUT_TOKENS)) {
+    return c.json({error:"DJ#DATUUR AI heeft zijn veilige dagbudget bereikt. Er worden geen extra AI-aanroepen gedaan; morgen vanaf 00:00 UTC is er opnieuw gratis budget."},429);
+  }
   const rate = await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_last_request','1',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='1',updated_at=CURRENT_TIMESTAMP WHERE settings.updated_at < datetime('now','-8 seconds')").run();
   if (!rate.meta.changes) return c.json({ error: "Geef DJ#DATUUR AI even een paar seconden." }, 429);
   try {
@@ -174,6 +181,8 @@ app.post("/api/dj/ai/assistant", async (c) => {
       model,
       system,
       user,
+      user,
+      neuronBudget,
     );
     await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer,spotifyMatches})).run();
     return c.json({ok:true,provider,answer:finalAnswer,spotifyMatches,cached:false,memoryUpdated});
