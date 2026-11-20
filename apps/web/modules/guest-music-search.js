@@ -1,4 +1,6 @@
 import { element } from "./dom.js";
+import { clearGuestSession } from "./guest-session.js";
+import { searchGuestTracks, submitGuestTrackRequest } from "./guest-music-api.js";
 
 export function showMusicSearch(card, session) {
   if (!card) return;
@@ -46,7 +48,7 @@ export function showMusicSearch(card, session) {
   const logout = element("button", "text-button", "Niet jij? Afmelden");
   logout.type = "button";
   logout.addEventListener("click", () => {
-    localStorage.removeItem("partyqueue_session");
+    clearGuestSession();
     location.reload();
   });
   card.append(logout);
@@ -68,13 +70,8 @@ export function showMusicSearch(card, session) {
     feedback.textContent = "We zoeken even…";
     results.replaceChildren();
     try {
-      const response = await fetch("/api/spotify/search?q=" + encodeURIComponent(query), {
-        headers: { Authorization: "Bearer " + session.token },
-        signal: activeSearch.signal,
-      });
-      const data = await response.json();
+      const data = await searchGuestTracks(query, session.token, activeSearch.signal);
       if (searchId !== latestSearch) return;
-      if (!response.ok) throw new Error(data.error || "Zoeken is niet gelukt.");
       if (!data.tracks.length) {
         feedback.textContent = "Geen resultaat? Probeer alleen de artiest of een korter stukje van de titel.";
         return;
@@ -102,13 +99,7 @@ export function showMusicSearch(card, session) {
           requestButton.disabled = true;
           requestButton.textContent = "BEZIG…";
           try {
-            const requestResponse = await fetch("/api/requests", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.token },
-              body: JSON.stringify({ trackId: track.id }),
-            });
-            const requestData = await requestResponse.json();
-            if (!requestResponse.ok) throw new Error(requestData.error || "Aanvragen is niet gelukt.");
+            const requestData = await submitGuestTrackRequest(track.id, session.token);
             requestButton.textContent = "AANGEVRAAGD ✓";
             requestButton.classList.add("request-sent");
             feedback.textContent = "Top! " + requestData.request.name + " is " +
