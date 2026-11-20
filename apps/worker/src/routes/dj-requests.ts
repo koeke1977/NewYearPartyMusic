@@ -22,7 +22,8 @@ djRequestRoutes.post("/api/dj/queue/reorder", async (c) => {
     return c.json({ error: "Ongeldige aanvraag." }, 400);
   }
   const result = await reorderDjQueueFromEnvironment(c.env, body.order);
-  return c.json(result.body, result.status as 200 | 400 | 409);
+  if (!result.ok) return c.json({ error: result.error.message }, result.error.code === "invalid_order" ? 400 : 409);
+  return c.json({ ok: true, order: result.value.order }, 200);
 });
 
 djRequestRoutes.post("/api/dj/requests/:id/:action", async (c) => {
@@ -38,5 +39,6 @@ djRequestRoutes.post("/api/dj/settings/:key", async (c) => {
     return c.json({ error: "Ongeldige aanvraag." }, 400);
   }
   const result = await updateDjSettingFromEnvironment(c.env, c.req.param("key"), body.enabled);
-  return c.json(result.body, result.status as 200 | 400);
+  if (!result.ok) return c.json({ error: result.error.message }, 400);
+  return c.json({ ok: true, enabled: result.value.enabled }, 200);
 });
