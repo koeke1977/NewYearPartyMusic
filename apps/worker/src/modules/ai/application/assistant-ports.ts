@@ -36,3 +36,6 @@ export interface AssistantRepository {
   claimRateLimit(): Promise<boolean>;
   createNeuronBudget(): Promise<AssistantNeuronBudget>;
 }
+
+export type CloudflareAIClient = { run(model: string, input: Record<string, unknown>): Promise<unknown> };
+export type SpotifyCatalogMatch = { query: string; tracks: Array<{ id: string; uri: string; name: string; artists: string[]; durationMs: number; albumImageUrl: string | null }> };
