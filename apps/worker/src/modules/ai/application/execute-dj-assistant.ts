@@ -28,7 +28,7 @@ export async function executeDJAssistant(input: {
     djPreferences: parseDJPreferences(snapshot.djPreferences),
   });
   const { system, user } = buildDJAssistantPrompt(context, prompt);
-  const provider = "cloudflare";
+  const provider = input.localAI ? "claude-code-local" : "cloudflare";
   const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nspotify-independent-context-v3");
   const cached = await repository.readAnswerCache(cacheKey);
   if (cached) {
