@@ -4,8 +4,7 @@ import { constantTimeEqual, decryptSecret, encryptSecret, sha256, toBase64Url } 
 import { createSessionToken, readSession, type Session } from "./modules/identity/session-token";
 import { getSpotifyTrack, searchSpotifyTracks } from "./integrations/spotify/catalog-api";
 import type { SpotifyTrack } from "./integrations/spotify/types";
-import { extractCloudflareAssistantText, extractCloudflareToolCalls, runCloudflareAI } from "./integrations/ai/cloudflare-ai";
-import { searchSpotifyCatalogForAssistant, spotifyCatalogSearchTool } from "./integrations/ai/spotify-catalog-search";
+import { runDJAssistantTurn } from "./modules/ai/orchestration/assistant-orchestrator";
 import { buildDJAssistantPrompt } from "./modules/ai/prompts/dj-assistant";
 import { buildEventMoment } from "./modules/ai/context/event-moment";
 import { buildDJAssistantContext, parseAcceptedSetHistory, parseSavedQueueOrder } from "./modules/ai/context/assistant-context";
@@ -169,47 +168,13 @@ app.post("/api/dj/ai/assistant", async (c) => {
     if (!c.env.AI) return c.json({ error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." }, 503);
 
     const model = "@cf/google/gemma-4-26b-a4b-it";
-    const musicTools = [spotifyCatalogSearchTool];
-
-    const first:any = await runCloudflareAI(c.env.AI, model, {
-      messages:[{role:"system",content:system},{role:"user",content:user}],
-      tools:musicTools,
-      tool_choice:"auto",
-      parallel_tool_calls:false,
-      max_tokens:1400,
-      temperature:0.4,
-      chat_template_kwargs:{enable_thinking:false}
-    });
-
-    let answer:any = extractCloudflareAssistantText(first);
-    let spotifyMatches:Array<{query:string;tracks:any[]}> = [];
-    const calls = extractCloudflareToolCalls(first);
-    const searchCall = calls.find((call) => call.name === spotifyCatalogSearchTool.name);
-
-    if (searchCall) {
-      // Model arguments are untrusted; the tool validates and bounds them before Spotify is called.
-      spotifyMatches = await searchSpotifyCatalogForAssistant(c.env, searchCall.arguments);
-      if (spotifyMatches.length) {
-        // A single bounded follow-up gives the model the verified Spotify results.
-        const followup:any = await runCloudflareAI(c.env.AI, model, {
-          messages:[
-            {role:"system",content:system+" When verified Spotify search results are supplied, recommend only tracks present in those results and preserve exact Spotify titles and artists."},
-            {role:"user",content:user+"\n\nVERIFIED SPOTIFY SEARCH RESULTS:\n"+JSON.stringify(spotifyMatches)}
-          ],
-          max_tokens:1400,
-          temperature:0.35,
-          chat_template_kwargs:{enable_thinking:false}
-        });
-        answer = extractCloudflareAssistantText(followup) || answer;
-      }
-    }
-
-    if (Array.isArray(answer)) answer=answer.map((part:any)=>typeof part==="string"?part:part?.text||"").join("\n");
-    if (typeof answer!=="string" || !answer.trim()) {
-      console.error("DJ AI returned no text",JSON.stringify({provider,keys:first&&typeof first==="object"?Object.keys(first):[],usage:first?.usage||null}));
-      throw new Error("Cloudflare AI gaf geen antwoordtekst terug. Probeer het opnieuw.");
-    }
-    const finalAnswer = String(answer).slice(0,8000);
+    const { answer: finalAnswer, spotifyMatches } = await runDJAssistantTurn(
+      c.env.AI,
+      c.env,
+      model,
+      system,
+      user,
+    );
     await c.env.DB.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('dj_ai_answer_cache',?,CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP").bind(JSON.stringify({key:cacheKey,answer:finalAnswer,spotifyMatches})).run();
     return c.json({ok:true,provider,answer:finalAnswer,spotifyMatches,cached:false,memoryUpdated});
   } catch(error) {
