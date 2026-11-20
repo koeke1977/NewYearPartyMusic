@@ -2,6 +2,8 @@
 
 Private, QR-based music request and DJ playback application for a single event.
 
+**Environment status:** the current Cloudflare Worker, D1 database and Spotify OAuth connection are test-only. The app has not been used for a real event or real production users. Test data may be reset or recreated; do not let hypothetical production compatibility slow down engineering work.
+
 ## Product decisions
 - Single event: `NYE2026`
 - Intended public hostname: `spotify.electrafest.be`
@@ -23,7 +25,7 @@ Private, QR-based music request and DJ playback application for a single event.
 - `apps/web/` — guest and DJ web interfaces
 - `db/schema.sql` — initial schema for a fresh database
 - `docs/architecture/` — architecture standards and responsibility maps
-- `docs/runbooks/PRODUCTION-READINESS.md` — release prerequisites and operational checklist
+- `docs/runbooks/PRODUCTION-READINESS.md` — test-environment operations and future public-release checklist
 - `scripts/release-guard.mjs` — fail-closed deployment preflight
 
 ## Local development
@@ -38,14 +40,14 @@ npm run test:browser
 For a disposable local D1 database only: `npm run db:local`.
 
 ## Validation and deployment safety
-Run `npm run release:preflight` to check that a dedicated production Wrangler environment is explicitly configured. This check is local-only: it does not contact Cloudflare, inspect secrets, deploy or modify data.
+Run `npm run release:preflight` only when checking the optional future production deployment configuration. It is not a prerequisite for local development or test-environment work.
 
-`npm run deploy` is fail-closed. It requires the production configuration to pass and the operator to explicitly set `PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY=YES`. This is an additional safety latch, not authorization to release. No production deployment is part of the architecture refactor.
+`npm run deploy` is currently guarded for a future production environment. That guard must not be confused with the current test environment or used as a reason to defer architecture changes. Test data and test resources are disposable.
 
-There is deliberately no generic remote D1 schema command. Do not apply the initial schema to an existing or production database.
+The current D1 database is test-only and may be rebuilt when needed. Review `db/schema.sql` before applying it; it is a bootstrap schema, not a versioned migration set.
 
 ## Cloudflare and Spotify
-Required production bindings, secrets, event configuration, OAuth callback and rollback steps are documented in [the production readiness runbook](docs/runbooks/PRODUCTION-READINESS.md).
+Current test-environment assumptions and the checklist for a future real public event are documented in [the environment runbook](docs/runbooks/PRODUCTION-READINESS.md).
 
 Never commit secrets, tokens, event codes, cookies or passwords. Spotify credentials and session secrets belong in Worker secrets, never browser code or committed Wrangler variables.
 
