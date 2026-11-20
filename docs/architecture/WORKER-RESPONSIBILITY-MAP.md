@@ -88,7 +88,7 @@ These are infrastructure composition adapters, not domain/application modules.
 1. **Playback status intentionally has side effects.** `GET /api/dj/spotify/status` may advance PartyQueue or start fallback playback. This is existing application behaviour, now behind a typed Spotify playback gateway. Preserve and characterize these side effects; do not silently make the endpoint read-only.
 2. **Dependency boundaries are now enforced in CI.** `npm run test:architecture` scans Worker application/domain/identity modules and browser JS/HTML. It rejects direct Worker infrastructure/provider/platform/route dependencies and D1/Fetch Response usage, and enforces browser API-client ownership for fetch, session ownership for localStorage, no direct Spotify API calls and no inline HTML styles/scripts/handlers. Extend coverage only when a stable rule exists; do not create brittle path whitelists.
 3. **Public code-entry endpoints need edge throttling before a real event.** `/api/guests/join` and `/api/dj/login` have no application-level attempt throttle and no configured Cloudflare rate-limiting binding. Configure and verify Cloudflare edge limits before exposing the event publicly.
-4. **Some application use cases still return HTTP-shaped `{ status, body }` results.** This is a remaining transport/application boundary cleanup. Move to typed application outcomes and keep HTTP status/body mapping in routes, preserving the existing external API contract.
+4. **Some application use cases still return HTTP-shaped `{ status, body }` results.** Queue reorder and DJ settings now return typed `QueueManagementOutcome` values; `routes/dj-requests.ts` owns the HTTP status/body mapping. Guest request lifecycle, AI assistant, catalogue search and playback use cases still need the same treatment, preserving the existing external API contract.
 
 ## Behaviour and safety invariants
 
@@ -107,11 +107,11 @@ These are infrastructure composition adapters, not domain/application modules.
 
 ## Validation status
 
-GitHub Actions run [44778527531](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44778527531) passed on current head `b377906e0a6f3fdcdc5f296874762bbb592825a8`:
+GitHub Actions run [44779098131](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44779098131) passed on current head `7d7deab2019a6558975396f2b2837d9ae623e08e`:
 
 - TypeScript validation.
 - Worker and browser architecture-boundary checks.
-- All unit and security tests, including duplicate insertion, atomic guest quota, stale moderation, queue-order append and session-signing failure regressions.
+- All unit and security tests, including concurrency regressions and typed queue-management outcomes.
 - Cloudflare Worker bundle dry-run.
 - Guest and DJ browser journeys.
 - Desktop/responsive screenshot baseline capture and artifact upload.
@@ -146,3 +146,11 @@ The current Cloudflare Worker, D1 and Spotify OAuth connection remain test-only 
 - Guest session signing now happens before guest persistence, avoiding orphan guest rows when signing fails.
 - Terminal states (`played`, `rejected`, `failed`) release the unique active-track key, so the track can be requested again later.
 - Regression tests cover guest/DJ duplicate-insert races, guest quota races, stale moderation updates, atomic queue-order SQL and session-signing failure. Complete CI run [44778527531](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44778527531) passed all checks and browser baselines.
+
+
+## Follow-up: application outcomes for DJ queue management — 2026-11-20
+
+- `reorderDjQueue` and `updateDjSetting` no longer return HTTP status codes or serialized response bodies from the application layer.
+- They return a discriminated `QueueManagementOutcome<T>` with typed error codes and application messages.
+- `routes/dj-requests.ts` now maps those outcomes to the unchanged HTTP statuses and response JSON.
+- Regression tests assert the application outcomes. Full CI run [44779098131](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44779098131) passed all checks and browser baselines.

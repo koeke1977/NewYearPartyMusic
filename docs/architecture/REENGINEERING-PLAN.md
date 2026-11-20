@@ -42,7 +42,7 @@ The following measurements describe the **original pre-extraction baseline**, no
 | HTML | `apps/web/dj.html`, ~9 KB | Semantic page structure and stable hooks; behaviour loads through external native ES modules |
 | Documentation | Original architecture/development notes | Responsibility maps are maintained in `docs/architecture/`; this plan records target boundaries and remaining work |
 
-The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The Worker application layer now uses application-owned repository/provider ports across the guest/request, DJ queue, music catalogue, AI, queue dispatch and playback workflows. A CI dependency-boundary check enforces Worker application/domain/identity dependencies and browser transport/storage ownership, including no direct Spotify API calls or inline HTML presentation/behaviour. The remaining architecture cleanup includes replacing HTTP-shaped application results with typed use-case outcomes, while routes retain status/body mapping. Continue targeted composition review and frontend interaction coverage. Edge throttling remains a future public-event operational requirement, not a blocker for current test development.
+The application should remain a modular monolith on Cloudflare Workers, not be split into microservices without a concrete operational need. The Worker application layer now uses application-owned repository/provider ports across the guest/request, DJ queue, music catalogue, AI, queue dispatch and playback workflows. A CI dependency-boundary check enforces Worker application/domain/identity dependencies and browser transport/storage ownership, including no direct Spotify API calls or inline HTML presentation/behaviour. The queue-management application slice now returns typed outcomes and leaves HTTP mapping to its route adapter. The remaining architecture cleanup includes the guest request lifecycle, AI assistant, catalogue search and playback use cases, which still expose HTTP-shaped result structures. Continue targeted composition review and frontend interaction coverage. Edge throttling remains a future public-event operational requirement, not a blocker for current test development.
 
 ## Environment assumptions
 
@@ -358,3 +358,14 @@ The regressions and the complete CI run [44778527531](https://github.com/koeke19
 ### Next architecture boundary
 
 A few Worker application use cases still return `{ status, body }` structures. The next cleanup should replace these HTTP-shaped results with typed application outcomes and leave HTTP status/body mapping in the route adapters, without changing any public API response.
+
+
+## Follow-up: typed DJ queue-management outcomes — 2026-11-20
+
+The `reorderDjQueue` and `updateDjSetting` use cases now return a discriminated `QueueManagementOutcome<T>`:
+
+- Success returns typed application data.
+- Failure returns an application error code and message, without HTTP status numbers or response-body serialization.
+- The DJ request route maps these outcomes to the same existing HTTP 200, 400 and 409 response contracts.
+
+This is the first completed slice of removing transport concerns from application results. The guest request lifecycle, AI assistant, music search and playback use cases remain follow-up targets. Complete CI run [44779098131](https://github.com/koeke1977/NewYearPartyMusic/actions/runs/44779098131) passed on `7d7deab2019a6558975396f2b2837d9ae623e08e`.
