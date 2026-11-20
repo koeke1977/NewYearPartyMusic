@@ -38,9 +38,9 @@ describe("Spotify catalogue search use cases", () => {
     })).resolves.toEqual({ status: 503, body: { error: "network down" } });
   });
 
-  it("normalizes and bounds DJ queries, isolates individual failures and maps results", async () => {
+  it("normalizes and bounds DJ queries and maps successful results", async () => {
     const search = vi.fn(async (query: string) => {
-      if (query === "bad query") throw new Error("Spotify offline");
+      if (query === "bad query") return new Response(null, { status: 429 });
       return Response.json({ tracks: { items: [spotifyTrack] } });
     });
     const result = await searchDjSpotifyTracks({
