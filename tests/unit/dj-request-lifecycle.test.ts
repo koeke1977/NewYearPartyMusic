@@ -50,7 +50,7 @@ describe("DJ request lifecycle",()=>{
     const result=await moderatePartyRequest({db,eventId:"event-1",requestId:"req-1",action:"approve"});
     expect(result).toEqual({status:200,body:{ok:true,status:"queued"}});
     const update=calls.find(call=>call.sql.startsWith("UPDATE requests"));
-    expect(update?.sql).toContain("queued_at=CURRENT_TIMESTAMP");
+    expect(update?.sql).toContain("queued_at = CURRENT_TIMESTAMP");
     expect(update?.values).toEqual(["queued","req-1","event-1"]);
   });
 
