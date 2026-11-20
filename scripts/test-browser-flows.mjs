@@ -58,7 +58,7 @@ async function mockApi(page, onRequest) {
   await page.route("**/api/**", async route => {
     const request = route.request();
     const url = new URL(request.url());
-    const body = request.postDataJSON?.() ?? null;
+    const body = request.postData() ? request.postDataJSON() : null;
     const result = await onRequest({ path: url.pathname, method: request.method(), url, body, request });
     await route.fulfill({
       status: result.status ?? 200,
