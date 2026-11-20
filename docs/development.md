@@ -22,7 +22,8 @@ This checklist describes the current application and the next safe engineering s
 - [x] Document target modular-monolith architecture
 - [x] Record production data safety constraints
 - [x] Inventory every API route, method, auth rule and response contract
-- [ ] Map each existing function/file to a single responsibility
+- [x] Map Worker and frontend responsibilities to target modules
+- [ ] Complete a function-level dependency and side-effect map
 - [x] Add and pass initial crypto/session compatibility characterization tests before further implementation
 - [x] Extract Worker environment type, cryptographic primitives and session-token service
 - [ ] Extract D1 repositories and application use cases
@@ -46,8 +47,10 @@ This checklist describes the current application and the next safe engineering s
 - `apps/worker/src/integrations/spotify/catalog-token.ts` owns the isolate-local client-credentials token cache.
 - `apps/worker/src/integrations/spotify/catalog-api.ts` owns Spotify catalogue search and track lookup HTTP requests.
 - `apps/worker/src/integrations/spotify/types.ts` owns the Spotify track response contract.
+- `docs/architecture/WORKER-RESPONSIBILITY-MAP.md` and `FRONTEND-RESPONSIBILITY-MAP.md` record the remaining extraction boundaries.
 - The existing Worker entrypoint now consumes those modules; API paths and token/encryption formats are intentionally unchanged.
-- Vitest security compatibility tests cover legacy session tokens and legacy encrypted Spotify-token compatibility.
+- Vitest tests cover legacy session-token compatibility, legacy encrypted Spotify-token compatibility and Spotify catalogue adapter behaviour.
+- Latest validation run passed TypeScript, all characterization tests and Worker dry-run.
 
 ## Change safety requirements
 
