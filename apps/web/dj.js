@@ -186,7 +186,7 @@ function render(data){
   setBoothDeck("right",nextQueued?{name:nextQueued.track_name,artist:nextQueued.artist_name,album_image_url:nextQueued.album_image_url}:spotifyQueuePreview);
   const nextButton=document.querySelector("#partyqueue-next");
   if(nextButton){
-    const empty=queuedRequests.length===0;
+    const empty=queued.length===0;
     nextButton.disabled=empty;
     nextButton.classList.toggle("is-fallback",empty);
     nextButton.classList.toggle("is-empty",false);
