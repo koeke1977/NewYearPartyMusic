@@ -25,30 +25,21 @@ The DJ script is approximately 36 KB / 579 lines and currently owns several sepa
 
 ## Guest application — current `apps/web/app.js`
 
-The guest app currently combines:
+The guest entrypoint has completed its first low-risk ES module extraction:
 
-- Guest form validation and join API request.
-- Guest session persistence in localStorage.
-- Authenticated Spotify search.
-- Search debounce and AbortController lifecycle.
-- Track result DOM construction.
-- Request submission and button/feedback state.
-- Logout and session restoration.
+- `app.js` is now a small page bootstrap and join-form controller.
+- `modules/guest-session.js` owns existing `partyqueue_session` restoration and persistence; the storage key and expiry rule are unchanged.
+- `modules/guest-music-search.js` owns authenticated search, debounce/abort handling, result rendering, request submission and logout UI.
+- `modules/dom.js` owns the shared safe text-based element factory.
+- `index.html` loads `app.js` as a native ES module; no bundler or new dependency is required.
 
-Target split:
-
-- `guest/features/join/join-controller.ts`
-- `guest/features/search/search-controller.ts`
-- `guest/features/search/search-view.ts`
-- `guest/features/requests/request-controller.ts`
-- `shared/api/partyqueue-client.ts`
-- `shared/session/guest-session-store.ts`
+The next guest-side boundary should separate the search/request transport from rendering, but only after browser-level characterization tests are available.
 
 ## HTML ownership
 
 - `index.html` and `dj.html` should own semantic structure, labels, accessibility attributes and stable component hooks only.
 - No inline JavaScript or embedded business rules.
-- Convert scripts to ES module entrypoints only after module files and loading order are tested.
+- `index.html` now loads the guest entrypoint as a native ES module. `dj.html` remains on its existing deferred classic script until the DJ extraction is ready.
 - Preserve existing IDs and data attributes during migration to avoid breaking DOM contracts.
 
 ## CSS ownership
@@ -68,12 +59,12 @@ Avoid changing the visual design while splitting CSS. Compare screenshots at the
 1. Add browser-level characterization coverage for guest join/search/request and DJ login/dashboard/playback/AI flows.
 2. Extract the API client and session storage without changing endpoint paths or localStorage keys.
 3. Extract polling lifecycle and shared application state.
-4. Extract guest join/search/request features.
+4. Finish guest search/request separation and add browser-level coverage.
 5. Extract DJ authentication, overview and moderation features.
 6. Extract queue and Spotify playback features.
 7. Extract the AI assistant into independent prompt-action, proposal-validation, Spotify-suggestion and ChatGPT-handoff modules.
 8. Inventory and split CSS by actual selector ownership.
-9. Convert both HTML entrypoints to ES module scripts and remove the old monolithic scripts only after browser tests pass.
+9. Complete DJ module migration, then keep both HTML entrypoints on native ES modules; remove old monolithic code only after browser tests pass.
 
 ## Non-negotiable behaviour
 
