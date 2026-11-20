@@ -17,14 +17,14 @@ The first security/platform extraction has been implemented on `refactor/archite
 - `apps/worker/src/modules/identity/session-token.ts`: signed bearer-token creation and validation.
 - `apps/worker/src/index.ts`: now consumes these modules instead of owning those implementations.
 
-Compatibility tests verify that session tokens from the old implementation remain accepted and that Spotify OAuth tokens encrypted by either the old or new implementation remain decryptable. Tests also cover tampering, expiry, wrong secrets, malformed tokens, catalogue token caching and catalogue API request construction.
+Compatibility tests verify that session tokens from the old implementation remain accepted and that Spotify OAuth tokens encrypted by either the old or new implementation remain decryptable. Tests also cover tampering, expiry, wrong secrets, malformed tokens, catalogue token caching/API request construction, and DJ assistant prompt rules/context.
 
 The GitHub Actions validation run has passed:
 - TypeScript strict typecheck.
 - Security compatibility tests.
 - Cloudflare Worker bundle dry-run.
 
-The current Worker and frontend responsibility maps are documented in `WORKER-RESPONSIBILITY-MAP.md` and `FRONTEND-RESPONSIBILITY-MAP.md`.
+The current Worker, frontend and AI responsibility maps are documented in `WORKER-RESPONSIBILITY-MAP.md`, `FRONTEND-RESPONSIBILITY-MAP.md` and `AI-RESPONSIBILITY-MAP.md`.
 
 This is the first vertical slice only. The remaining Worker routes, D1 access, Spotify integration, queue/playback orchestration and AI endpoint are still in the original entrypoint and remain scheduled for later extraction. No production deployment or D1 mutation was performed.
 
