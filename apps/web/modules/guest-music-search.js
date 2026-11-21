@@ -2,16 +2,18 @@ import { element } from "./dom.js";
 import { clearGuestSession } from "./guest-session.js";
 import { searchGuestTracks, submitGuestTrackRequest } from "./guest-music-api.js";
 import { renderGuestTrackResults } from "./guest-track-results-view.js";
+import { renderGuestMusicPreferences } from "./guest-music-preferences.js";
 
 export function showMusicSearch(card, session) {
   if (!card) return;
   card.replaceChildren();
   const top = element("div", "section-heading");
-  top.append(element("span", "step", "02"));
+  top.append(element("span", "step", "03"));
   const title = element("div");
   title.append(element("h2", "", "Zoek jouw nummer"), element("p", "", "Welkom, " + session.guest.nickname + "! Welk nummer wil je horen?"));
   top.append(title);
   card.append(top);
+  renderGuestMusicPreferences(card, session);
 
   const searchForm = element("form", "search-form");
   searchForm.id = "track-search-form";
