@@ -3,6 +3,7 @@ name: Worker validation and production deployment
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review, closed]
   push:
     branches: [main]
 
@@ -90,7 +91,7 @@ jobs:
     name: Automatically merge validated pull requests
     runs-on: ubuntu-latest
     needs: [validate, ui-screenshot-baseline]
-    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.draft == false
     steps:
       - name: Enable squash auto-merge after all required checks pass
         env:
@@ -103,10 +104,14 @@ jobs:
     name: Deploy production Worker to Cloudflare
     runs-on: ubuntu-latest
     needs: [validate, ui-screenshot-baseline]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
     steps:
-      - name: Checkout
+      - name: Checkout merged main revision
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
