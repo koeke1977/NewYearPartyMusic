@@ -3,9 +3,10 @@ import { sha256 } from "../security/crypto";
 import { executeDJAssistant } from "../../modules/ai/application/execute-dj-assistant";
 import { executeDJAssistantActions } from "../../modules/ai/application/execute-dj-assistant-actions";
 import { createDjQueueRepository } from "../../modules/requests/infrastructure/dj-queue-d1-repository";
-import { searchSpotifyCatalog } from "../../integrations/spotify/catalog-api";
-import { addDjTrackFromEnvironment } from "./guest-workflows";
-import { moderatePartyRequestFromEnvironment, reorderDjQueueFromEnvironment } from "./dj-request-workflows";
+import { createGuestRequestRepository } from "../../modules/requests/infrastructure/guest-request-d1-repository";
+import { addDjTrackToPartyQueue, moderatePartyRequest } from "../../modules/requests/application/guest-request-lifecycle";
+import { reorderDjQueue } from "../../modules/requests/application/dj-queue-management";
+import { getSpotifyCatalogTrack, searchSpotifyCatalog } from "../../integrations/spotify/catalog-api";
 import type { AssistantRepository } from "../../modules/ai/application/assistant-ports";
 import { loadAssistantContextSnapshot } from "../../modules/ai/infrastructure/assistant-context-repository";
 import {
@@ -18,6 +19,8 @@ import { createLocalAIBridgeClient } from "../../integrations/ai/local-ai-bridge
 import { loadAssistantConversation, saveAssistantConversationTurn } from "../../modules/ai/infrastructure/assistant-conversation-repository";
 
 export function executeDJAssistantFromEnvironment(env: Env, prompt: string, sessionId: string) {
+  const guestRequestRepository = createGuestRequestRepository(env.DB);
+  const djQueueRepository = createDjQueueRepository(env.DB);
   const repository: AssistantRepository = {
     rememberPreference: (eventId, value) => rememberDJPreferenceInDatabase(env.DB, eventId, value),
     loadContext: eventId => loadAssistantContextSnapshot(env.DB, eventId),
@@ -43,10 +46,18 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string, sess
             const result = await searchSpotifyCatalog(env, query, 3);
             if (result.kind !== "available") throw new Error("Spotify catalogus tijdelijk niet beschikbaar.");\n            return result.tracks;
           },
-          addTrack: trackId => addDjTrackFromEnvironment(env, trackId),
-          readQueueIds: () => createDjQueueRepository(env.DB).readQueuedRequestIds(env.EVENT_ID),
-          removeQueuedTrack: requestId => moderatePartyRequestFromEnvironment(env, requestId, "reject"),
-          reorderQueue: order => reorderDjQueueFromEnvironment(env, order),
+          addTrack: trackId => addDjTrackToPartyQueue({
+            repository: guestRequestRepository, eventId: env.EVENT_ID, trackId,
+            createId: () => crypto.randomUUID(),
+            trackGateway: { getTrack: id => getSpotifyCatalogTrack(env, id) },
+          }),
+          readQueueIds: () => djQueueRepository.readQueuedRequestIds(env.EVENT_ID),
+          removeQueuedTrack: requestId => moderatePartyRequest({
+            repository: guestRequestRepository, eventId: env.EVENT_ID, requestId, action: "reject",
+          }),
+          reorderQueue: order => reorderDjQueue({
+            repository: djQueueRepository, eventId: env.EVENT_ID, order,
+          }),
         },
       }),
     },
