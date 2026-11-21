@@ -1,6 +1,6 @@
 # AI responsibility map
 
-**Snapshot:** Audience Intelligence feature branch, based on `main` commit `c5b8f5c641c76d1925e317b8ba26a3eba0ab0a8a`; reviewed 2026-11-21.
+**Snapshot:** AI-DJ action executor branch, based on `main` commit `c9b1f378ef58e24bbb41fe32705b7e4825bc39dd`; reviewed 2026-11-21.
 
 ## Current request flow
 
