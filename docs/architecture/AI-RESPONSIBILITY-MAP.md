@@ -14,7 +14,7 @@ routes/dj-ai.ts
           → load DJ-authored preference snapshot
           → load up to eight recent turns for the browser session
           → derive Belgian event-time moment
-                    → build bounded event, audience and PartyQueue context
+          → build bounded event, audience and PartyQueue context
           → build advice prompt or explicit action-plan contract
           → check answer cache (advice only) / cooldown / free-tier budget
           → local Claude Code bridge (when configured) or Cloudflare Workers AI
