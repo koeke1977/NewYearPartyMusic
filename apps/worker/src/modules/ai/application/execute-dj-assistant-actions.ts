@@ -105,13 +105,13 @@ export async function executeDJAssistantActions(input: {
       const result: DJAssistantActionResult = { type: action.type, succeeded: 0, alreadyPresent: 0, failed: 0, details: [] };
       for (const requested of action.tracks) {
         if (input.ports.canContinue && !await input.ports.canContinue()) {
-          result.details.push("Autopilot is uitgeschakeld; verdere toevoegingen zijn gestopt.");
+          result.details.push("Autopilot is gestopt of de wachtrij is vol; verdere toevoegingen zijn gestopt.");
           break;
         }
         try {
           const matches = await input.ports.searchTracks(requested.title + " " + requested.artist);
           if (input.ports.canContinue && !await input.ports.canContinue()) {
-            result.details.push("Autopilot is uitgeschakeld; de gevonden track is niet toegevoegd.");
+            result.details.push("Autopilot is gestopt of de wachtrij is vol; de gevonden track is niet toegevoegd.");
             break;
           }
           const exact = matches.find(track => exactSpotifyMatch(track, requested));
@@ -126,7 +126,7 @@ export async function executeDJAssistantActions(input: {
             continue;
           }
           if (input.ports.canContinue && !await input.ports.canContinue()) {
-            result.details.push("Autopilot is uitgeschakeld; de track is niet toegevoegd.");
+            result.details.push("Autopilot is gestopt of de wachtrij is vol; de track is niet toegevoegd.");
             break;
           }
           const added = await input.ports.addTrack(exact.id);
