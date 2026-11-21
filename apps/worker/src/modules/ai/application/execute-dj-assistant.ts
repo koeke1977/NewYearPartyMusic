@@ -148,7 +148,7 @@ export async function executeDJAssistant(input: {
 
   try {
     if (!ai) {
-      return { status: 503, body: { error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \\"AI\\" toe en deploy opnieuw." } };
+      return { status: 503, body: { error: "Cloudflare Workers AI-binding ontbreekt. Voeg de AI-binding toe aan wrangler.toml en deploy opnieuw." } };
     }
     const model = "@cf/google/gemma-4-26b-a4b-it";
     const { answer } = await withTimeout(
