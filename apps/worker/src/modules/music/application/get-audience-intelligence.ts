@@ -24,9 +24,7 @@ function parseIds(value: string): string[] {
 
 function distributeWithCap(counts: number[], cap: number): number[] {
   if (!counts.length) return [];
-  const total = counts.reduce((sum, value) => sum + value, 0);
-  if (!total) return counts.map(() => 0);
-  const weights = counts.map(value => value / total);
+  const weights = counts.map(value => Math.max(0, value));
   const result = weights.map(() => 0);
   let remaining = 1;
   let open = weights.map((_, index) => index);
