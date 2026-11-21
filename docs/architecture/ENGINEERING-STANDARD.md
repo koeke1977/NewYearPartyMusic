@@ -112,7 +112,7 @@ The approved AI-DJ product direction evolves the current advice-only assistant i
 - The model never receives raw D1 handles, database credentials, Spotify access/refresh tokens or unrestricted network access.
 - The model never writes directly to D1 and never bypasses repository/application workflows.
 - Spotify catalogue results and track metadata may be returned to the model only if the action-planner phase explicitly requires them; expose only the minimum normalized fields needed. Never expose credentials or unrestricted Spotify APIs.
-- PartyQueue is authoritative for its own queue/order. Spotify UP NEXT is separate. Playback control is a distinct permission/action from queue planning.
+- PartyQueue D1 is the source of truth for requested, planned (queued) and completed (played) tracks and its saved order. In the current event setup, Spotify UP NEXT is populated from PartyQueue and is only the downstream playback view of that same list; it is not an independent source or signal and must never be double-counted. Playback control/telemetry remains distinct from queue planning and may be claimed only when explicitly supplied.
 - Guest identity is temporary nickname/session only. Audience intelligence is event-level aggregate data, not durable personal profiling.
 - All AI actions must be bounded, validated, auditable by outcome, idempotent where possible and covered by tests. The AI must report only actions confirmed by the application.
 - Preserve the configured local Claude bridge / Cloudflare Workers AI providers and Neuron budget guard. No paid provider fallback without an explicit product decision.
