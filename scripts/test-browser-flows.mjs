@@ -129,6 +129,7 @@ async function testGuestJourney(browser) {
   await page.locator("#guest-track-search").waitFor({ state: "visible" });
   assert.match(await page.locator(".join-card").innerText(), /Welkom, Disco Koen/);
 
+  await page.locator(".guest-preferences-summary").click();
   await page.locator(".preference-choice input[value='pop']").evaluate(input => { input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true })); });
   await page.locator(".preference-save").click();
   await page.getByText(/Bedankt! Je muzieksmaak telt mee/).waitFor({ state: "visible", timeout: 5000 });

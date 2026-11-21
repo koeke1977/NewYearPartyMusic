@@ -14,8 +14,6 @@ export function showMusicSearch(card, session) {
   title.append(element("h2", "", "Zoek jouw nummer"), element("p", "", "Welkom, " + session.guest.nickname + "! Welk nummer wil je horen?"));
   top.append(title);
   card.append(top);
-  renderGuestMusicPreferences(card, session);
-  renderGuestCrowdFeedback(card, session);
 
   const searchForm = element("form", "search-form");
   searchForm.id = "track-search-form";
@@ -44,6 +42,8 @@ export function showMusicSearch(card, session) {
   const results = element("div", "track-results");
   results.id = "track-results";
   card.append(results);
+  renderGuestMusicPreferences(card, session);
+  renderGuestCrowdFeedback(card, session);
   const attribution = element("p", "fine-print", "Muziekgegevens aangeboden door Spotify");
   card.append(attribution);
   const brandCredit = element("p", "guest-brand-credit");
