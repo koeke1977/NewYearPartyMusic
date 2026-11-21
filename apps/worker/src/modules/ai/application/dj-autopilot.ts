@@ -71,7 +71,7 @@ export async function runDJAutopilot(input: {
     const prompt = "Vul PartyQueue autonoom aan: voeg maximaal " + count
       + " concrete tracks toe aan PartyQueue. Dit is een expliciete Autopilot-opdracht. "
       + "Combineer verschillende genres en decennia op basis van de actuele publieksvoorkeuren, toegestane sfeerfeedback en de eventfase. "
-      + "Vermijd alle tracks die al in de geplande wachtrij staan of recent gespeeld zijn; vermijd ook een opeenvolging van dezelfde artiest. "
+      + "Vermijd alle tracks die al door gasten aangevraagd zijn, in de geplande wachtrij staan of recent gespeeld zijn; vermijd ook een opeenvolging van dezelfde artiest. "
       + "Kies alleen bestaande, herkenbare nummers met exacte titel en artiest. Gebruik geen gokjes, remixes of alternatieve versies tenzij die expliciet passend zijn. "
       + "Voeg uitsluitend tracks toe; verwijder of herschik niets. Als er onvoldoende betrouwbare keuzes zijn, geef minder tracks of geen actie.";
     const context = buildDJAssistantContext({
