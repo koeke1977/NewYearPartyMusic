@@ -12,6 +12,14 @@ describe("test D1 bootstrap schema", () => {
     expect(schema).not.toContain("REPLACE_WITH_HASHED_EVENT_CODE");
   });
 
+  it("defines bounded DJ AI conversation storage and retention indexes", () => {
+    const schema = readFileSync(schemaPath, "utf8");
+    expect(schema).toContain("CREATE TABLE IF NOT EXISTS dj_ai_turns");
+    expect(schema).toContain("CHECK (role IN ('user', 'assistant'))");
+    expect(schema).toContain("idx_dj_ai_turns_session");
+    expect(schema).toContain("idx_dj_ai_turns_retention");
+  });
+
   it("prevents concurrent active requests for the same track within one event", () => {
     const schema = readFileSync(schemaPath, "utf8");
     expect(schema).toContain("CREATE UNIQUE INDEX IF NOT EXISTS idx_requests_one_active_track");
