@@ -76,6 +76,14 @@ describe("DJ assistant prompt", () => {
     expect(system).toContain("let the DJ choose whether to reuse, change, ignore or replace previous ideas");
   });
 
+  it("does not inject manual Spotify instructions into ordinary music advice", () => {
+    const { system } = buildDJAssistantPrompt(context, "Geef me 20 hete schuurschijven.");
+    expect(system).toContain("Do not add a Spotify-access disclaimer to ordinary requests for music advice");
+    expect(system).toContain("Do not tell the DJ they must manually add, search for or use the suggestions");
+    expect(system).toContain("Mention the Spotify limitation only when the DJ explicitly asks you to perform an action");
+    expect(system).toContain("do not tell the DJ to search for or manually add them");
+  });
+
   it("does not claim audio analysis or measured BPM access", () => {
     const { system } = buildDJAssistantPrompt(context, "Analyseer de overgang.");
     expect(system).toContain("do not invent exact BPM, key or beatmatching claims");
