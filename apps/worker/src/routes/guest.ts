@@ -7,6 +7,7 @@ import {
   joinGuestFromEnvironment, submitGuestRequestFromEnvironment, searchGuestTracksFromEnvironment,
 } from "../platform/composition/guest-workflows";
 import { saveGuestPreferencesFromEnvironment } from "../platform/composition/guest-preference-workflows";
+import { submitCrowdFeedbackFromEnvironment } from "../platform/composition/crowd-feedback-workflows";
 import { MUSIC_DECADES, MUSIC_GENRES, MUSIC_MOODS } from "../modules/music/domain/genre-taxonomy";
 
 export const guestRoutes = new Hono<{ Bindings: Env }>();
@@ -54,6 +55,19 @@ guestRoutes.put("/guests/preferences", async (c) => {
   }
   const result = await saveGuestPreferencesFromEnvironment(c.env, session.sub, body.preferences);
   if (!result.ok) return c.json({ error: result.message }, 400);
+  return c.json({ ok: true });
+});
+
+guestRoutes.post("/guests/crowd-feedback", async (c) => {
+  const session = await readSession(c.req.raw, c.env.SESSION_SECRET);
+  if (!session || session.eventId !== c.env.EVENT_ID) return c.json({ error: "Je sessie is verlopen. Meld je opnieuw aan." }, 401);
+  let body: { feedback?: unknown };
+  try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
+  const result = await submitCrowdFeedbackFromEnvironment(c.env, session.sub, body.feedback);
+  if (!result.ok) {
+    if (result.reason === "rate_limited") return c.json({ error: "Je kan je sfeerfeedback ongeveer één keer per minuut aanpassen." }, 429);
+    return c.json({ error: "Kies een geldige sfeer en energie." }, 400);
+  }
   return c.json({ ok: true });
 });
 
