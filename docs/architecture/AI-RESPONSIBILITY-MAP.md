@@ -91,3 +91,20 @@ The assistant can now resolve follow-ups such as “maak die lijst commerciëler
 - `docs/architecture/API-INVENTORY.md`
 - `docs/architecture/WORKER-RESPONSIBILITY-MAP.md`
 - `docs/runbooks/PRODUCTION-READINESS.md`
+
+
+## Approved target direction — implementation pending
+
+The product owner has approved evolving the assistant into an audience-aware AI-DJ. The current request flow above remains the actual implementation until later roadmap phases are delivered.
+
+Target changes, in roadmap order:
+- Central genre taxonomy with stable IDs; guest selections use these IDs.
+- Event-scoped temporary guest preferences, with test/live isolation.
+- Audience Intelligence based on aggregate genre selections, requests and crowd feedback. No durable per-nickname taste profile.
+- Authenticated FLUSH to delete temporary event data while preserving application-wide taxonomy, DJ rules/prompts and Spotify OAuth connection.
+- A structured AI decision planner with bounded event context and allow-listed actions.
+- Worker-side validation and execution through existing application use cases. No direct model-to-D1 access.
+- The AI may receive the minimum normalized catalogue/queue/audience context required for its decision, but never credentials or unrestricted provider access.
+- PartyQueue D1 remains the source of truth for the PartyQueue queue; Spotify UP NEXT remains separate.
+
+The former blanket prohibition on any Spotify-derived context or model-invoked action is superseded by the approved direction in ENGINEERING-STANDARD.md and AI-DJ-ROADMAP.md. It is not permission to skip the staged implementation, tests, DJ authorization or production release approval.
