@@ -8,7 +8,7 @@ export function showMusicSearch(card, session) {
   if (!card) return;
   card.replaceChildren();
   const top = element("div", "section-heading");
-  top.append(element("span", "step", "02"));
+  top.append(element("span", "step", "03"));
   const title = element("div");
   title.append(element("h2", "", "Zoek jouw nummer"), element("p", "", "Welkom, " + session.guest.nickname + "! Welk nummer wil je horen?"));
   top.append(title);
