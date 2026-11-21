@@ -43,6 +43,22 @@ describe("DJ Spotify playback controls", () => {
     expect(setVolume).toHaveBeenCalledWith(42);
   });
 
+  it("returns Spotify's 403 reason and actionable device guidance", async () => {
+    const gateway: SpotifyPlaybackControlGateway = {
+      getDevices: vi.fn(),
+      setVolume: async () => ({
+        ok: false, status: 403, detail: "Player command failed: Cannot control device volume (VOLUME_CONTROL_DISALLOW)",
+      }),
+      sendCommand: vi.fn(),
+    };
+    await expect(setDjSpotifyVolume({ volume: 40, gateway })).resolves.toEqual({
+      status: 502,
+      body: {
+        error: "Spotify kon het volume niet aanpassen (HTTP 403). Spotify meldt: Player command failed: Cannot control device volume (VOLUME_CONTROL_DISALLOW) Controleer of het Spotify-account Premium heeft en of het actieve apparaat volumeregeling toestaat.",
+      },
+    });
+  });
+
   it("maps failed volume commands without exposing provider response objects", async () => {
     const gateway: SpotifyPlaybackControlGateway = {
       getDevices: vi.fn(),
