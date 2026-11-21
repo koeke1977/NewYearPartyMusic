@@ -11,6 +11,7 @@ export type PartyQueueContext = {
     topArtists: Array<{ artist: string; requests: number }>;
   };
   queued: Array<{ id: string; track: string; durationMs: number | null }>;
+  incomingRequests?: Array<{ status: "pending" | "approved"; track: string }>;
   recentlyPlayed: Array<{ track: string; playedAt: string | null }>;
   audience: {
     respondents: number;
