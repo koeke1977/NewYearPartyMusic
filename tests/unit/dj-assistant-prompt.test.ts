@@ -44,7 +44,8 @@ describe("DJ assistant prompt", () => {
     expect(user).toContain("Music Sounds Better With You");
     expect(user).toContain("DJ QUESTION:\\nMaak die lijst commerciëler");
     expect(system).toContain("resolve references such as");
-    expect(user).not.toContain("Spotify search results");
+    expect(user).not.toContain("spotify_track_id");
+    expect(user).not.toContain("album_image_url");
   });
 
   it("sets hard diversity targets for an explicitly surprising track list", () => {
