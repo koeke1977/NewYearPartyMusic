@@ -30,7 +30,7 @@ EVENT_NAME = "New Year's Eve 2026"
 PUBLIC_ORIGIN = "https://spotify.electrafest.be"
 
 [triggers]
-crons = ["0 3 * * *"]
+crons = ["0 3 * * *", "*/5 * * * *"]
 
 [ai]
 binding = "AI"
@@ -67,7 +67,7 @@ EVENT_NAME = "New Year's Eve 2026"
 PUBLIC_ORIGIN = "https://spotify.electrafest.be"
 
 [env.production.triggers]
-crons = ["0 3 * * *"]
+crons = ["0 3 * * *", "*/5 * * * *"]
 
 [env.production.ai]
 binding = "AI"
