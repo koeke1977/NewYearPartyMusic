@@ -1,5 +1,7 @@
 import { deleteExpiredAssistantConversationTurns } from "../modules/ai/infrastructure/assistant-conversation-repository";
-import { runDJAutopilotFromEnvironment } from "../platform/composition/dj-autopilot";\n\nexport function handleScheduled(
+import { runDJAutopilotFromEnvironment } from "../platform/composition/dj-autopilot";
+
+export function handleScheduled(
   controller: ScheduledController,
   env: Env,
   ctx: ExecutionContext,
