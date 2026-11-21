@@ -40,9 +40,13 @@ export async function setDjSpotifyVolume(input: {
   try {
     const result = await input.gateway.setVolume(input.volume);
     if (!result.ok) {
+      const detail = result.detail ? " Spotify meldt: " + result.detail : "";
+      const guidance = result.status === 403
+        ? " Controleer of het Spotify-account Premium heeft en of het actieve apparaat volumeregeling toestaat."
+        : " Controleer of een actief Spotify-apparaat beschikbaar is.";
       return {
         status: 502,
-        body: { error: "Spotify kon het volume niet aanpassen (HTTP " + result.status + "). Controleer of een actief Spotify-apparaat beschikbaar is." },
+        body: { error: "Spotify kon het volume niet aanpassen (HTTP " + result.status + ")." + detail + guidance },
       };
     }
     return { status: 200, body: { ok: true, volume: input.volume } };

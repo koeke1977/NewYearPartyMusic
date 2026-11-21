@@ -28,11 +28,28 @@ describe("Spotify playback control gateway", () => {
     expect(client).toHaveBeenNthCalledWith(2, "/me/player/pause", { method: "PUT" });
   });
 
+  it("preserves Spotify's bounded 403 reason for volume failures", async () => {
+    const gateway = createSpotifyPlaybackControlGateway(async () => Response.json({
+      error: { status: 403, message: "Player command failed: Cannot control device volume", reason: "VOLUME_CONTROL_DISALLOW" },
+    }, { status: 403 }));
+    await expect(gateway.setVolume(42)).resolves.toEqual({
+      ok: false, status: 403,
+      detail: "Player command failed: Cannot control device volume (VOLUME_CONTROL_DISALLOW)",
+    });
+  });
+
+  it("bounds non-JSON provider error details", async () => {
+    const gateway = createSpotifyPlaybackControlGateway(async () => new Response("x".repeat(500), { status: 503 }));
+    await expect(gateway.setVolume(42)).resolves.toEqual({
+      ok: false, status: 503, detail: "x".repeat(300),
+    });
+  });
+
   it("preserves bounded error details for failed transport commands", async () => {
     const detail = "x".repeat(500);
     const gateway = createSpotifyPlaybackControlGateway(async () => new Response(detail, { status: 404 }));
     await expect(gateway.sendCommand("next")).resolves.toEqual({
-      ok: false, status: 404, detail: "x".repeat(400),
+      ok: false, status: 404, detail: "x".repeat(300),
     });
   });
 });
