@@ -23,7 +23,7 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message:
   }
 }
 
-/** Executes a Spotify-independent AI turn using only event timing and DJ-authored preferences. */
+/** Executes a Spotify-independent AI turn using event timing, DJ preferences and bounded DJ/AI conversation history. */
 export async function executeDJAssistant(input: {
   eventId: string;
   eventName: string;
