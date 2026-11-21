@@ -11,6 +11,14 @@ const context: DJAssistantContext = {
     phase: "building_toward_midnight",
   },
   djPreferences: ["stijlwissels zijn welkom", "disco en 90s"],
+  partyQueue: {
+    queued: [{ track: "Track A — Artist A", durationMs: 210000 }],
+    recentlyPlayed: [{ track: "Track B — Artist B", playedAt: "2026-12-31T20:00:00Z" }],
+    audience: { respondents: 12, genres: [{ label: "disco", guests: 8, share: 0.6667 }], subgenres: [],
+      decades: [{ label: "90s", guests: 6, share: 0.5 }], moods: [{ label: "feel-good", guests: 7, share: 0.5833 }], averageEnergy: 7.2 },
+    crowdFeedback: { eligible: true, respondents: 8, windowMinutes: 30,
+      atmosphere: { good: 6, neutral: 1, bad: 1 }, averageEnergy: 4.1, trend: "positive" },
+  },
 };
 
 describe("DJ assistant prompt", () => {
@@ -23,10 +31,15 @@ describe("DJ assistant prompt", () => {
 
   it("states the strict Spotify and usage-metric boundary", () => {
     const { system, user } = buildDJAssistantPrompt(context, "Wat past hierna?");
-    expect(system).toContain("no Spotify catalogue, track metadata, cover art, playback state, live queue, request data, request counts or usage metrics");
+    expect(system).toContain("bounded snapshot of the current PartyQueue");
+    expect(system).toContain("aggregate event-level audience preferences");
+    expect(system).toContain("eligible aggregate crowd feedback");
     expect(system).toContain("Do not generate a numbered queue order");
     expect(system).toContain("unverified suggestions");
-    expect(user).toContain("PARTYQUEUE NON-SPOTIFY CONTEXT:");
+    expect(user).toContain("LIVE PARTY CONTEXT");
+    expect(user).toContain("Track A — Artist A");
+    expect(user).toContain("Track B — Artist B");
+    expect(user).toContain("respondents");
     expect(user).toContain("New Year's Eve 2026");
     expect(user).toContain("building_toward_midnight");
     expect(user).toContain("stijlwissels zijn welkom");

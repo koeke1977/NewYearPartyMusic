@@ -1,34 +1,47 @@
 import { describe, expect, it, vi } from "vitest";
 import { loadAssistantContextSnapshot } from "../../apps/worker/src/modules/ai/infrastructure/assistant-context-repository";
 
+function createDatabase(profile: string | null) {
+  const calls: string[] = [];
+  const prepare = vi.fn((sql: string) => {
+    calls.push(sql);
+    const values: unknown[] = [];
+    const statement = {
+      bind: (...args: unknown[]) => { values.push(...args); return statement; },
+      async first() {
+        if (values[0] && String(values[0]).startsWith("dj_ai_profile_")) return profile ? { value: profile } : null;
+        return null;
+      },
+      async all() { return { results: [] }; },
+    };
+    return statement;
+  });
+  return { prepare, calls };
+}
+
 describe("AI assistant context repository", () => {
-  it("loads only DJ-authored preferences and never queries request or Spotify data", async () => {
-    const calls: Array<{ sql: string; values: unknown[] }> = [];
-    const prepare = vi.fn((sql: string) => {
-      const values: unknown[] = [];
-      const statement = {
-        bind: (...args: unknown[]) => { values.push(...args); return statement; },
-        async first() {
-          calls.push({ sql, values: [...values] });
-          return { value: '["disco","90s"]' };
-        },
-      };
-      return statement;
+  it("loads bounded event-scoped queue, played history and aggregate audience signals", async () => {
+    const db = createDatabase('["disco","90s"]');
+    const snapshot = await loadAssistantContextSnapshot(db as never, "event-1");
+    expect(snapshot.djPreferences).toBe('["disco","90s"]');
+    expect(snapshot.partyQueue).toEqual({
+      queued: [], recentlyPlayed: [],
+      audience: { respondents: 0, genres: [], subgenres: [], decades: [], moods: [], averageEnergy: null },
+      crowdFeedback: { eligible: false, respondents: 0, windowMinutes: 30, atmosphere: null, averageEnergy: null, trend: "insufficient" },
     });
-    const snapshot = await loadAssistantContextSnapshot({ prepare } as never, "event-1");
-    expect(prepare).toHaveBeenCalledTimes(1);
-    expect(snapshot).toEqual({ djPreferences: '["disco","90s"]' });
-    expect(calls[0].sql).toBe("SELECT value FROM settings WHERE key=?");
-    expect(calls[0].values).toEqual(["dj_ai_profile_event-1"]);
-    expect(calls.every(call => !/requests|track_name|artist_name|spotify|queue|playback/i.test(call.sql))).toBe(true);
+    expect(db.calls.some(sql => /requests.*status='queued'/.test(sql))).toBe(true);
+    expect(db.calls.some(sql => /status='played'.*LIMIT 8/.test(sql))).toBe(true);
+    expect(db.calls.some(sql => /guest_music_preferences/.test(sql))).toBe(true);
+    expect(db.calls.some(sql => /guest_crowd_feedback/.test(sql))).toBe(true);
+    expect(db.calls.every(sql => !/nickname|guest_id|spotify_access_token/i.test(sql))).toBe(true);
   });
 
-  it("returns null preferences when D1 has no DJ profile", async () => {
-    const prepare = vi.fn((sql: string) => {
-      const statement = { bind: () => statement, first: async () => null };
-      return statement;
-    });
-    const snapshot = await loadAssistantContextSnapshot({ prepare } as never, "empty-event");
-    expect(snapshot).toEqual({ djPreferences: null });
+  it("returns null preferences and empty event context when D1 has no DJ profile", async () => {
+    const db = createDatabase(null);
+    const snapshot = await loadAssistantContextSnapshot(db as never, "empty-event");
+    expect(snapshot.djPreferences).toBeNull();
+    expect(snapshot.partyQueue.queued).toEqual([]);
+    expect(snapshot.partyQueue.recentlyPlayed).toEqual([]);
+    expect(snapshot.partyQueue.crowdFeedback.trend).toBe("insufficient");
   });
 });
