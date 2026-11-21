@@ -75,6 +75,21 @@ describe("DJ assistant prompt", () => {
     expect(system).not.toContain("SURPRISE LIST CONTRACT");
   });
 
+  it("requires concrete ordered tracks for a timed DJ block, even when the queue may be empty", () => {
+    const { system } = buildDJAssistantPrompt(context, "Stel een verrassend blok van 30 minuten voor.");
+    expect(system).toContain("TIMED DJ BLOCK CONTRACT (MANDATORY FOR THIS REQUEST)");
+    expect(system).toContain("6–8 concrete track suggestions");
+    expect(system).toContain("deliberate play order");
+    expect(system).toContain("If PartyQueue is empty");
+    expect(system).toContain("Never substitute genre descriptions");
+    expect(system).toContain("Do not add Spotify-access disclaimers");
+  });
+
+  it("does not add timed-block requirements to general non-timeboxed advice", () => {
+    const { system } = buildDJAssistantPrompt(context, "Wat past hierna?");
+    expect(system).not.toContain("TIMED DJ BLOCK CONTRACT");
+  });
+
   it("requires exact-count numbered output when the DJ asks for twenty suggestions", () => {
     const { system } = buildDJAssistantPrompt(context, "Geef me 20 nummers.");
     expect(system).toContain("return exactly 20 concrete numbered ideas");
