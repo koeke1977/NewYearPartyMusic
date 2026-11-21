@@ -94,6 +94,11 @@ async function testGuestJourney(browser) {
       });
       return { body: { success: true } };
     }
+    if (call.path === "/api/guests/crowd-feedback" && call.method === "POST") {
+      assert.equal(call.request.headers()["authorization"], "Bearer guest-test-token");
+      assert.deepEqual(call.body, { feedback: { atmosphere: "bad", energy: 2 } });
+      return { body: { ok: true } };
+    }
     if (call.path === "/api/spotify/search" && call.method === "GET") {
       assert.equal(call.url.searchParams.get("q"), "Music Sounds Better");
       return {
@@ -127,6 +132,10 @@ async function testGuestJourney(browser) {
   await page.locator(".preference-choice input[value='pop']").evaluate(input => { input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true })); });
   await page.locator(".preference-save").click();
   await page.getByText(/Bedankt! Je muzieksmaak telt mee/).waitFor({ state: "visible", timeout: 5000 });
+  await page.locator(".crowd-choice[data-value='bad']").click();
+  await page.locator(".crowd-energy").fill("2");
+  await page.locator(".crowd-send").click();
+  await page.getByText(/Je signaal telt mee voor de DJ/).waitFor({ state: "visible", timeout: 5000 });
 
   await page.locator("#guest-track-search").fill("Music Sounds Better");
   await page.locator(".track-item").waitFor({ state: "visible", timeout: 5000 });
@@ -154,6 +163,7 @@ async function testDjJourney(browser) {
       return { body: { token: "dj-browser-test-token" } };
     }
     if (call.path === "/api/dj/overview") return { body: overview };
+    if (call.path === "/api/dj/crowd-feedback") return { body: { eventId: "NYE2026", eligible: false, respondents: 2, minimumRespondents: 5, windowMinutes: 30, atmosphere: null, averageEnergy: null, trend: "insufficient" } };
     if (call.path === "/api/dj/audience") return { body: {
       eventId: "NYE2026", respondents: 3,
       genres: [{ id: "electronic-dance", label: "Electronic & Dance", guests: 2, share: 0.667, balancedWeight: 0.35 }],

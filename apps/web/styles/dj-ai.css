@@ -67,3 +67,9 @@
 .dj-audience-energy{grid-column:1/-1;margin:0;color:#8e9b91;font-size:9px}
 @media(max-width:760px){.dj-audience-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:460px){.dj-audience-summary{grid-template-columns:1fr}.dj-audience-heading{align-items:flex-start;flex-direction:column}}
+
+/* Rolling guest crowd feedback */
+.dj-crowd-feedback{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px;padding:12px;border:1px solid rgba(220,235,225,.12);border-radius:10px;background:rgba(0,0,0,.18)}
+.dj-crowd-trend{font-size:10px;letter-spacing:.07em;color:#cbd6ce}
+.dj-crowd-trend.trend-positive{color:#4ce28a}.dj-crowd-trend.trend-negative{color:#ff9b86}
+.dj-crowd-meta{color:#aebbb2;font-size:10px}

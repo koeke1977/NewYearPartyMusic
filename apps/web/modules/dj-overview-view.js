@@ -118,8 +118,27 @@ export function createDjOverviewView({
     summary.append(elementFactory("p", "dj-audience-energy", energy + " · gewichten begrenzen dominante genres voor meer variatie"));
   }
 
-  function render(data, audience) {
+  function renderCrowdFeedback(feedback) {
+    const panel = documentRef.querySelector("#dj-crowd-feedback");
+    if (!panel) return;
+    panel.replaceChildren();
+    if (!feedback || !feedback.eligible) {
+      const count = feedback?.respondents || 0;
+      panel.append(elementFactory("p", "dj-muted", "Live sfeerfeedback: " + count + "/5 signalen. Nog onvoldoende stemmen voor een betrouwbare trend."));
+      return;
+    }
+    const labels = { positive: "POSITIEVE SFEER", negative: "SFEER ZAKT", mixed: "GEMENGDE SIGNALEN" };
+    panel.append(
+      elementFactory("strong", "dj-crowd-trend trend-" + feedback.trend, labels[feedback.trend] || "GEMENGDE SIGNALEN"),
+      elementFactory("span", "dj-crowd-meta", feedback.respondents + " gasten · laatste 30 minuten"),
+      elementFactory("span", "dj-crowd-meta", "Sfeer: " + feedback.atmosphere.good + " goed · " + feedback.atmosphere.neutral + " neutraal · " + feedback.atmosphere.bad + " minder"),
+      elementFactory("span", "dj-crowd-meta", "Gemiddelde energie: " + feedback.averageEnergy + "/5")
+    );
+  }
+
+  function render(data, audience, crowdFeedback) {
     renderAudience(audience);
+    renderCrowdFeedback(crowdFeedback);
     latestDJOverview = data;
     currentSettings = data.settings || currentSettings;
     const autoQueueState = documentRef.querySelector("#auto-queue-state");

@@ -37,6 +37,15 @@ describe("guest HTTP routes", () => {
     });
   });
 
+  it("rejects crowd feedback without an event-scoped guest session", async () => {
+    const { app, env } = createTestApp();
+    const response = await app.request("/api/guests/crowd-feedback", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ feedback: { atmosphere: "good", energy: 4 } }),
+    }, env);
+    expect(response.status).toBe(401);
+  });
+
   it("rejects request submission without an event-scoped session", async () => {
     const { app, env } = createTestApp();
     const response = await app.request("/api/requests", {

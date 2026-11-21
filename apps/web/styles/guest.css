@@ -51,3 +51,16 @@
 .preference-save{width:100%;min-height:44px;margin-top:12px;font-size:10px}
 .preference-message{margin:8px 0 0}
 @media(max-width:390px){.preference-options{grid-template-columns:minmax(0,1fr)}.preference-inline{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Live crowd feedback */
+.guest-crowd-feedback{margin:0 0 22px;padding:17px;border:1px solid rgba(30,215,96,.2);border-radius:14px;background:rgba(5,12,7,.58)}
+.guest-crowd-feedback h2{margin:0 0 5px;color:#e5eee7;font-size:16px}
+.crowd-feedback-intro{margin:0 0 13px;color:#aebbb2;font-size:11px;line-height:1.5}
+.crowd-atmosphere{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.crowd-choice{display:grid;gap:5px;justify-items:center;min-height:66px;padding:9px 5px;border:1px solid rgba(220,235,225,.14);border-radius:10px;background:rgba(255,255,255,.025);color:#d5dfd8;font:inherit;font-size:10px;cursor:pointer}
+.crowd-choice span:first-child{font-size:20px}
+.crowd-choice.is-selected{border-color:var(--green);background:rgba(30,215,96,.12);color:#fff}
+.crowd-energy-label{display:block;margin:14px 0 5px;color:#dce5de;font-size:11px}
+.crowd-energy{width:100%;min-height:22px;padding:0;accent-color:var(--green)}
+.crowd-send{width:100%;min-height:42px;margin-top:10px;font-size:10px}
+.crowd-status{margin:8px 0 0}
