@@ -54,7 +54,7 @@ describe("DJ AI assistant", () => {
       timeoutMs: 110000,
     });
     expect(elements["#dj-ai-answer"].children[0].textContent).toBe("De sfeer zit goed: bouw rustig op.");
-    expect(elements["#dj-ai-answer"].children[1].textContent).toContain("Spotify UP NEXT, live playbackstatus en Spotify-catalogusverificatie zijn niet beschikbaar");
+    expect(elements["#dj-ai-answer"].children[1].textContent).toContain("tracks via Spotify verifiëren en de PartyQueue toevoegen, verwijderen of herschikken");
     expect(elements["#dj-ai-answer"].children[2].textContent).toContain("Gesprekscontext bewaard");
     expect(elements["#dj-ai-prompt"].value).toBe("");
     expect(elements["#dj-ai-submit"].disabled).toBe(false);
