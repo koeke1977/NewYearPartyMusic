@@ -33,7 +33,7 @@
 | `modules/dj-playback-state.js`, `dj-playback-display.js` | Pure playback state projection and progress/time calculations |
 | `modules/dj-spotify-console.js` | Spotify API lifecycle, volume-write sequencing and control event binding |
 | `modules/dj-spotify-console-view.js` | DOM-only Spotify status, deck, volume, progress, transport and offline rendering |
-| `modules/dj-command-service.js` | DJ moderation, queue reorder persistence, settings updates and NEXT command workflows |
+| `modules/dj-command-service.js` | DJ moderation, queue reorder persistence, settings updates and NEXT command workflows |\n| `dj.js` + `modules/dj-overview-view.js` | Authenticated Autopilot start/stop setting and persisted ON/OFF state rendering |
 | `modules/dj-queue.js`, `dj-queue-reorder.js` | Pure queue ordering and drag/drop interaction |
 | `modules/dj-overview-model.js` | Pure projection of API overview data into UI state |
 | `modules/dj-overview-view.js` | Dashboard stats, request cards, moderation action wiring and UP NEXT rendering |
@@ -49,7 +49,7 @@
 
 The main page entrypoints are composition roots. Remaining mixed concerns are inside two feature controllers:
 
-1. `dj-ai-assistant.js` now owns prompt submission, mode orchestration and API workflows. `dj-ai-assistant-view.js` owns suggestion/add-selection DOM rendering; `dj-ai-actions.js` owns sequential track additions and per-track failure handling. The assistant does not reorder the live queue. Track additions remain an explicit DJ selection from Spotify matches.
+1. `dj-ai-assistant.js` now owns prompt submission, mode orchestration and API workflows. `dj-ai-assistant-view.js` owns suggestion/add-selection DOM rendering; `dj-ai-actions.js` owns sequential track additions and per-track failure handling. The assistant can execute explicit add/remove/reorder plans through the authenticated Worker endpoint. The separate scheduled Autopilot is OFF by default and can only be enabled or hard-stopped from the DJ console; it never runs from guest pages.
 2. `dj-spotify-console.js` combines API/status coordination, volume-write lifecycle and event binding. Rendering is already isolated in `dj-spotify-console-view.js`, and playback sequencing is coordinated by `dj-playback-coordinator.js`. Further extraction should only occur if tests show a real responsibility seam; avoid another layer of pass-through wrappers.
 
 The DJ AI conversation ID is browser-local; only DJ prompts and AI-generated answers are stored server-side for the same event/session, with a maximum of eight turns and seven-day retention. Spotify search results are never stored as AI context.
@@ -84,7 +84,7 @@ A green browser journey does not replace Worker/API contract tests or a future r
 
 - Preserve existing DOM IDs, localStorage keys, endpoint paths and payloads.
 - Browser code calls PartyQueue API routes; Spotify secrets/tokens remain server-side.
-- The AI receives a bounded PartyQueue snapshot and may request add/remove/reorder actions only through a structured plan. The Worker validates the DJ's explicit intent and current queue state, verifies Spotify matches server-side and returns confirmed outcomes; the browser never writes the queue directly. Ordinary AI suggestions remain unverified until the DJ explicitly asks to add them.
+- The AI receives a bounded PartyQueue snapshot and may request add/remove/reorder actions only through a structured plan. The Worker validates the DJ's explicit intent and current queue state, verifies Spotify matches server-side and returns confirmed outcomes; the browser never writes the queue directly. Ordinary AI suggestions remain unverified until the DJ explicitly asks to add them.\n- Autopilot is explicitly OFF by default. Its large DJ-only toggle persists the state through the authenticated settings route; OFF immediately blocks subsequent scheduled actions. The browser does not run the scheduler or call Spotify autonomously.
 - Track additions are sequential, duplicate-aware and report partial failures.
 - Stale polling responses must never overwrite newer state.
 - Outstanding searches are aborted and polling/task queues are invalidated when the DJ session ends.
