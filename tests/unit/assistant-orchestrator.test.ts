@@ -44,6 +44,14 @@ describe("DJ assistant orchestration", () => {
     expect(request.tools).toBeUndefined();
     expect(request.messages[0].content).toBe("system");
     expect(request.messages[1].content).toBe("vraag");
+    expect(request.temperature).toBe(0.4);
+  });
+
+  it("uses a more exploratory sampling temperature for surprise/discovery requests", async () => {
+    runCloudflareAI.mockResolvedValueOnce({ response: "Een verrassende selectie." });
+    await runDJAssistantTurn(ai, "model", "system", "Geef me een verrassende uiteenlopende lijst nummers.", makeBudget());
+    const request = runCloudflareAI.mock.calls[0][2];
+    expect(request.temperature).toBe(0.85);
   });
 
   it("normalizes array content and bounds the final answer", async () => {
