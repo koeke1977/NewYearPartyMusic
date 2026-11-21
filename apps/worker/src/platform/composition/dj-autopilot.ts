@@ -66,7 +66,8 @@ export function runDJAutopilotFromEnvironment(env: Env) {
             eventId: env.EVENT_ID,
             order,
           }),
-          canContinue: async () => await canContinue()\n            && (await djQueueRepository.readQueuedRequestIds(env.EVENT_ID)).length < 8,
+          canContinue: async () => await canContinue()
+            && (await djQueueRepository.readQueuedRequestIds(env.EVENT_ID)).length < 8,
           isTrackAllowed: track => !trackWasRecentlyQueuedOrPlayed(track, snapshot),
         },
       }),
