@@ -44,7 +44,8 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string, sess
         ports: {
           searchTracks: async query => {
             const result = await searchSpotifyCatalog(env, query, 3);
-            if (result.kind !== "available") throw new Error("Spotify catalogus tijdelijk niet beschikbaar.");\n            return result.tracks;
+            if (result.kind !== "available") throw new Error("Spotify catalogus tijdelijk niet beschikbaar.");
+            return result.tracks;
           },
           addTrack: trackId => addDjTrackToPartyQueue({
             repository: guestRequestRepository, eventId: env.EVENT_ID, trackId,
