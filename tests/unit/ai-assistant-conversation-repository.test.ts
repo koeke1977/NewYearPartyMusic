@@ -46,12 +46,13 @@ describe("AI conversation repository", () => {
   });
 
   it("stores the DJ prompt and generated answer as one atomic batch", async () => {
-    const { db, batch } = fakeDb();
+    const { db, batch, prepare } = fakeDb();
     await saveAssistantConversationTurn(db, "event-1", "session-1", "Maak het verrassend", "Een disco-blok!");
     expect(batch).toHaveBeenCalledOnce();
     const statements = batch.mock.calls[0][0];
     expect(statements).toHaveLength(3);
     expect(batch.mock.calls[0][0][2]).toBeDefined();
+    expect(prepare).toHaveBeenNthCalledWith(3, expect.stringContaining("LIMIT 8"));
   });
 
   it("deletes turns older than seven days", async () => {
