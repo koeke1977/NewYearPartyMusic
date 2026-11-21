@@ -75,7 +75,7 @@ Application retention:
 - Completed/declined/cancelled request rows older than 30 days are deleted by the daily scheduled cleanup.
 - Pending, approved and queued requests are deliberately excluded from that cleanup.
 - Authentication attempt buckets older than one day are deleted by the same daily cleanup.
-- DJ AI conversation turns (DJ prompts and AI-generated answers only) are deleted after seven days; Spotify search results and live queue data are not part of this conversation store.
+- Once migration `0004_dj_ai_conversation.sql` is released, DJ AI conversation turns (DJ prompts and AI-generated answers only) are retained for at most seven days and capped at the latest eight turns per browser session. Spotify search results and live queue data are not part of this conversation store.
 - No separate R2 export/archive is currently configured.
 
 Recovery procedure (D1 data recovery is separate from Worker code rollback):
