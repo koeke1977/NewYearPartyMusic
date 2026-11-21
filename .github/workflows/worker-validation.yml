@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 concurrency:
   group: partyqueue-main-release
@@ -84,6 +85,19 @@ jobs:
           path: artifacts/ui-baseline/*.png
           if-no-files-found: error
           retention-days: 14
+
+  auto-merge:
+    name: Automatically merge validated pull requests
+    runs-on: ubuntu-latest
+    needs: [validate, ui-screenshot-baseline]
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    steps:
+      - name: Enable squash auto-merge after all required checks pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --auto --squash
 
   deploy-production:
     name: Deploy production Worker to Cloudflare
