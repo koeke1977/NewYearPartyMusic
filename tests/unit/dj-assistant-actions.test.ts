@@ -71,6 +71,33 @@ describe("DJ assistant action planning", () => {
     expect(dependencies.addTrack).not.toHaveBeenCalled();
   });
 
+  it("honours the Autopilot hard stop after Spotify search and before adding", async () => {
+    const dependencies = ports({
+      canContinue: vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false),
+    });
+    const result = await executeDJAssistantActions({
+      prompt: "Voeg Music Sounds Better With You van Stardust toe aan PartyQueue",
+      actions: [{ type: "add_tracks", tracks: [{ title: track.name, artist: "Stardust" }] }],
+      ports: dependencies,
+    });
+    expect(dependencies.searchTracks).toHaveBeenCalledOnce();
+    expect(dependencies.addTrack).not.toHaveBeenCalled();
+    expect(result[0].details.join(" ")).toContain("Autopilot is uitgeschakeld");
+  });
+
+  it("skips a track rejected by the recent-repeat guard", async () => {
+    const dependencies = ports({ isTrackAllowed: () => false });
+    const result = await executeDJAssistantActions({
+      prompt: "Voeg Music Sounds Better With You van Stardust toe aan PartyQueue",
+      actions: [{ type: "add_tracks", tracks: [{ title: track.name, artist: "Stardust" }] }],
+      ports: dependencies,
+    });
+    expect(dependencies.searchTracks).toHaveBeenCalledOnce();
+    expect(dependencies.addTrack).not.toHaveBeenCalled();
+    expect(result[0]).toMatchObject({ succeeded: 0, failed: 1 });
+    expect(result[0].details[0]).toContain("recente herhaling");
+  });
+
   it("removes only IDs that are still in the live PartyQueue", async () => {
     const dependencies = ports();
     const result = await executeDJAssistantActions({
