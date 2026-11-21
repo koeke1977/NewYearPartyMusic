@@ -154,3 +154,9 @@
  .dj-shell .queue-track-info strong{font-size:15px}
  .dj-shell .queue-track-info span{font-size:13px}
 }
+
+/* Destructive event reset control */
+.dj-toolbar-actions{display:flex;align-items:center;gap:10px}
+#dj-flush{color:#ff8585;border:1px solid rgba(255,90,90,.35);border-radius:8px;padding:9px 12px}
+#dj-flush:disabled{opacity:.5;cursor:wait}
+@media(max-width:600px){.dj-toolbar-actions{align-items:stretch;flex-direction:column;gap:6px}.dj-toolbar-actions button{font-size:10px}}
