@@ -1,6 +1,6 @@
 # PartyQueue AI-DJ roadmap
 
-**Status:** Product direction approved; implementation starts with the genre foundation.
+**Status:** Product direction approved; taxonomy, event-scoped guest preferences and the first Audience Intelligence slice are implemented on the feature branch. Remaining AI-context, feedback, reset and autonomous execution work is still pending.
 **Repository:** koeke1977/NewYearPartyMusic
 **Scope:** Evolve the current advice-only assistant into an event-scoped, audience-aware AI-DJ while preserving the modular Cloudflare Worker architecture.
 
@@ -130,7 +130,7 @@ The model does not receive database credentials, raw D1 handles, Spotify access 
 - Existing queue dispatch reads PartyQueue queued requests/order and starts the selected track through the Spotify playback workflow.
 - Current AI assistant is text-only and Spotify-independent. It stores bounded DJ/AI conversation turns for seven days and a small set of explicit DJ preferences.
 - Current AI track flow is browser-orchestrated: AI produces text suggestions, the browser separately searches Spotify, and the DJ explicitly selects tracks to add.
-- Current schema does not yet contain guest genre preferences, crowd feedback, audience aggregates or a FLUSH workflow.
+- Migration `0005_guest_music_preferences.sql` adds temporary event-scoped guest genre/subgenre, decade, mood and energy preferences. The Audience Intelligence workflow reads these records and calculates aggregate counts and capped genre weights at request time; no derived personal profile is persisted.\n- The DJ-only `GET /api/dj/audience` endpoint exposes the aggregate event profile. The DJ console refreshes and displays it alongside the queue overview.\n- Crowd feedback, test/live event separation, FLUSH and AI-context integration are not implemented yet.
 
 ## Delivery protocol
 
