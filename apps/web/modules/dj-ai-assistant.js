@@ -63,6 +63,10 @@ export function createDjAiAssistant({ api, refresh, documentRef = document, getS
         view.renderAdvice(output, answer, result.cached);
       }
 
+      if (mode !== "import") {
+        if (result.conversationSaved) view.appendConversationSaved(output);
+        else view.appendConversationWarning(output);
+      }
       if (result.memoryUpdated) view.appendMemoryUpdated(output);
       input.value = "";
     } catch (error) {
