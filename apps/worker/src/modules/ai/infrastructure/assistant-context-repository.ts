@@ -44,7 +44,7 @@ export async function loadAssistantContextSnapshot(db: AssistantContextDatabase,
       failed: activityCounts.failed || 0,
       topArtists: (artistRows.results || []).map(row => ({ artist: row.artist_name, requests: row.requests })),
     },
-    queued: queued.slice(0, 20).map(row => ({ track: row.track_name + " — " + row.artist_name, durationMs: typeof row.duration_ms === "number" ? row.duration_ms : null })),
+    queued: queued.slice(0, 20).map(row => ({ id: row.id, track: row.track_name + " — " + row.artist_name, durationMs: typeof row.duration_ms === "number" ? row.duration_ms : null })),
     recentlyPlayed: (playedRows.results || []).map(row => ({ track: row.track_name + " — " + row.artist_name, playedAt: row.played_at })),
     audience: {
       respondents: audience.respondents, genres: compactChoices(audience.genres), subgenres: compactChoices(audience.subgenres),
