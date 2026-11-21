@@ -55,6 +55,21 @@ async function refresh(){
   catch(e){if(e.message.toLowerCase().includes("sessie")){auth.logout();return;}message.textContent=e.message;}
 }
 document.querySelector("#dj-logout").addEventListener("click",()=>auth.logout());
+document.querySelector("#dj-flush").addEventListener("click",async event=>{
+  const button=event.currentTarget;
+  if(!window.confirm("FLUSH verwijdert alle tijdelijke gasten, voorkeuren, aanvragen, feedback, wachtrijvolgorde en AI-gesprekken van dit event. Spotify UP NEXT wordt niet aangepast. Doorgaan?"))return;
+  const confirmation=window.prompt("Typ exact FLUSH om te bevestigen.");
+  if(confirmation!=="FLUSH")return;
+  const code=window.prompt("Voer je DJ-toegangscode opnieuw in.");
+  if(!code)return;
+  button.disabled=true;
+  try{
+    const result=await api("/api/dj/event/flush",{method:"POST",body:JSON.stringify({confirmation,code})});
+    message.textContent=result.message;
+    await refresh();
+  }catch(error){message.textContent=error.message;}
+  finally{button.disabled=false;}
+});
 document.querySelector("#pause-toggle").addEventListener("click",()=>commands.updateSetting("requests_paused",!overviewView.getSettings().requestsPaused));
 document.querySelector("#approval-toggle").addEventListener("click",()=>commands.updateSetting("auto_approve",!overviewView.getSettings().autoApprove));
 document.querySelector("#auto-queue-toggle").addEventListener("click",()=>commands.updateSetting("auto_queue",!overviewView.getSettings().autoQueue));
