@@ -47,12 +47,14 @@ The separate `/api/dj/ai/music/search` and `/api/dj/ai/music/add` endpoints are 
 
 ## Data boundary and behaviour
 
-The AI context contains only:
+The AI context contains:
 - Event name and derived Belgian local event time.
 - Explicit DJ-authored preferences persisted in the event profile.
+- A bounded D1-backed PartyQueue snapshot: queued tracks in saved order, up to eight recently played tracks, request lifecycle counts, distinct requested-track count and top requested artists.
+- Event-scoped aggregate guest preferences and eligible aggregate crowd feedback; no guest IDs or nicknames.
 - The current DJ-authored question and up to eight prior DJ/AI conversation turns from the same browser session.
 
-The AI currently receives **no** aggregate audience profile, Spotify catalogue results, track or artist metadata, album art, playback state, live queue, guest requests, request counts, saved queue order, accepted-set history or Spotify-derived usage metrics. The DJ console separately reads the DJ-authenticated `/api/dj/audience` endpoint, which returns only event-scoped aggregate preference counts and capped genre weights; it does not return guest IDs or nicknames. This audience profile is not yet wired into the AI prompt/context. No Spotify search tool is registered with the model. The assistant response returns an empty `spotifyMatches` array for compatibility; it is not a Spotify search result.
+The D1 PartyQueue is the source of truth. In this event setup Spotify UP NEXT is populated only from PartyQueue and is a downstream playback view of the same list, not an independent input or second signal. Never count it separately. Request counts represent demand, queued status represents the plan, played status represents completion, and crowd feedback is the separate response signal. The AI must not infer enjoyment from a request or played status. No Spotify search tool is registered with the model. The assistant response returns an empty `spotifyMatches` array for compatibility; it is not a Spotify search result.
 
 Track ideas are unverified suggestions based on general model knowledge. The DJ must search for them separately using the normal Spotify catalogue endpoint and explicitly choose any action. The model cannot add tracks, reorder or moderate requests, alter settings, or control playback.
 

@@ -14,7 +14,7 @@ A guest is represented by a temporary nickname/session, not a durable personal i
 
 ## Non-negotiable invariants
 
-1. PartyQueue owns the set. Its D1-backed queue and saved order are authoritative for DJ planning. Spotify UP NEXT is separate.
+1. PartyQueue owns the set. Its D1-backed queue and saved order are authoritative for DJ planning. In the current event setup Spotify UP NEXT is populated only from PartyQueue, so it is a downstream view of the same list, not an independent source; never double-count it.
 2. No direct model-to-database access. The model may request a narrowly defined action, but the Worker validates it and invokes existing application use cases/repositories.
 3. No unrestricted Spotify control. Catalogue search and queue changes must use existing Spotify adapters and authorized application workflows. Playback controls remain separate, guarded DJ actions.
 4. Audience data is event-scoped and temporary. Nicknames and guest preferences are not used as durable identities or cross-event profiles.
@@ -30,7 +30,7 @@ A guest is represented by a temporary nickname/session, not a durable personal i
 Guest app: nickname/session, genre + subgenre preferences, decade / energy / mood preferences, music requests and live crowd feedback.
 Cloudflare Worker workflows: event lifecycle, taxonomy validation, Audience Intelligence, feedback aggregation, PartyQueue read/write, Spotify catalogue search/validation and authenticated FLUSH.
 AI-DJ orchestration: bounded event context, aggregate audience profile, recent PartyQueue context / played history, music taxonomy, DJ policy and allow-listed application actions.
-Execution: PartyQueue D1 queue → existing dispatch → Spotify player. Spotify UP NEXT remains separate.
+Execution: PartyQueue D1 queue → existing dispatch → Spotify player. Spotify UP NEXT is the downstream playback view populated from this same PartyQueue.
 
 The model does not receive database credentials, raw D1 handles, Spotify access tokens or an unrestricted tool surface. It receives only the minimum structured context needed for a decision. Any proposed action is schema-validated, authorized, bounded and executed by an application use case.
 

@@ -1,4 +1,15 @@
 export type PartyQueueContext = {
+  activity: {
+    totalRequests: number;
+    uniqueTracksRequested: number;
+    pending: number;
+    approved: number;
+    queued: number;
+    played: number;
+    rejected: number;
+    failed: number;
+    topArtists: Array<{ artist: string; requests: number }>;
+  };
   queued: Array<{ track: string; durationMs: number | null }>;
   recentlyPlayed: Array<{ track: string; playedAt: string | null }>;
   audience: {
