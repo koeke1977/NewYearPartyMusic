@@ -13,7 +13,7 @@ const track: CatalogTrack = {
   durationMs: 360000,
 };
 
-function ports(overrides: Record<string, unknown> = {}) {
+function ports(overrides: Partial<DJAssistantActionPorts> = {}) {
   return {
     searchTracks: vi.fn(async () => [track]),
     addTrack: vi.fn(async () => ({ status: 201, body: { ok: true, request: { id: "queue-1" } } })),
