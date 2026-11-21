@@ -2,15 +2,12 @@ import { element } from "./dom.js";
 import { loadGuestMusicTaxonomy, saveGuestMusicPreferences } from "./guest-music-api.js";
 
 export function renderGuestMusicPreferences(card, session) {
+  const disclosure = element("details", "guest-preferences-disclosure");
+  const summary = element("summary", "guest-preferences-summary", "Welke muziek hoor jij graag?");
+  summary.append(element("span", "preferences-summary-hint", "Optioneel · help de DJ jouw smaak te vinden"));
+  disclosure.append(summary);
   const panel = element("section", "guest-preferences");
-  panel.setAttribute("aria-labelledby", "preferences-title");
-  const heading = element("div", "section-heading");
-  heading.append(element("span", "step", "02"));
-  const title = element("div");
-  title.append(element("h2", "", "Welke muziek hoor jij graag?"),
-    element("p", "", "Help de DJ de sfeer te vinden. Je keuzes gelden alleen voor dit feest."));
-  heading.append(title);
-  panel.append(heading);
+  panel.setAttribute("aria-label", "Muziekvoorkeuren");
 
   const status = element("p", "form-message preference-message");
   status.setAttribute("role", "status");
@@ -21,7 +18,8 @@ export function renderGuestMusicPreferences(card, session) {
   const save = element("button", "button button-primary preference-save", "BEWAAR MIJN MUZIEKSMAAK");
   save.type = "button";
   panel.append(save);
-  card.append(panel);
+  disclosure.append(panel);
+  card.append(disclosure);
 
   const selected = { genreIds: new Set(), decadeIds: new Set(), moodIds: new Set(), energy: null };
   const checkbox = (name, id, label, set) => {
