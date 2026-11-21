@@ -15,7 +15,7 @@ function node() {
 describe("DJ overview view", () => {
   it("preserves request cards while a drag reorder is in progress and links the next track", () => {
     const selectors = [
-      "#auto-queue-state", "#pause-toggle", "#approval-toggle", "#auto-queue-toggle",
+      "#auto-queue-state", "#pause-toggle", "#approval-toggle", "#auto-queue-toggle", "#ai-autopilot-toggle",
       "#pause-state", "#approval-state", "#dj-stats", "#up-next", "#queue-total",
       "#partyqueue-next", "#request-count", "#last-updated",
     ];
@@ -30,7 +30,7 @@ describe("DJ overview view", () => {
     });
 
     view.render({
-      settings: { requestsPaused: false, autoApprove: true, autoQueue: false },
+      settings: { requestsPaused: false, autoApprove: true, autoQueue: false, aiAutopilot: true },
       requests: [{
         id: "queued-1", spotify_track_id: "track-1", status: "queued",
         duration_ms: 180000, track_name: "Track", artist_name: "Artist",
@@ -45,6 +45,6 @@ describe("DJ overview view", () => {
       name: "Track",
     }));
     expect(view.getLatestOverview().requests).toHaveLength(1);
-    expect(view.getSettings().autoQueue).toBe(false);
+    expect(view.getSettings().autoQueue).toBe(false);\n    expect(elements["#ai-autopilot-toggle"].textContent).toBe("AUTOPILOT AAN · STOP NU");\n    expect(elements["#ai-autopilot-toggle"].setAttribute).toHaveBeenCalledWith("aria-pressed", "true");
   });
 });
