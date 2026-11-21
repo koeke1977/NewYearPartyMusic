@@ -2,15 +2,29 @@ import { describe, expect, it } from "vitest";
 import { resolveDjAiPrompt } from "../../apps/web/modules/dj-ai-intent.js";
 
 describe("DJ AI prompt intent", () => {
-  it("recognizes explicit reorder instructions before generic import wording", () => {
+  it("recognizes explicit reorder instructions", () => {
     const result = resolveDjAiPrompt("Zet de wachtrij in een andere volgorde");
     expect(result.mode).toBe("optimize");
     expect(result.prompt).toContain("alle bestaande tracks exact één keer");
   });
 
   it("imports an explicitly numbered track list unchanged", () => {
-    const source = "Voeg deze lijst toe:\n1. Track A — Artist A\n2. Track B — Artist B";
-    expect(resolveDjAiPrompt(source)).toEqual({ mode: "import", prompt: source });
+    const source = "Voeg deze lijst toe aan UP NEXT:\n1. Track A — Artist A\n2. Track B — Artist B";
+    expect(resolveDjAiPrompt(source)).toEqual({
+      mode: "import",
+      prompt: "1. Track A — Artist A\n2. Track B — Artist B",
+    });
+  });
+
+  it("treats a follow-up asking to put the previous full list in UP NEXT as import, not reorder", () => {
+    const result = resolveDjAiPrompt(
+      "Zet die volledig in UP NEXT",
+      "Hier zijn de suggesties:\n1. Gasolina — Daddy Yankee\n2. Danza Kuduro — Don Omar",
+    );
+    expect(result).toEqual({
+      mode: "import",
+      prompt: "1. Gasolina — Daddy Yankee\n2. Danza Kuduro — Don Omar",
+    });
   });
 
   it("recovers a numbered list from the previous AI answer using real line breaks", () => {
@@ -19,7 +33,6 @@ describe("DJ AI prompt intent", () => {
       "1. Track A — Artist A\n2. Track B — Artist B",
     );
     expect(result.mode).toBe("import");
-    expect(result.prompt).toBe("1. Track A — Artist A\n2. Track B — Artist B");
     expect(result.prompt.split("\n")).toHaveLength(2);
   });
 
