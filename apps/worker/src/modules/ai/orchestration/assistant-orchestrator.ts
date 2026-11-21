@@ -16,10 +16,11 @@ export async function runDJAssistantTurn(
   user: string,
   neuronBudget: AssistantNeuronBudget,
 ): Promise<DJAssistantRunResult> {
+  const discoveryRequest = /\b(verrassend|verrassende|uiteenlopend|uiteenlopende|divers|gevarieerd|onverwacht|out.?of.?the.?box|creatief|durf|vernieuwend)\b/i.test(user);
   const response = await runCloudflareAI(ai, model, {
     messages: [{ role: "system", content: system }, { role: "user", content: user }],
     max_tokens: ASSISTANT_MAX_OUTPUT_TOKENS,
-    temperature: 0.4,
+    temperature: discoveryRequest ? 0.85 : 0.4,
     chat_template_kwargs: { enable_thinking: false },
   });
 
