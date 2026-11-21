@@ -7,8 +7,15 @@ import {
   joinGuestFromEnvironment, submitGuestRequestFromEnvironment, searchGuestTracksFromEnvironment,
 } from "../platform/composition/guest-workflows";
 import { saveGuestPreferencesFromEnvironment } from "../platform/composition/guest-preference-workflows";
+import { MUSIC_DECADES, MUSIC_GENRES, MUSIC_MOODS } from "../modules/music/domain/genre-taxonomy";
 
 export const guestRoutes = new Hono<{ Bindings: Env }>();
+
+guestRoutes.get("/music/taxonomy", (c) => c.json({
+  genres: MUSIC_GENRES.map(({ id, label, subgenres }) => ({ id, label, subgenres: subgenres.map(({ id: subgenreId, label: subgenreLabel }) => ({ id: subgenreId, label: subgenreLabel })) })),
+  decades: MUSIC_DECADES,
+  moods: MUSIC_MOODS,
+}));
 
 guestRoutes.post("/guests/join", async (c) => {
   if (!c.env.EVENT_ACCESS_CODE_HASH || !c.env.SESSION_SECRET) {
