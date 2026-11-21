@@ -65,6 +65,7 @@ describe("DJ AI assistant", () => {
     await planButton.listeners.click();
     const payload = JSON.parse(api.mock.calls[0][1].body);
     expect(payload.prompt).toContain("Gebruik de meegeleverde LIVE PARTY CONTEXT actief:");
+    expect(payload.prompt.length).toBeLessThanOrEqual(600);
     expect(payload.prompt).toContain("PartyQueue");
     expect(payload.prompt).toContain("geaggregeerde publieksvoorkeuren");
     expect(payload.prompt).toContain("PartyQueue is niet hetzelfde als Spotify UP NEXT");
