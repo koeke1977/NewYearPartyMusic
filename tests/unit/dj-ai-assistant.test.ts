@@ -17,7 +17,9 @@ function element() {
 }
 
 function setup() {
-  const planButton = element();\n  planButton.dataset = { aiAction: "plan" };\n  const elements = {
+  const planButton = element();
+  planButton.dataset = { aiAction: "plan" };
+  const elements = {
     "#dj-ai-form": element(),
     "#dj-ai-prompt": element(),
     "#dj-ai-submit": element(),
@@ -26,7 +28,8 @@ function setup() {
   const documentRef = {
     querySelector: selector => elements[selector],
     querySelectorAll: () => [],
-    createElement: () => element(),\n    querySelectorAll: selector => selector === "[data-ai-action]" ? [planButton] : [],
+    createElement: () => element(),
+    querySelectorAll: selector => selector === "[data-ai-action]" ? [planButton] : [],
   };
   const api = vi.fn(async () => ({ answer: "De sfeer zit goed: bouw rustig op.", conversationSaved: true }));
   const refresh = vi.fn(async () => {});
