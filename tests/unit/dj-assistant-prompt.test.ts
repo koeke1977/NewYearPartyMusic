@@ -116,6 +116,11 @@ describe("DJ assistant prompt", () => {
     expect(system).toContain("Never assume the DJ accepted, selected or intends to use a previous suggestion or list");
     expect(system).toContain("Only the Worker may execute explicit, validated DJ actions through allow-listed application workflows");
     expect(system).toContain("let the DJ choose whether to reuse, change, ignore or replace previous ideas");
+    expect(system).toContain("end with one short, natural offer that you can verify and add the chosen tracks to PartyQueue");
+    expect(system).toContain("use ACTION PLANNER MODE and propose add_tracks for the referenced tracks from the recent conversation");
+    expect(system).toContain("does not add tracks to the DJ's personal Spotify playlist");
+    expect(system).toContain("does not start, pause, skip or control playback");
+    expect(system).not.toContain("the DJ must manually add");
   });
 
   it("does not inject manual Spotify instructions into ordinary music advice", () => {
