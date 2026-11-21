@@ -34,7 +34,8 @@ describe("DJ assistant prompt", () => {
     expect(system).toContain("bounded snapshot of the current PartyQueue");
     expect(system).toContain("aggregate event-level audience preferences");
     expect(system).toContain("eligible aggregate crowd feedback");
-    expect(system).toContain("MAY propose a clearly labelled suggested sequence");\n    expect(system).toContain("never present that proposal as an applied queue change");
+    expect(system).toContain("MAY propose a clearly labelled suggested sequence");
+    expect(system).toContain("never present that proposal as an applied queue change");
     expect(system).toContain("unverified suggestions");
     expect(user).toContain("LIVE PARTY CONTEXT");
     expect(user).toContain("Track A — Artist A");
@@ -55,7 +56,8 @@ describe("DJ assistant prompt", () => {
     ]);
     expect(user).toContain("RECENT DJ/AI CONVERSATION");
     expect(user).toContain("Music Sounds Better With You");
-    expect(user).toContain("DJ QUESTION:\nMaak die lijst commerciëler");
+    expect(user).toContain("DJ QUESTION:
+Maak die lijst commerciëler");
     expect(system).toContain("resolve references such as");
     expect(user).not.toContain("spotify_track_id");
     expect(user).not.toContain("album_image_url");
