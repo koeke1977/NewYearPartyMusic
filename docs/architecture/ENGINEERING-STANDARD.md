@@ -159,6 +159,19 @@ For each change:
 
 If tests or browser validation cannot be run, state that explicitly. Never report authored tests as passed tests.
 
+## 7A. Branch and pull-request discipline (binding)
+
+The active development limit for this repository is **two branches total**, including `main` and every temporary feature/fix branch. This is a hard limit, not a target.
+
+1. Before creating a branch, list and count all existing branches. If two or more exist, do not create another branch.
+2. Reuse an existing appropriate feature branch for follow-up fixes and commits. For the current AI assistant action work, continue on `feat/dj-ai-partyqueue-capability` and its existing PR #40; do not create a second corrective branch.
+3. Keep at most one active feature branch alongside `main`. Do not create parallel fix, test, or documentation branches.
+4. After a PR is merged, remove its feature branch through the repository's normal auto-delete policy. Do not delete unknown or potentially active branches just to force the count down; first inspect ownership and open PRs.
+5. If the repository already exceeds the limit (as observed on 2026-11-21: 11 branches total), stop branch creation, report the discrepancy, and consolidate/delete only after checking each branch's PR and unique work.
+6. Do not make another branch to fix a CI failure. Fix it on the existing PR branch, then rerun the same validation.
+
+A task is not complete merely because a PR was opened. Confirm the PR's actual CI results, review the changed files, and only then allow the repository's normal merge/release process.
+
 ## 8. Security, compatibility and operational safeguards
 
 - Never expose Spotify client secrets, refresh tokens, session secrets or other credentials to browser code.

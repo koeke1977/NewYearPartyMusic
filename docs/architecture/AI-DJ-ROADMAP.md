@@ -148,3 +148,11 @@ Implementation note: Spotify catalogue results stay inside the Worker. The model
 - Never make production D1 mutations, destructive resets, secret changes or deployments as part of development without explicit approval.
 - Preserve the existing engineering standard: semantic HTML, CSS-only presentation, native ES modules, modular monolith, tests and focused diffs.
 - Run targeted tests, full tests, typecheck, architecture checks and Worker dry-run where available. Report any validation not run.
+
+## Repository workflow constraint — hard branch limit
+
+- Maximum two branches in the repository, counting `main` (therefore only one active feature/fix branch at a time).
+- Always inspect the existing branch list before attempting branch creation.
+- When a PR needs a fix, commit directly to that PR's existing head branch. Never open a second branch/PR for the same logical change.
+- No new branch may be created while two branches already exist; the existing 11-branch state observed on 2026-11-21 must be consolidated deliberately before any future branch creation.
+- This limit and process are binding; see `ENGINEERING-STANDARD.md` section 7A.

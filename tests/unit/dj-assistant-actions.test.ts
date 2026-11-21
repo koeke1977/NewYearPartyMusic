@@ -28,10 +28,13 @@ function ports(overrides: Partial<DJAssistantActionPorts> = {}) {
 describe("DJ assistant action planning", () => {
   it("recognizes explicit add, remove and reorder commands but not ordinary advice", () => {
     expect(detectDJActionIntent("Voeg 20 schuurschijven toe aan PartyQueue")).toEqual({ add: true, remove: false, reorder: false });
+    expect(detectDJActionIntent("Voeg die lijst toe")).toEqual({ add: true, remove: false, reorder: false });
+    expect(detectDJActionIntent("Zet die lijst in PartyQueue")).toEqual({ add: true, remove: false, reorder: false });
     expect(detectDJActionIntent("Haal track X uit de wachtrij")).toEqual({ add: false, remove: true, reorder: false });
     expect(detectDJActionIntent("Herschik de PartyQueue")).toEqual({ add: false, remove: false, reorder: true });
     expect(detectDJActionIntent("Geef me een verrassend disco-setplan")).toEqual({ add: false, remove: false, reorder: false });
     expect(detectDJActionIntent("Vul de lijst met suggesties aan")).toEqual({ add: false, remove: false, reorder: false });
+    expect(detectDJActionIntent("Geef me een lijst met suggesties")).toEqual({ add: false, remove: false, reorder: false });
   });
 
   it("parses only bounded, known action envelopes", () => {
