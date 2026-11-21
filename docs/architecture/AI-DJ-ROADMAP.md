@@ -1,6 +1,6 @@
 # PartyQueue AI-DJ roadmap
 
-**Status:** Product direction approved; event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH and live PartyQueue context are merged. Phase 7 structured action planning and guarded execution are implemented on `feat/ai-dj-action-executor`; CI/review and deployment remain pending.
+**Status:** Product direction approved; event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH and live PartyQueue context are merged. Phase 7 structured action planning and guarded execution are deployed. Phase 8 Autopilot foundation is implemented on `feat/ai-dj-autopilot`; CI/review and deployment remain pending.
 **Repository:** koeke1977/NewYearPartyMusic
 **Scope:** Evolve the current assistant into an event-scoped, audience-aware AI-DJ with bounded PartyQueue execution while preserving the modular Cloudflare Worker architecture.
 
@@ -92,13 +92,17 @@ The model does not receive database credentials, raw D1 handles, Spotify access 
 
 Implementation note: Spotify catalogue results stay inside the Worker. The model proposes exact title/artist pairs; the Worker searches Spotify, requires an exact normalized title-and-artist match, then calls the existing verified add workflow. Mutating turns bypass the answer cache.
 
-### Phase 8 — Adaptive DJ direction
-- [ ] Combine audience profile, requests, feedback, current queue and recently played tracks.
-- [ ] Use a bounded decision cadence rather than reacting to every individual tap.
-- [ ] Support intentional genre/decade/energy pivots, diversity and surprise.
-- [ ] Prevent repeated tracks and excessive dominance by one genre/artist.
-- [ ] Show the DJ what changed and why; preserve DJ override.
-- Done when: the AI can adapt its next selection to meaningful audience changes without losing the overall party direction.
+### Phase 8 — Adaptive DJ direction and Autopilot
+- [x] Add an explicit DJ-only Autopilot ON/OFF switch, OFF by default.
+- [x] Run a scheduled check every five minutes only while enabled.
+- [x] Refill only when five or fewer tracks are queued; target eight, with at most three additions per tick.
+- [x] Reuse bounded audience/feedback/PartyQueue context, the free daily Neuron budget and existing Spotify exact-match insertion workflow.
+- [x] Add a stale-safe D1 lease, retry cooldown and persisted hard-stop checks before Spotify search and before insertion.
+- [x] Keep Autopilot add-only; it cannot remove/reorder tracks or control playback.
+- [ ] Add DJ-visible last-run/result telemetry and an explicit explanation when the AI budget is exhausted.
+- [ ] Tune diversity and artist repetition using event-level results without turning guest preferences into rigid quotas.
+- [ ] Rehearse STOP during AI inference, Spotify lookup and queue insertion; preserve the DJ override.
+- Done when: the AI can maintain a healthy queue and adapt its next selections to meaningful audience changes without losing the overall party direction.
 
 ### Phase 9 — General rehearsal and release
 - [ ] Run guest onboarding, preferences, requests, feedback, AI actions, queue dispatch and FLUSH end-to-end in a confirmed non-production environment.
