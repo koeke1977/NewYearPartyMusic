@@ -45,6 +45,7 @@ export async function getDjOverview(input: {
       requestsPaused: config.requests_paused === "true",
       autoApprove: config.auto_approve === "true",
       autoQueue: config.auto_queue === "true",
+      aiAutopilot: config.ai_autopilot === "true",
     },
   };
 }
@@ -99,7 +100,7 @@ export async function updateDjSetting(input: {
   key: string;
   enabled: unknown;
 }): Promise<QueueManagementOutcome<{ enabled: boolean }>> {
-  if (!["requests_paused", "auto_approve", "auto_queue"].includes(input.key)) {
+  if (!["requests_paused", "auto_approve", "auto_queue", "ai_autopilot"].includes(input.key)) {
     return { ok: false, error: { code: "unknown_setting", message: "Onbekende instelling." } };
   }
   if (typeof input.enabled !== "boolean") {

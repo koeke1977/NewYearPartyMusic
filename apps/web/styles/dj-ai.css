@@ -96,3 +96,11 @@
  .dj-ai-track-details span{font-size:12px}
  .dj-ai-add{min-height:40px;font-size:11px}
 }
+
+/* Explicit AI Autopilot start/stop control */
+.dj-ai-autopilot{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:12px 0 16px;padding:14px 16px;border:1px solid rgba(0,232,138,.24);border-radius:12px;background:rgba(0,0,0,.24)}
+.dj-ai-autopilot>div{display:grid;gap:5px;min-width:0}.dj-ai-autopilot strong{color:#e9fff0;font-size:14px;letter-spacing:.08em}.dj-ai-autopilot span{color:#aab7ad;font-size:13px;line-height:1.4}
+#ai-autopilot-toggle{min-height:48px;min-width:220px;padding:0 18px;border:1px solid rgba(255,255,255,.25);border-radius:9px;background:#202821;color:#f2fff5;font-size:13px;font-weight:950;letter-spacing:.04em;cursor:pointer}
+#ai-autopilot-toggle.is-active{border-color:#ff625e;background:#8d211f;color:#fff;box-shadow:0 0 0 2px rgba(255,98,94,.12)}
+#ai-autopilot-toggle:focus-visible{outline:3px solid #fff;outline-offset:3px}
+@media(max-width:650px){.dj-ai-autopilot{align-items:stretch;flex-direction:column}.dj-ai-autopilot span{font-size:14px}#ai-autopilot-toggle{width:100%;min-width:0;min-height:54px;font-size:15px}}

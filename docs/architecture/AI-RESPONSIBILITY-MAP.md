@@ -1,6 +1,6 @@
 # AI responsibility map
 
-**Snapshot:** AI-DJ action executor branch, based on `main` commit `c9b1f378ef58e24bbb41fe32705b7e4825bc39dd`; reviewed 2026-11-21.
+**Snapshot:** AI-DJ Autopilot implementation branch, based on current `main`; reviewed 2026-11-21.
 
 ## Current request flow
 
@@ -24,7 +24,7 @@ routes/dj-ai.ts
     → delete conversation turns older than seven days
 ```
 
-The existing catalogue search, verified track insertion, queued-request moderation and queue reorder workflows are reused by the action executor. The model does not receive raw Spotify results or credentials: it proposes title/artist pairs, and the Worker performs Spotify search and exact-match verification before calling the existing add workflow.
+The existing catalogue search, verified track insertion, queued-request moderation and queue reorder workflows are reused by the action executor. The model does not receive raw Spotify results or credentials: it proposes title/artist pairs, and the Worker performs Spotify search and exact-match verification before calling the existing add workflow. Autopilot is a separate scheduled use case, explicitly OFF by default. It runs every five minutes only when enabled, only when at most five tracks are queued, and adds at most three tracks per tick toward a target of eight. It uses the same free daily Neuron budget, a stale-safe D1 lease, a 15-minute retry cooldown after a zero-add attempt, a recent-track guard and repeated enabled-state checks for the DJ's hard stop. It cannot remove/reorder tracks or control playback.
 
 ## Current module ownership
 
@@ -40,6 +40,8 @@ The existing catalogue search, verified track insertion, queued-request moderati
 | Explicit DJ preference detection, parsing and bounded profile | `modules/ai/memory/dj-preferences.ts` |
 | Bounded Cloudflare AI turn and response normalization | `modules/ai/orchestration/assistant-orchestrator.ts` |
 | Structured DJ action plan parsing, explicit-intent guard and bounded execution | `modules/ai/application/execute-dj-assistant-actions.ts` |
+| Scheduled, opt-in queue refill policy and budget guard | `modules/ai/application/dj-autopilot.ts` |
+| D1 Autopilot enable state, stale-safe lease and failed-attempt cooldown | `modules/ai/infrastructure/dj-autopilot-d1-repository.ts` |
 | Cloudflare Workers AI invocation and provider response normalization | `integrations/ai/cloudflare-ai.ts` |
 | Authenticated local Claude Code bridge protocol | `integrations/ai/local-ai-bridge.ts` |
 | D1 preference snapshot reads | `modules/ai/infrastructure/assistant-context-repository.ts` |
@@ -80,7 +82,7 @@ The assistant can resolve follow-ups such as “maak die lijst commerciëler” 
 - The local bridge must remain authenticated and must not expose credentials to browser code.
 - Treat model output as untrusted advice. All Spotify actions remain behind the existing authenticated DJ application workflows.
 - Keep Cloudflare bindings and concrete D1/provider wiring in the composition root.
-- Keep the route thin and the assistant Spotify-independent.
+- Keep the route thin and the assistant free of raw Spotify credentials/catalogue payloads. Autopilot is a separate scheduled Worker workflow and remains opt-in.
 
 ## Focused next work
 

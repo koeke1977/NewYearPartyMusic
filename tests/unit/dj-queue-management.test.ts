@@ -60,12 +60,13 @@ describe("DJ queue management", () => {
         { key: "requests_paused", value: "true" },
         { key: "auto_approve", value: "false" },
         { key: "auto_queue", value: "true" },
+        { key: "ai_autopilot", value: "true" },
       ],
     });
     const result = await getDjOverview({ repository: createDjQueueRepository(db), eventId: "event-1" });
     expect((result.requests as Array<{ id: string }>).map(row => row.id)).toEqual(["p1", "a1", "q2", "q1", "done"]);
     expect(result.queueOrder).toEqual(["q2", "q1"]);
-    expect(result.settings).toEqual({ requestsPaused: true, autoApprove: false, autoQueue: true });
+    expect(result.settings).toEqual({ requestsPaused: true, autoApprove: false, autoQueue: true, aiAutopilot: true });
   });
 
   it("normalizes malformed saved order rather than failing the overview", async () => {
@@ -113,6 +114,7 @@ describe("DJ queue management", () => {
     expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "spotify_client_secret", enabled: true })).toMatchObject({ ok: false, error: { code: "unknown_setting" } });
     expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "auto_queue", enabled: "true" })).toMatchObject({ ok: false, error: { code: "invalid_setting_value" } });
     expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "auto_queue", enabled: false })).toEqual({ ok: true, value: { enabled: false } });
+    expect(await updateDjSetting({ repository: createDjQueueRepository(db), key: "ai_autopilot", enabled: true })).toEqual({ ok: true, value: { enabled: true } });
     const write = calls.find(call => call.sql.startsWith("INSERT INTO settings"));
     expect(write?.values).toEqual(["auto_queue", "false"]);
   });
