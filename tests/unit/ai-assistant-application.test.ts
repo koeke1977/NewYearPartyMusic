@@ -72,7 +72,7 @@ describe("executeDJAssistant", () => {
     ]);
     const complete = vi.fn(async (_system: string, user: string) => {
       expect(user).toContain("Music Sounds Better With You");
-      expect(user).toContain("DJ QUESTION:\\nMaak die lijst commerciëler");
+      expect(user).toContain("DJ QUESTION:\nMaak die lijst commerciëler");
       return "Vervang de minder bekende keuzes door herkenbare dancehits.";
     });
     const result = await executeDJAssistant({
