@@ -2,7 +2,7 @@
 
 **Status:** Product direction approved; event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH and live PartyQueue context are merged. Phase 7 structured action planning and guarded execution are implemented on `feat/ai-dj-action-executor`; CI/review and deployment remain pending.
 **Repository:** koeke1977/NewYearPartyMusic
-**Scope:** Evolve the current advice-only assistant into an event-scoped, audience-aware AI-DJ while preserving the modular Cloudflare Worker architecture.
+**Scope:** Evolve the current assistant into an event-scoped, audience-aware AI-DJ with bounded PartyQueue execution while preserving the modular Cloudflare Worker architecture.
 
 ## Product goal
 
