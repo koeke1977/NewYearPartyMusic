@@ -56,7 +56,9 @@ function parsePlannedAction(value: unknown): PlannedAction | null {
 export function detectDJActionIntent(prompt: string): { add: boolean; remove: boolean; reorder: boolean } {
   const text = prompt.toLocaleLowerCase("nl");
   const add = /\b(voeg|toevoegen|zet|plaats|stop|vul)\b/.test(text)
-    && /\b(queue|partyqueue|wachtrij|up next|tracks?|nummers?|liedjes|schuurschijven|playlist|lijst|muziek)\b/.test(text);
+    && (/\b(queue|partyqueue|wachtrij|up next)\b/.test(text)
+      || /\b(tracks?|nummers?|liedjes|songs|hits|schuurschijven)\b/.test(text)
+      || /\bzet\s+\d+\s+\w+/.test(text));
   const remove = /\b(verwijder|haal|schrap|remove)\b/.test(text)
     && /\b(queue|partyqueue|wachtrij|up next|tracks?|nummers?|liedjes|uit)\b/.test(text);
   const reorder = /\b(herschik|herorden|herordeneer|verplaats|volgorde aanpassen|volgorde wijzigen|reorder)\b/.test(text);
