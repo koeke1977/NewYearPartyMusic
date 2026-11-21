@@ -39,7 +39,9 @@ The existing catalogue search, verified track insertion, queued-request moderati
 | System/user prompt and creative DJ guidance | `modules/ai/prompts/dj-assistant.ts` |
 | Explicit DJ preference detection, parsing and bounded profile | `modules/ai/memory/dj-preferences.ts` |
 | Bounded Cloudflare AI turn and response normalization | `modules/ai/orchestration/assistant-orchestrator.ts` |
-| Structured DJ action plan parsing, explicit-intent guard and bounded execution | `modules/ai/application/execute-dj-assistant-actions.ts` |\n| Scheduled, opt-in queue refill policy and budget guard | `modules/ai/application/dj-autopilot.ts` |\n| D1 Autopilot enable state, stale-safe lease and failed-attempt cooldown | `modules/ai/infrastructure/dj-autopilot-d1-repository.ts` |
+| Structured DJ action plan parsing, explicit-intent guard and bounded execution | `modules/ai/application/execute-dj-assistant-actions.ts` |
+| Scheduled, opt-in queue refill policy and budget guard | `modules/ai/application/dj-autopilot.ts` |
+| D1 Autopilot enable state, stale-safe lease and failed-attempt cooldown | `modules/ai/infrastructure/dj-autopilot-d1-repository.ts` |
 | Cloudflare Workers AI invocation and provider response normalization | `integrations/ai/cloudflare-ai.ts` |
 | Authenticated local Claude Code bridge protocol | `integrations/ai/local-ai-bridge.ts` |
 | D1 preference snapshot reads | `modules/ai/infrastructure/assistant-context-repository.ts` |
