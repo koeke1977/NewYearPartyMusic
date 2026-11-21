@@ -12,6 +12,7 @@ const context: DJAssistantContext = {
   },
   djPreferences: ["stijlwissels zijn welkom", "disco en 90s"],
   partyQueue: {
+    activity: { totalRequests: 3, uniqueTracksRequested: 3, pending: 1, approved: 0, queued: 1, played: 1, rejected: 0, failed: 0, topArtists: [{ artist: "Artist A", requests: 2 }] },
     queued: [{ track: "Track A — Artist A", durationMs: 210000 }],
     recentlyPlayed: [{ track: "Track B — Artist B", playedAt: "2026-12-31T20:00:00Z" }],
     audience: { respondents: 12, genres: [{ label: "disco", guests: 8, share: 0.6667 }], subgenres: [],
@@ -32,6 +33,10 @@ describe("DJ assistant prompt", () => {
   it("states the strict Spotify and usage-metric boundary", () => {
     const { system, user } = buildDJAssistantPrompt(context, "Wat past hierna?");
     expect(system).toContain("bounded snapshot of the current PartyQueue");
+    expect(system).toContain("request lifecycle aggregates");
+    expect(system).toContain("downstream playback view, not an independent source");
+    expect(system).toContain("Request volume is interest, not proof of enjoyment");
+    expect(user).toContain("uniqueTracksRequested");
     expect(system).toContain("aggregate event-level audience preferences");
     expect(system).toContain("eligible aggregate crowd feedback");
     expect(system).toContain("MAY propose a clearly labelled suggested sequence");
