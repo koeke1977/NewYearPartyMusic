@@ -50,7 +50,8 @@ describe("AI conversation repository", () => {
     await saveAssistantConversationTurn(db, "event-1", "session-1", "Maak het verrassend", "Een disco-blok!");
     expect(batch).toHaveBeenCalledOnce();
     const statements = batch.mock.calls[0][0];
-    expect(statements).toHaveLength(2);
+    expect(statements).toHaveLength(3);
+    expect(batch.mock.calls[0][0][2]).toBeDefined();
   });
 
   it("deletes turns older than seven days", async () => {
