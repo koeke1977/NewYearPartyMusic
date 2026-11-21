@@ -17,7 +17,13 @@ export function createLocalAIBridgeClient(input: {
   if (endpoint.protocol !== "https:" && !(endpoint.protocol === "http:" && localHost)) {
     throw new Error("Local AI Bridge requires HTTPS unless it targets localhost.");
   }
+  if (endpoint.username || endpoint.password || endpoint.pathname !== "/" || endpoint.search || endpoint.hash) {
+    throw new Error("LOCAL_AI_BRIDGE_URL must be an origin only (scheme and hostname, optional port).");
+  }
   if (input.token.length < 32) throw new Error("Local AI Bridge token must contain at least 32 characters.");
+  if (Boolean(input.accessClientId) !== Boolean(input.accessClientSecret)) {
+    throw new Error("Configure both Cloudflare Access service-token values, or neither.");
+  }
 
   const fetcher = input.fetcher ?? fetch;
   return {
@@ -32,7 +38,12 @@ export function createLocalAIBridgeClient(input: {
         body: JSON.stringify({ system, user }),
         signal: AbortSignal.timeout(95000),
       });
-      const payload = await response.json() as { answer?: unknown; error?: unknown };
+      let payload: { answer?: unknown; error?: unknown };
+      try {
+        payload = await response.json() as { answer?: unknown; error?: unknown };
+      } catch {
+        throw new Error("Local AI Bridge returned an invalid response.");
+      }
       if (!response.ok) {
         const message = typeof payload.error === "string" ? payload.error : "Local AI Bridge returned HTTP " + response.status + ".";
         throw new Error(message);
