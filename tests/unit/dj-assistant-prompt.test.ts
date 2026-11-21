@@ -34,7 +34,7 @@ describe("DJ assistant prompt", () => {
     expect(system).toContain("bounded snapshot of the current PartyQueue");
     expect(system).toContain("aggregate event-level audience preferences");
     expect(system).toContain("eligible aggregate crowd feedback");
-    expect(system).toContain("Do not generate a numbered queue order");
+    expect(system).toContain("MAY propose a clearly labelled suggested sequence");\n    expect(system).toContain("never present that proposal as an applied queue change");
     expect(system).toContain("unverified suggestions");
     expect(user).toContain("LIVE PARTY CONTEXT");
     expect(user).toContain("Track A — Artist A");
