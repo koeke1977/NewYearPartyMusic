@@ -89,7 +89,7 @@ export function createDjAiAssistant({ api, refresh, documentRef = document, getS
     const action = button.dataset.aiAction;
     if (action === "plan") {
       await askDJAI(
-        "Maak een persoonlijk DJ-setplan voor dit Belgische Oud & Nieuw-feest. Gebruik de meegeleverde LIVE PARTY CONTEXT actief: vertrek vanuit PartyQueue en de volgorde, vermijd recent gespeelde tracks, verwerk publieksvoorkeuren en actuele eventfase/tijd. Benoem kort wat de data tonen en wat ontbreekt. Maak 4–6 opeenvolgende energieblokken met doel, vibe/genre, energie, concrete PartyQueue-trackankers en verrassende stijl-/decenniumwissels. Onderscheid bestaande queue-tracks van nieuwe, ongeverifieerde ideeën. Verzin geen data of Spotify-status. PartyQueue is niet Spotify UP NEXT.",
+        "Maak een persoonlijk DJ-setplan voor dit Belgische Oud & Nieuw-feest. Gebruik de meegeleverde LIVE PARTY CONTEXT actief: vertrek vanuit PartyQueue en volgorde, vermijd recent gespeelde tracks, verwerk geaggregeerde publieksvoorkeuren en eventfase/tijd. Benoem kort wat data tonen en ontbreekt. Maak 4–6 opeenvolgende energieblokken met doel, vibe/genre, energie, concrete PartyQueue-trackankers en verrassende stijl-/decenniumwissels. Onderscheid queue-tracks van nieuwe, ongeverifieerde ideeën. Verzin geen data of Spotify-status. PartyQueue is niet hetzelfde als Spotify UP NEXT.",
         "advice",
       );
     } else if (action === "starter") {
