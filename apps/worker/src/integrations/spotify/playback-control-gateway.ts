@@ -23,6 +23,22 @@ function mapDevice(value: unknown): SpotifyPlaybackDevice {
   };
 }
 
+/** Extracts only Spotify's bounded, user-safe error message; never exposes headers or tokens. */
+async function readSpotifyErrorDetail(response: Response): Promise<string | undefined> {
+  const raw = (await response.text()).slice(0, 1000);
+  if (!raw) return undefined;
+  try {
+    const payload = asRecord(JSON.parse(raw));
+    const error = asRecord(payload?.error);
+    const message = typeof error?.message === "string" ? error.message : undefined;
+    const reason = typeof error?.reason === "string" ? error.reason : undefined;
+    const detail = [message, reason && reason !== message ? "(" + reason + ")" : ""].filter(Boolean).join(" ");
+    return (detail || raw).slice(0, 300);
+  } catch {
+    return raw.slice(0, 300);
+  }
+}
+
 /** Converts Spotify playback-control HTTP responses into application-owned results. */
 export function createSpotifyPlaybackControlGateway(client: SpotifyPlaybackRequest): SpotifyPlaybackControlGateway {
   return {
@@ -35,15 +51,21 @@ export function createSpotifyPlaybackControlGateway(client: SpotifyPlaybackReque
     },
     async setVolume(volume: number) {
       const response = await setPlaybackVolume(client, volume);
-      return response.ok || response.status === 204
-        ? { ok: true as const }
-        : { ok: false as const, status: response.status };
+      if (response.ok || response.status === 204) return { ok: true as const };
+      return {
+        ok: false as const,
+        status: response.status,
+        detail: await readSpotifyErrorDetail(response),
+      };
     },
     async sendCommand(command: PlaybackCommand) {
       const response = await sendPlaybackCommand(client, command);
       if (response.ok || response.status === 204) return { ok: true as const };
-      const detail = (await response.text()).slice(0, 400);
-      return { ok: false as const, status: response.status, detail };
+      return {
+        ok: false as const,
+        status: response.status,
+        detail: await readSpotifyErrorDetail(response),
+      };
     },
   };
 }
