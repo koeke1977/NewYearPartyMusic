@@ -1,6 +1,6 @@
 # Frontend responsibility map
 
-**Snapshot:** `refactor/architecture-foundation`, reviewed 2026-11-20. This map describes the current native ES-module implementation, not the earlier monolithic baseline.
+**Snapshot:** `refactor/architecture-mainline`, based on current `main`; reviewed 2026-11-21. This map describes the current native ES-module implementation.
 
 ## Page composition roots
 
@@ -24,6 +24,7 @@
 |---|---|
 | `modules/dj-api.js` | Authenticated JSON API transport and normalized errors |
 | `modules/dj-session.js` | DJ token storage primitives |
+| `modules/dj-ai-session.js` | Stable browser UUID for the bounded DJ/AI conversation stored by the Worker |
 | `modules/dj-auth-controller.js` | Login/logout and authenticated-console visibility lifecycle |
 | `modules/dj-polling.js` | Overview and playback polling interval lifecycle |
 | `modules/dj-request-guard.js` | In-flight request and stale-response protection |
@@ -37,20 +38,21 @@
 | `modules/dj-overview-model.js` | Pure projection of API overview data into UI state |
 | `modules/dj-overview-view.js` | Dashboard stats, request cards, moderation action wiring and UP NEXT rendering |
 | `modules/dj-ai-intent.js` | Prompt intent resolution and recovery of numbered suggestions |
-| `modules/dj-ai-queue-parser.js` | Matching and validation of AI queue proposals against current queued tracks |
 | `modules/dj-ai-suggestions.js` | Bounded extraction of numbered track suggestions |
 | `modules/dj-ai-actions.js` | Sequential track-add workflow, duplicate handling, partial failure reporting and full queue-permutation validation |
 | `modules/dj-ai-assistant-view.js` | DOM-only AI answer, queue-confirmation and Spotify-suggestion rendering; invokes injected controller callbacks |
-| `modules/dj-ai-assistant.js` | AI prompt lifecycle, mode orchestration and API workflows; no DOM construction |
-| `modules/dj-chatgpt-handoff.js` | Current party/Spotify context prompt, clipboard transfer and regular ChatGPT tab handoff |
+| `modules/dj-ai-assistant.js` | AI prompt lifecycle, mode orchestration, conversation-session ID and separate Spotify lookup/add workflows; no DOM construction |
+| `modules/dj-chatgpt-handoff.js` | Spotify-independent second-opinion prompt containing only event timing and DJ-authored preferences, clipboard transfer and regular ChatGPT tab handoff |
 | `modules/dom.js` | Shared safe DOM element factory |
 
 ## Remaining frontend responsibility boundaries
 
 The main page entrypoints are composition roots. Remaining mixed concerns are inside two feature controllers:
 
-1. `dj-ai-assistant.js` now owns prompt submission, mode orchestration and API workflows. `dj-ai-assistant-view.js` owns suggestion/confirmation DOM rendering; `dj-ai-actions.js` owns sequential track additions and queue-permutation policy. The DJ must still explicitly confirm a complete queue reorder.
+1. `dj-ai-assistant.js` now owns prompt submission, mode orchestration and API workflows. `dj-ai-assistant-view.js` owns suggestion/confirmation DOM rendering; `dj-ai-actions.js` owns sequential track additions and queue-permutation policy. The assistant does not reorder the live queue. Track additions remain an explicit DJ selection from Spotify matches.
 2. `dj-spotify-console.js` combines API/status coordination, volume-write lifecycle and event binding. Rendering is already isolated in `dj-spotify-console-view.js`, and playback sequencing is coordinated by `dj-playback-coordinator.js`. Further extraction should only occur if tests show a real responsibility seam; avoid another layer of pass-through wrappers.
+
+The DJ AI conversation ID is browser-local; only DJ prompts and AI-generated answers are stored server-side for the same event/session, with a maximum of eight turns and seven-day retention. Spotify search results are never stored as AI context.
 
 The guest and DJ feature modules should not import each other's private implementation files. Shared DOM behaviour belongs in `modules/dom.js` only while it remains genuinely shared.
 
@@ -82,7 +84,7 @@ A green browser journey does not replace Worker/API contract tests or a future r
 
 - Preserve existing DOM IDs, localStorage keys, endpoint paths and payloads.
 - Browser code calls PartyQueue API routes; Spotify secrets/tokens remain server-side.
-- AI queue proposals must be matched against the latest queue and require explicit DJ confirmation.
+- AI receives no live queue and cannot propose or reorder its existing contents. The DJ explicitly selects Spotify search matches before adding tracks.
 - Track additions are sequential, duplicate-aware and report partial failures.
 - Stale polling responses must never overwrite newer state.
 - Outstanding searches are aborted and polling/task queues are invalidated when the DJ session ends.
