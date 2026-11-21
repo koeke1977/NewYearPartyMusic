@@ -42,24 +42,29 @@ Some application use cases still expose HTTP-shaped `{ status, body }` outcomes.
 
 ## AI architecture and privacy boundary
 
-The DJ assistant is deliberately Spotify-independent. It receives only:
+The DJ assistant uses bounded event-scoped context and supports two modes:
+- **Advice mode:** ordinary DJ questions return concise text and do not mutate PartyQueue.
+- **Action mode:** explicit add/remove/reorder commands request a structured JSON action plan. The Worker validates the plan and the original DJ intent, then calls allow-listed application use cases.
+
+The model receives only:
 - Event name and derived Belgian local event time.
 - Explicit DJ-authored preferences.
-- The DJ's current question.
-- On this PR branch only, up to eight recent DJ/AI conversation turns for the same browser session.
+- A bounded D1-backed PartyQueue snapshot, request lifecycle aggregates, up to eight recently played tracks and aggregate event-level audience/crowd-feedback signals.
+- Queue item IDs for remove/reorder proposals.
+- The DJ's current question and up to eight recent DJ/AI conversation turns for the same browser session.
 
-It receives no Spotify catalogue/search results, track or artist metadata, album art, playback state, live queue, guest requests, request counts or Spotify-derived metrics. No Spotify tool is exposed to the model. AI suggestions are unverified general-knowledge ideas; the DJ searches Spotify separately and explicitly selects any action. AI cannot add tracks, reorder the queue, moderate requests, change settings or control playback.
+The model does not receive database credentials, raw D1 handles, Spotify tokens or raw Spotify catalogue search results. For add actions, it proposes exact title/artist pairs; the Worker searches Spotify, requires an exact normalized title-and-artist match, then invokes the existing Spotify-verified PartyQueue insertion workflow. Remove actions are restricted to currently queued IDs. Reorder actions must include every current queued ID exactly once and pass the existing queue-management validation. The model cannot change settings or control playback.
 
-Existing preference memory stores only explicit DJ preference statements. This PR adds separate conversation memory: a browser-generated session UUID, successful DJ prompts and AI-generated answers, a maximum of eight stored turns per session and seven-day retention. Spotify results are never written to that store. The new D1 migration is locally validated but not yet applied to either remote database.
+Spotify catalogue results and selected Spotify track metadata are not stored in conversation memory. Conversation turns remain event/session scoped, limited to eight stored turns and seven-day retention. Mutating turns bypass the answer cache so a cached response can never repeat a queue mutation.
 
 Provider/cost rules remain:
 - Prefer the authenticated owner-operated local Claude Code bridge when configured.
 - Otherwise use Cloudflare Workers AI with its Neuron budget guard and safety buffer.
 - Do not add a paid API fallback.
-- Keep timeouts, cooldown, answer cache and bounded prompt/output.
-- Treat model output as untrusted advice; all Spotify actions remain in the existing authenticated DJ workflows.
+- Keep timeouts, cooldown, advice cache and bounded prompt/output.
+- Treat model output as untrusted; all mutations are schema-validated and executed by existing authenticated DJ application workflows.
 
-There is no separate structured proposal registry yet. Plain-text conversation history currently supplies follow-up context such as “maak die lijst commerciëler” or “vervang nummer vier”. Add stable proposal IDs only if real use shows that this is insufficient.
+The structured action planner does not provide unrestricted model tools, direct database access, catalogue metadata for model classification, or playback control.
 
 ## Reconciliation decisions
 
