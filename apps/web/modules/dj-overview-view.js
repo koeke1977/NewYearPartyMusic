@@ -12,7 +12,7 @@ export function createDjOverviewView({
   documentRef = document,
   elementFactory = el,
 }) {
-  let currentSettings = { requestsPaused: false, autoApprove: true, autoQueue: false };
+  let currentSettings = { requestsPaused: false, autoApprove: true, autoQueue: false, aiAutopilot: false };
   let latestDJOverview = null;
 
   function stat(label, value, icon) {
@@ -143,6 +143,12 @@ export function createDjOverviewView({
     currentSettings = data.settings || currentSettings;
     const autoQueueState = documentRef.querySelector("#auto-queue-state");
     if (autoQueueState) autoQueueState.textContent = currentSettings.autoQueue ? "ON" : "OFF";
+    const autopilotButton = documentRef.querySelector("#ai-autopilot-toggle");
+    if (autopilotButton) {
+      autopilotButton.textContent = currentSettings.aiAutopilot ? "AUTOPILOT AAN · STOP NU" : "AUTOPILOT UIT · START";
+      autopilotButton.classList.toggle("is-active", currentSettings.aiAutopilot);
+      autopilotButton.setAttribute("aria-pressed", String(currentSettings.aiAutopilot));
+    }
     const requestButton = documentRef.querySelector("#pause-toggle");
     const approvalButton = documentRef.querySelector("#approval-toggle");
     const queueButton = documentRef.querySelector("#auto-queue-toggle");
