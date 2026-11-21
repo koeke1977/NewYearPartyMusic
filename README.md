@@ -59,7 +59,7 @@ PartyQueue does not stream audio. Spotify playback is controlled through the Web
 - DJ login and event-scoped protected routes.
 - Spotify DJ OAuth, encrypted token storage and serialized token refresh.
 - DJ overview, queue ordering, request moderation and Spotify playback controls.
-- AI-assisted DJ advice and unverified track ideas; a five-role Party Brain prompt encourages bold genre, decade and energy pivots. When configured, the local Claude Code bridge is preferred; the Cloudflare Workers AI path remains neuron-budget guarded. No Spotify metadata or live queue is sent to AI, and no AI queue reordering is available. Spotify lookup happens separately and the DJ explicitly selects tracks.
+- AI-assisted DJ advice and unverified track ideas; a five-role Party Brain prompt encourages bold genre, decade and energy pivots. The DJ/AI conversation is persisted per browser session in D1 (last eight turns, seven-day retention), separately from Spotify results. When configured, the local Claude Code bridge is preferred; the Cloudflare Workers AI path remains neuron-budget guarded. No Spotify metadata or live queue is sent to AI, and no AI queue reordering is available. Spotify lookup happens separately and the DJ explicitly selects tracks.
 - Local AI bridge setup: `tools/local-ai-bridge/README.md`.
 
 See [the API inventory](docs/architecture/API-INVENTORY.md) for current routes, access rules and side effects.
