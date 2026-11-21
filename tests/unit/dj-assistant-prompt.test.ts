@@ -40,6 +40,9 @@ describe("DJ assistant prompt", () => {
     expect(system).toContain("Use the supplied eventMoment.phase as the event-phase source");
     expect(system).toContain("Do not add disclaimers that Spotify UP NEXT, the planned list or played history are unavailable");
     expect(system).not.toContain("This is not Spotify UP NEXT or live playback telemetry");
+    expect(system).toContain("The D1-backed PartyQueue supplied in this context is the source of truth");
+    expect(system).toContain("is only the downstream playback view of that same list, not an independent source or signal");
+    expect(system).toContain("D1 lifecycle status and timestamps describe application state, not independent Spotify player telemetry");
     expect(system).toContain("Request volume is interest, not proof of enjoyment");
     expect(user).toContain("uniqueTracksRequested");
     expect(system).toContain("aggregate event-level audience preferences");
