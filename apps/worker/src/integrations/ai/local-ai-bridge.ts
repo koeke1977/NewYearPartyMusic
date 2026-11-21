@@ -10,8 +10,10 @@ export function createLocalAIBridgeClient(input: {
   accessClientSecret?: string;
   fetcher?: typeof fetch;
 }): LocalAIBridgeClient | undefined {
-  if (!input.url && !input.token) return undefined;
-  if (!input.url || !input.token) throw new Error("Configure both LOCAL_AI_BRIDGE_URL and LOCAL_AI_BRIDGE_TOKEN, or neither.");
+  // The URL is the activation switch. A pre-provisioned token alone must not
+  // break production while the local host/tunnel is intentionally offline.
+  if (!input.url) return undefined;
+  if (!input.token) throw new Error("Configure LOCAL_AI_BRIDGE_TOKEN when LOCAL_AI_BRIDGE_URL is set.");
   const endpoint = new URL(input.url);
   const localHost = endpoint.hostname === "localhost" || endpoint.hostname === "127.0.0.1";
   if (endpoint.protocol !== "https:" && !(endpoint.protocol === "http:" && localHost)) {
