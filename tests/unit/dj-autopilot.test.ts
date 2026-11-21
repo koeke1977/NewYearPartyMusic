@@ -19,7 +19,8 @@ const snapshot: AssistantContextSnapshot = {
 
 function repository(overrides: Partial<DJAutopilotRepository> = {}) {
   return {
-    isEnabled: vi.fn(async () => true),\n    claimRateLimit: vi.fn(async () => true),
+    isEnabled: vi.fn(async () => true),
+    claimRateLimit: vi.fn(async () => true),
     acquireLock: vi.fn(async () => true),
     releaseLock: vi.fn(async () => {}),
     loadContext: vi.fn(async () => snapshot),
