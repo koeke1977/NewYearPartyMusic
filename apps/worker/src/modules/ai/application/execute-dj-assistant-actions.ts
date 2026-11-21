@@ -35,14 +35,14 @@ function normalizeTrackText(value: string): string {
 function parsePlannedAction(value: unknown): PlannedAction | null {
   const action = asRecord(value);
   if (!action || typeof action.type !== "string") return null;
-  if (action.type === "add_tracks" && Array.isArray(action.tracks) && action.tracks.length <= 20) {
+  if (action.type === "add_tracks" && Array.isArray(action.tracks) && action.tracks.length > 0 && action.tracks.length <= 20) {
     const tracks = action.tracks.map(asRecord);
     if (tracks.some(track => !track || typeof track.title !== "string" || typeof track.artist !== "string"
       || !track.title.trim() || !track.artist.trim() || track.title.length > 140 || track.artist.length > 100)) return null;
     return { type: "add_tracks", tracks: tracks as Array<{ title: string; artist: string }> };
   }
   if ((action.type === "remove_tracks" || action.type === "reorder_queue")
-    && Array.isArray(action.requestIds) && action.requestIds.length <= 100
+    && Array.isArray(action.requestIds) && action.requestIds.length > 0 && action.requestIds.length <= 100
     && action.requestIds.every(id => typeof id === "string" && id.length > 0 && id.length <= 80)
     && new Set(action.requestIds).size === action.requestIds.length) {
     return action.type === "remove_tracks"
