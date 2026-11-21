@@ -31,7 +31,9 @@ describe("DJ AI assistant view", () => {
     const { view, output } = setup();
     view.renderAdvice(output, "Bouw rustig op.");
     expect(output.children[0].textContent).toBe("Bouw rustig op.");
-    expect(output.children[1].textContent).toContain("PartyQueue-aanvragen");\n    expect(output.children[1].textContent).toContain("Spotify UP NEXT");\n    expect(output.children[1].textContent).toContain("ongeverifieerd");
+    expect(output.children[1].textContent).toContain("PartyQueue-aanvragen");
+    expect(output.children[1].textContent).toContain("Spotify UP NEXT");
+    expect(output.children[1].textContent).toContain("ongeverifieerd");
   });
 
   it("renders Spotify choices with links back to Spotify and passes only selected tracks", async () => {
