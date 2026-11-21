@@ -37,7 +37,7 @@ npm test
 npm run test:browser
 npm run test:local-ai-bridge
 ```
-For a disposable local D1 database only: `npm run db:local`.
+For a disposable local D1 database, `npm run db:local` loads the complete schema; `npm run db:migrate:local` validates the ordered migration chain from an empty local database.
 
 ## Deployment environments
 - `npm run deploy` targets the separate test Worker `partyqueue`.
