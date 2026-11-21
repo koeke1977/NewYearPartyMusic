@@ -12,11 +12,15 @@ routes/dj-ai.ts
       → modules/ai/application/execute-dj-assistant.ts
           → remember explicit DJ preference
           → load DJ-authored preference snapshot
+          → load up to eight recent turns for the browser session
           → derive Belgian event-time moment
           → build context and prompt
           → check answer cache / cooldown / free-tier budget
           → local Claude Code bridge (when configured)
             or Cloudflare Workers AI
+          → persist successful DJ prompt + AI answer pair
+  scheduled/handler.ts
+    → delete conversation turns older than seven days
 ```
 
 The separate `/api/dj/ai/music/search` and `/api/dj/ai/music/add` endpoints are normal authenticated DJ application actions. They are not tools exposed to the AI model and are not called by the assistant orchestration.
