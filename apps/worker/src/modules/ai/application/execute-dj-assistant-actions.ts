@@ -65,8 +65,9 @@ export function detectDJActionIntent(prompt: string): { add: boolean; remove: bo
       || /\b(tracks?|nummers?|liedjes|songs|hits|schuurschijven)\b/.test(text)
       || /\bzet\s+\d+\s+\w+/.test(text)
       || explicitListAdd);
-  const remove = /\b(verwijder|haal|schrap|remove)\b/.test(text)
-    && /\b(queue|partyqueue|wachtrij|up next|tracks?|nummers?|liedjes|uit)\b/.test(text);
+  const removeVerb = /\b(verwijder(?:en)?|haal|schrap(?:pen)?|remove)\b/.test(text);
+  const removeTarget = /\b(queue|partyqueue|wachtrij|up next|tracks?|nummers?|liedjes)\b/.test(text);
+  const remove = removeVerb && (removeTarget || /\b(eruit|uit de lijst|uit de queue)\b/.test(text));
   const reorder = /\b(herschik|herorden|herordeneer|verplaats|volgorde aanpassen|volgorde wijzigen|reorder)\b/.test(text);
   return { add, remove, reorder };
 }
@@ -163,18 +164,29 @@ export async function executeDJAssistantActions(input: {
       }
       const result: DJAssistantActionResult = { type: action.type, succeeded: 0, failed: 0, details: [] };
       for (const requestId of action.requestIds) {
-        const currentQueue = await input.ports.readQueueIds();
-        if (!currentQueue.includes(requestId)) {
-          result.failed++;
-          result.details.push(requestId + ": staat niet (meer) in PartyQueue");
-          continue;
-        }
-        const removed = await input.ports.removeQueuedTrack(requestId);
-        if (removed.status >= 200 && removed.status < 300 && removed.body.ok === true) {
+        try {
+          const currentQueue = await input.ports.readQueueIds();
+          if (!currentQueue.includes(requestId)) {
+            result.failed++;
+            result.details.push(requestId + ": staat niet (meer) in PartyQueue");
+            continue;
+          }
+          const removed = await input.ports.removeQueuedTrack(requestId);
+          if (removed.status < 200 || removed.status >= 300 || removed.body.ok !== true) {
+            result.failed++;
+            result.details.push(requestId + ": " + String(removed.body.error || "verwijderen mislukt"));
+            continue;
+          }
+          const queueAfterRemoval = await input.ports.readQueueIds();
+          if (queueAfterRemoval.includes(requestId)) {
+            result.failed++;
+            result.details.push(requestId + ": Worker bevestigde de actie, maar de track staat nog in PartyQueue");
+            continue;
+          }
           result.succeeded++;
-        } else {
+        } catch (error) {
           result.failed++;
-          result.details.push(requestId + ": " + String(removed.body.error || "verwijderen mislukt"));
+          result.details.push(requestId + ": " + (error instanceof Error ? error.message : "verwijderen mislukt"));
         }
       }
       results.push(result);
