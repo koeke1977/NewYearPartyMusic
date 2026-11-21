@@ -52,3 +52,18 @@
 .dj-ai-track-link:hover {
   color: #fff;
 }
+
+
+/* Event-scoped audience intelligence */
+.dj-audience-panel{margin:16px 0 20px;padding:18px;border:1px solid rgba(0,232,138,.2);border-radius:14px;background:rgba(9,18,13,.88)}
+.dj-audience-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.dj-audience-heading h2{margin:3px 0 0;font-size:17px}
+.dj-audience-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:15px}
+.dj-audience-column{min-width:0;padding:11px;border:1px solid rgba(255,255,255,.07);border-radius:9px;background:rgba(0,0,0,.16)}
+.dj-audience-column h3{margin:0 0 9px;color:#00e88a;font-size:8px;font-weight:900;letter-spacing:.08em}
+.dj-audience-choice{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-top:1px solid rgba(255,255,255,.055);font-size:10px}
+.dj-audience-choice span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#dce9df}
+.dj-audience-choice strong{flex:0 0 auto;color:#a7b7aa;font-size:9px}
+.dj-audience-energy{grid-column:1/-1;margin:0;color:#8e9b91;font-size:9px}
+@media(max-width:760px){.dj-audience-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){.dj-audience-summary{grid-template-columns:1fr}.dj-audience-heading{align-items:flex-start;flex-direction:column}}
