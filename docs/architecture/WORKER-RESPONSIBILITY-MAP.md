@@ -26,7 +26,8 @@ Routes own HTTP parsing, authentication, validation and response serialization. 
 | DJ and guest sessions | `modules/identity/*` | Session-token policy, event binding and DJ login policy |
 | Spotify OAuth policy | `modules/identity/spotify-oauth.ts` | Authorization URL, callback URI and scope policy |
 | Guest and DJ request lifecycle | `modules/requests/application/guest-request-lifecycle.ts` | Join, submit, add, moderate and queue-approved workflows |
-| DJ queue management | `modules/requests/application/dj-queue-management.ts` | Overview composition, queue ordering and setting validation |\n| AI-DJ action planning | `modules/ai/application/execute-dj-assistant-actions.ts` | Bounded JSON plan validation, explicit DJ-intent guard, Spotify exact-match add and queue remove/reorder orchestration |
+| DJ queue management | `modules/requests/application/dj-queue-management.ts` | Overview composition, queue ordering and setting validation |
+| AI-DJ action planning | `modules/ai/application/execute-dj-assistant-actions.ts` | Bounded JSON plan validation, explicit DJ-intent guard, Spotify exact-match add and queue remove/reorder orchestration |
 | Request retention | `modules/requests/application/cleanup-completed-requests.ts` | 30-day completed/terminal request retention policy |
 | Spotify catalogue search | `modules/music/application/search-spotify-tracks.ts` | Query validation and typed catalogue gateway use |
 | Shared catalogue track | `modules/music/domain/catalog-track.ts` | Provider-independent normalized track DTO |
@@ -34,7 +35,8 @@ Routes own HTTP parsing, authentication, validation and response serialization. 
 | Playback automation | `modules/playback/application/playback-automation.ts` | Queue advancement and fallback eligibility/retry policy |
 | Playback status | `modules/playback/application/get-dj-spotify-playback-status.ts` | Status orchestration while preserving polling side effects |
 | DJ playback controls | `modules/playback/application/dj-playback-controls.ts` | Device listing, volume validation and transport-command policy |
-| AI assistant | `modules/ai/application/execute-dj-assistant.ts` | Preference and conversation memory, prompt/context construction, cache, provider selection, budget, cooldown and stable result mapping |\n| AI Autopilot | `modules/ai/application/dj-autopilot.ts` | Opt-in scheduled refill policy, queue threshold, retry cooldown, free Neuron budget and hard-stop checks |
+| AI assistant | `modules/ai/application/execute-dj-assistant.ts` | Preference and conversation memory, prompt/context construction, cache, provider selection, budget, cooldown and stable result mapping |
+| AI Autopilot | `modules/ai/application/dj-autopilot.ts` | Opt-in scheduled refill policy, queue threshold, retry cooldown, free Neuron budget and hard-stop checks |
 
 ## Infrastructure and provider ownership
 
@@ -47,7 +49,8 @@ Routes own HTTP parsing, authentication, validation and response serialization. 
 - `modules/ai/infrastructure/assistant-context-repository.ts`: event-scoped DJ preference snapshot reads.
 - `modules/ai/infrastructure/assistant-settings-repository.ts`: explicit preference persistence, answer cache and atomic eight-second cooldown.
 - `modules/ai/infrastructure/assistant-conversation-repository.ts`: event/session-scoped DJ prompts and AI answers; seven-day retention.
-- `modules/ai/infrastructure/neuron-budget.ts`: D1-backed daily Workers AI usage tracking.\n- `modules/ai/infrastructure/dj-autopilot-d1-repository.ts`: D1 Autopilot switch, stale-safe lease and failed-attempt cooldown.
+- `modules/ai/infrastructure/neuron-budget.ts`: D1-backed daily Workers AI usage tracking.
+- `modules/ai/infrastructure/dj-autopilot-d1-repository.ts`: D1 Autopilot switch, stale-safe lease and failed-attempt cooldown.
 - `integrations/ai/cloudflare-ai.ts`: Cloudflare Workers AI invocation and response normalization.
 - `integrations/ai/local-ai-bridge.ts`: authenticated HTTPS bridge to the owner-operated Claude Code CLI.
 - `integrations/spotify/catalog-token.ts` and `catalog-api.ts`: public catalogue client-credentials flow and Spotify catalogue protocol.
