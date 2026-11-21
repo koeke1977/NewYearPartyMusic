@@ -84,7 +84,7 @@ A green browser journey does not replace Worker/API contract tests or a future r
 
 - Preserve existing DOM IDs, localStorage keys, endpoint paths and payloads.
 - Browser code calls PartyQueue API routes; Spotify secrets/tokens remain server-side.
-- AI receives no live queue and cannot propose or reorder its existing contents. The DJ explicitly selects Spotify search matches before adding tracks.
+- The AI receives a bounded PartyQueue snapshot and may request add/remove/reorder actions only through a structured plan. The Worker validates the DJ's explicit intent and current queue state, verifies Spotify matches server-side and returns confirmed outcomes; the browser never writes the queue directly. Ordinary AI suggestions remain unverified until the DJ explicitly asks to add them.
 - Track additions are sequential, duplicate-aware and report partial failures.
 - Stale polling responses must never overwrite newer state.
 - Outstanding searches are aborted and polling/task queues are invalidated when the DJ session ends.
