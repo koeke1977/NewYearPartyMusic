@@ -1,6 +1,11 @@
 import type { Env } from "../env";
 import { sha256 } from "../security/crypto";
 import { executeDJAssistant } from "../../modules/ai/application/execute-dj-assistant";
+import { executeDJAssistantActions } from "../../modules/ai/application/execute-dj-assistant-actions";
+import { createDjQueueRepository } from "../../modules/requests/infrastructure/dj-queue-d1-repository";
+import { searchSpotifyCatalog } from "../../integrations/spotify/catalog-api";
+import { addDjTrackFromEnvironment } from "./guest-workflows";
+import { moderatePartyRequestFromEnvironment, reorderDjQueueFromEnvironment } from "./dj-request-workflows";
 import type { AssistantRepository } from "../../modules/ai/application/assistant-ports";
 import { loadAssistantContextSnapshot } from "../../modules/ai/infrastructure/assistant-context-repository";
 import {
@@ -29,5 +34,21 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string, sess
     localAI: createLocalAIBridgeClient({ url: env.LOCAL_AI_BRIDGE_URL, token: env.LOCAL_AI_BRIDGE_TOKEN,
       accessClientId: env.LOCAL_AI_ACCESS_CLIENT_ID, accessClientSecret: env.LOCAL_AI_ACCESS_CLIENT_SECRET }),
     prompt, sessionId, repository, hash: sha256,
+    actionExecutor: {
+      execute: actions => executeDJAssistantActions({
+        prompt,
+        actions,
+        ports: {
+          searchTracks: async query => {
+            const result = await searchSpotifyCatalog(env, query, 3);
+            return result.kind === "available" ? result.tracks : [];
+          },
+          addTrack: trackId => addDjTrackFromEnvironment(env, trackId),
+          readQueueIds: () => createDjQueueRepository(env.DB).readQueuedRequestIds(env.EVENT_ID),
+          removeQueuedTrack: requestId => moderatePartyRequestFromEnvironment(env, requestId, "reject"),
+          reorderQueue: order => reorderDjQueueFromEnvironment(env, order),
+        },
+      }),
+    },
   });
 }
