@@ -92,6 +92,14 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
     );
   }
 
+  function appendConversationSaved(output) {
+    output.append(node("p", "dj-ai-results-hint", "✓ Gesprekscontext bewaard voor vervolgvragen (7 dagen)."));
+  }
+
+  function appendConversationWarning(output) {
+    output.append(node("p", "dj-ai-results-hint", "Gesprekscontext kon niet worden bewaard; vervolgvragen hebben mogelijk minder context."));
+  }
+
   function appendMemoryUpdated(output) {
     output.append(node("p", "dj-ai-results-hint", "✓ DJ-voorkeur opgeslagen in het geheugen van dit event."));
   }
@@ -101,6 +109,8 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
   }
 
   return {
+    appendConversationSaved,
+    appendConversationWarning,
     appendMemoryUpdated,
     renderAdvice,
     renderError,
