@@ -46,7 +46,7 @@ The separate `/api/dj/ai/music/search` and `/api/dj/ai/music/add` endpoints are 
 The AI context contains only:
 - Event name and derived Belgian local event time.
 - Explicit DJ-authored preferences persisted in the event profile.
-- The current DJ-authored question.
+- The current DJ-authored question and up to eight prior DJ/AI conversation turns from the same browser session.
 
 The AI receives **no** Spotify catalogue results, track or artist metadata, album art, playback state, live queue, guest requests, request counts, saved queue order, accepted-set history or Spotify-derived usage metrics. No Spotify search tool is registered with the model. The assistant response returns an empty `spotifyMatches` array for compatibility; it is not a Spotify search result.
 
