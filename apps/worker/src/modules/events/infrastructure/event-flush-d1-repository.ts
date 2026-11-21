@@ -13,8 +13,10 @@ export function createEventFlushRepository(db: EventFlushDatabase): EventFlushRe
       await db.batch([
         db.prepare("DELETE FROM guests WHERE event_id = ?").bind(eventId),
         db.prepare("DELETE FROM dj_ai_turns WHERE event_id = ?").bind(eventId),
-        db.prepare("DELETE FROM settings WHERE key = 'partyqueue_order'").bind(),
+        db.prepare("DELETE FROM settings WHERE key = 'partyqueue_order'"),
         db.prepare("DELETE FROM settings WHERE key = ?").bind("dj_ai_history_" + eventId),
+        db.prepare("DELETE FROM settings WHERE key = 'dj_ai_answer_cache'"),
+        db.prepare("DELETE FROM settings WHERE key = 'spotify_last_partyqueue_track'"),
       ]);
     },
   };
