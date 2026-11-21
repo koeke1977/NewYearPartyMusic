@@ -54,7 +54,7 @@ describe("DJ AI assistant", () => {
       timeoutMs: 110000,
     });
     expect(elements["#dj-ai-answer"].children[0].textContent).toBe("De sfeer zit goed: bouw rustig op.");
-    expect(elements["#dj-ai-answer"].children[1].textContent).toContain("geen Spotify-trackdata of live wachtrij");
+    expect(elements["#dj-ai-answer"].children[1].textContent).toContain("Spotify UP NEXT, live playbackstatus en Spotify-catalogusverificatie zijn niet beschikbaar");
     expect(elements["#dj-ai-answer"].children[2].textContent).toContain("Gesprekscontext bewaard");
     expect(elements["#dj-ai-prompt"].value).toBe("");
     expect(elements["#dj-ai-submit"].disabled).toBe(false);
@@ -64,7 +64,7 @@ describe("DJ AI assistant", () => {
     const { api, planButton } = setup();
     await planButton.listeners.click();
     const payload = JSON.parse(api.mock.calls[0][1].body);
-    expect(payload.prompt).toContain("gebruik de meegeleverde LIVE PARTY CONTEXT actief");
+    expect(payload.prompt).toContain("Gebruik de meegeleverde LIVE PARTY CONTEXT actief:");
     expect(payload.prompt).toContain("PartyQueue");
     expect(payload.prompt).toContain("geaggregeerde publieksvoorkeuren");
     expect(payload.prompt).toContain("PartyQueue is niet hetzelfde als Spotify UP NEXT");
