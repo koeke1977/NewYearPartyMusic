@@ -154,6 +154,7 @@ async function testDjJourney(browser) {
       return { body: { token: "dj-browser-test-token" } };
     }
     if (call.path === "/api/dj/overview") return { body: overview };
+    if (call.path === "/api/dj/crowd-feedback") return { body: { eventId: "NYE2026", eligible: false, respondents: 2, minimumRespondents: 5, windowMinutes: 30, atmosphere: null, averageEnergy: null, trend: "insufficient" } };
     if (call.path === "/api/dj/audience") return { body: {
       eventId: "NYE2026", respondents: 3,
       genres: [{ id: "electronic-dance", label: "Electronic & Dance", guests: 2, share: 0.667, balancedWeight: 0.35 }],
