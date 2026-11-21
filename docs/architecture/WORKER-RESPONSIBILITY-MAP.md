@@ -11,7 +11,7 @@
 | `routes/guest.ts` | Guest join, Spotify catalogue search and guest request submission |
 | `routes/dj-auth.ts` | Shared event-scoped DJ session middleware |
 | `routes/dj-identity.ts` | DJ login, Spotify connect initiation and OAuth callback |
-| `routes/dj-ai.ts` | DJ AI assistant and separate DJ-initiated Spotify search/add endpoints |
+| `routes/dj-ai.ts` | DJ-authenticated AI advice/action endpoint plus DJ-initiated Spotify search/add endpoints |
 | `routes/dj-requests.ts` | DJ overview, queue reorder, moderation and settings |
 | `routes/dj-playback.ts` | Spotify status, devices, NEXT, volume, transport commands and approved-request queueing |
 | `scheduled/handler.ts` | Scheduled-event adapter; delegates completed-request cleanup, expired auth-attempt cleanup and AI conversation retention |
@@ -26,7 +26,7 @@ Routes own HTTP parsing, authentication, validation and response serialization. 
 | DJ and guest sessions | `modules/identity/*` | Session-token policy, event binding and DJ login policy |
 | Spotify OAuth policy | `modules/identity/spotify-oauth.ts` | Authorization URL, callback URI and scope policy |
 | Guest and DJ request lifecycle | `modules/requests/application/guest-request-lifecycle.ts` | Join, submit, add, moderate and queue-approved workflows |
-| DJ queue management | `modules/requests/application/dj-queue-management.ts` | Overview composition, queue ordering and setting validation |
+| DJ queue management | `modules/requests/application/dj-queue-management.ts` | Overview composition, queue ordering and setting validation |\n| AI-DJ action planning | `modules/ai/application/execute-dj-assistant-actions.ts` | Bounded JSON plan validation, explicit DJ-intent guard, Spotify exact-match add and queue remove/reorder orchestration |
 | Request retention | `modules/requests/application/cleanup-completed-requests.ts` | 30-day completed/terminal request retention policy |
 | Spotify catalogue search | `modules/music/application/search-spotify-tracks.ts` | Query validation and typed catalogue gateway use |
 | Shared catalogue track | `modules/music/domain/catalog-track.ts` | Provider-independent normalized track DTO |

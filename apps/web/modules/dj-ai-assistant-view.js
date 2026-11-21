@@ -14,7 +14,7 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
   function renderAdvice(output, answer, cached = false) {
     output.replaceChildren(
       node("p", "", (cached ? "↻ Eerder advies (PartyQueue-context kan intussen gewijzigd zijn)\n\n" : "") + answer),
-      node("p", "dj-ai-results-hint", "De AI kan de PartyQueue-aanvragen, recente plays en geaggregeerde publieksvoorkeuren als context gebruiken. Spotify UP NEXT, live playbackstatus en Spotify-catalogusverificatie zijn niet beschikbaar voor de AI; nieuwe trackideeën zijn ongeverifieerd."),
+      node("p", "dj-ai-results-hint", "De AI gebruikt de actuele PartyQueue-aanvragen, geplande wachtrij, recente plays en geaggregeerde publieksfeedback. Spotify UP NEXT toont dezelfde PartyQueue; live playbackstatus wordt niet uit wachtrijdata afgeleid. Bij een expliciete opdracht kan ze tracks via Spotify verifiëren en de PartyQueue toevoegen, verwijderen of herschikken. Gewone muzieksuggesties zijn nog ongeverifieerde voorstellen; playback bedienen doet de AI niet."),
     );
   }
 

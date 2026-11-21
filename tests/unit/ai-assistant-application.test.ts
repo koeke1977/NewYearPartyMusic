@@ -88,6 +88,29 @@ describe("executeDJAssistant", () => {
     );
   });
 
+  it("executes an explicit queue command and never caches a mutating AI turn", async () => {
+    const repository = createRepository();
+    const actionExecutor = { execute: vi.fn(async () => [{
+      type: "add_tracks" as const, succeeded: 1, alreadyPresent: 0, failed: 0,
+      details: ["Music Sounds Better With You — Stardust: toegevoegd"],
+    }]) };
+    const complete = vi.fn(async () => JSON.stringify({
+      answer: "Ik voeg de gevraagde track toe.",
+      actions: [{ type: "add_tracks", tracks: [{ title: "Music Sounds Better With You", artist: "Stardust" }] }],
+    }));
+    const result = await executeDJAssistant({
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1",
+      prompt: "Voeg Music Sounds Better With You van Stardust toe aan PartyQueue",
+      repository, hash: async value => value, localAI: { complete }, actionExecutor,
+    });
+    expect(result.status).toBe(200);
+    expect(actionExecutor.execute).toHaveBeenCalledOnce();
+    expect(result.body.answer).toContain("1 toegevoegd");
+    expect(repository.readAnswerCache).not.toHaveBeenCalled();
+    expect(repository.writeAnswerCache).not.toHaveBeenCalled();
+    expect(repository.saveConversation).toHaveBeenCalledOnce();
+  });
+
   it("returns a controlled error when the local AI bridge never responds", async () => {
     vi.useFakeTimers();
     const repository = createRepository();

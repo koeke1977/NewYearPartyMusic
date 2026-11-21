@@ -1,8 +1,8 @@
 # PartyQueue AI-DJ roadmap
 
-**Status:** Product direction approved; taxonomy, event-scoped guest preferences and the first Audience Intelligence slice are implemented on the feature branch. Remaining AI-context, feedback, reset and autonomous execution work is still pending.
+**Status:** Product direction approved; event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH and live PartyQueue context are merged. Phase 7 structured action planning and guarded execution are implemented on `feat/ai-dj-action-executor`; CI/review and deployment remain pending.
 **Repository:** koeke1977/NewYearPartyMusic
-**Scope:** Evolve the current advice-only assistant into an event-scoped, audience-aware AI-DJ while preserving the modular Cloudflare Worker architecture.
+**Scope:** Evolve the current assistant into an event-scoped, audience-aware AI-DJ with bounded PartyQueue execution while preserving the modular Cloudflare Worker architecture.
 
 ## Product goal
 
@@ -81,14 +81,16 @@ The model does not receive database credentials, raw D1 handles, Spotify access 
 - Done when: a tested reset leaves the app configured and general DJ knowledge intact while all temporary event data is gone.
 
 ### Phase 7 — AI-DJ action planner and executor
-- [ ] Replace the current text-only model flow with structured, schema-validated decisions.
-- [ ] Give the model bounded read context: event profile, aggregate audience profile, PartyQueue queue/order and recent played tracks.
-- [ ] Provide allow-listed application actions such as search catalogue, add validated track, remove eligible queue item and reorder PartyQueue.
-- [ ] Execute actions through existing application use cases, never direct model-to-D1 writes.
-- [ ] Preserve DJ authorization, duplicate checks, queue invariants, Spotify rate limits and the existing dispatch lock.
-- [ ] Support exact-count commands such as "zet 20 schuurschijven" and report actual added/already-present/failed counts.
-- [ ] Keep playback control separate from queue planning unless explicitly authorized as a distinct workflow.
-- Done when: the AI can execute a bounded DJ request end-to-end and verifies the resulting PartyQueue state.
+- [x] Replace the current text-only mutation path with structured, schema-validated JSON decisions; ordinary advice remains text-only.
+- [x] Give the model bounded read context: event profile, aggregate audience profile, PartyQueue IDs/order and recent played tracks.
+- [x] Provide allow-listed application actions: Spotify catalogue search + exact-match add, remove an eligible queued item and reorder PartyQueue.
+- [x] Execute actions through existing application use cases, never direct model-to-D1 writes.
+- [x] Preserve DJ-session authorization, duplicate checks, queue invariants, Spotify rate limits and the existing dispatch workflow.
+- [x] Bound add requests to 20 exact title/artist pairs and report actual added/already-present/failed counts.
+- [x] Keep playback control separate from queue planning; this executor does not start, pause or skip playback.
+- Done when: an explicit DJ command is converted to a validated plan, executed through application workflows and reported from actual results.
+
+Implementation note: Spotify catalogue results stay inside the Worker. The model proposes exact title/artist pairs; the Worker searches Spotify, requires an exact normalized title-and-artist match, then calls the existing verified add workflow. Mutating turns bypass the answer cache.
 
 ### Phase 8 — Adaptive DJ direction
 - [ ] Combine audience profile, requests, feedback, current queue and recently played tracks.
@@ -128,9 +130,13 @@ The model does not receive database credentials, raw D1 handles, Spotify access 
 - DJ track insertion already verifies a track against Spotify and inserts it into PartyQueue as queued.
 - PartyQueue order is stored separately in the D1 settings table under partyqueue_order.
 - Existing queue dispatch reads PartyQueue queued requests/order and starts the selected track through the Spotify playback workflow.
-- Current AI assistant is text-only and uses bounded D1-backed PartyQueue and aggregate audience context. It does not use Spotify UP NEXT as an independent source, and it must not use Spotify catalogue content for AI classification or training. It stores bounded DJ/AI conversation turns for seven days and a small set of explicit DJ preferences.
-- Current AI track flow is browser-orchestrated: AI produces text suggestions, the browser separately searches Spotify, and the DJ explicitly selects tracks to add.
-- Migration `0005_guest_music_preferences.sql` adds temporary event-scoped guest genre/subgenre, decade, mood and energy preferences. The Audience Intelligence workflow reads these records and calculates aggregate counts and capped genre weights at request time; no derived personal profile is persisted.\n- The DJ-only `GET /api/dj/audience` endpoint exposes the aggregate event profile. The DJ console refreshes and displays it alongside the queue overview.\n- Crowd feedback, test/live event separation, FLUSH and AI-context integration are not implemented yet.
+- The assistant uses bounded D1-backed PartyQueue and aggregate audience context. Spotify UP NEXT is not counted as an independent source, and Spotify catalogue content is not used for classification or training. DJ/AI conversation turns remain event/session scoped and expire after seven days.
+- For ordinary advice, the model returns text. For explicit add/remove/reorder commands, it returns a bounded JSON action plan; the Worker validates intent and payloads before executing any action.
+- Spotify catalogue search and exact title/artist matching run inside the Worker. Catalogue results and Spotify credentials are not sent to the model. Adding uses the existing Spotify-verified PartyQueue insertion workflow.
+- Remove actions are restricted to IDs still present in the live queued set. Reorder actions must contain the complete current queue exactly once and are revalidated by the existing queue-management use case.
+- Mutating assistant turns bypass answer caching. Actual application outcomes, including duplicates and failures, are reported and persisted as the assistant turn.
+- Migration `0005_guest_music_preferences.sql` adds temporary event-scoped guest genre/subgenre, decade, mood and energy preferences. Audience Intelligence calculates aggregate counts and capped genre weights at request time; no derived personal profile is persisted.
+- The DJ-only audience and crowd-feedback endpoints expose aggregate event signals. The guarded FLUSH workflow clears temporary event data while preserving application-wide configuration. A separate test/live event mode is intentionally not part of the agreed operating model; run one explicit FLUSH before the real event.
 
 ## Delivery protocol
 

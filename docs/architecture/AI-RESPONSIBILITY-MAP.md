@@ -1,10 +1,10 @@
 # AI responsibility map
 
-**Snapshot:** Audience Intelligence feature branch, based on `main` commit `c5b8f5c641c76d1925e317b8ba26a3eba0ab0a8a`; reviewed 2026-11-21.
+**Snapshot:** AI-DJ action executor branch, based on `main` commit `c9b1f378ef58e24bbb41fe32705b7e4825bc39dd`; reviewed 2026-11-21.
 
 ## Current request flow
 
-`POST /api/dj/ai/assistant` is a Spotify-independent advice endpoint. The route authenticates the DJ session, validates the prompt (1–600 characters), calls the environment composition adapter and serializes the application result.
+ `POST /api/dj/ai/assistant` authenticates the DJ session and validates the prompt (1–600 characters). Ordinary advice remains text-only. Explicit add/remove/reorder commands activate structured action planning; the Worker validates the JSON plan and executes only allow-listed PartyQueue workflows.
 
 ```text
 routes/dj-ai.ts
@@ -14,16 +14,17 @@ routes/dj-ai.ts
           → load DJ-authored preference snapshot
           → load up to eight recent turns for the browser session
           → derive Belgian event-time moment
-          → build context and prompt
-          → check answer cache / cooldown / free-tier budget
-          → local Claude Code bridge (when configured)
-            or Cloudflare Workers AI
-          → persist successful DJ prompt + AI answer pair
+          → build bounded event, audience and PartyQueue context
+          → build advice prompt or explicit action-plan contract
+          → check answer cache (advice only) / cooldown / free-tier budget
+          → local Claude Code bridge (when configured) or Cloudflare Workers AI
+          → for action plans: validate intent + schema, then execute approved application use cases
+          → report confirmed outcomes and persist the DJ prompt + final AI response
   scheduled/handler.ts
     → delete conversation turns older than seven days
 ```
 
-The separate `/api/dj/ai/music/search` and `/api/dj/ai/music/add` endpoints are normal authenticated DJ application actions. They are not tools exposed to the AI model and are not called by the assistant orchestration.
+The existing catalogue search, verified track insertion, queued-request moderation and queue reorder workflows are reused by the action executor. The model does not receive raw Spotify results or credentials: it proposes title/artist pairs, and the Worker performs Spotify search and exact-match verification before calling the existing add workflow.
 
 ## Current module ownership
 
@@ -38,6 +39,7 @@ The separate `/api/dj/ai/music/search` and `/api/dj/ai/music/add` endpoints are 
 | System/user prompt and creative DJ guidance | `modules/ai/prompts/dj-assistant.ts` |
 | Explicit DJ preference detection, parsing and bounded profile | `modules/ai/memory/dj-preferences.ts` |
 | Bounded Cloudflare AI turn and response normalization | `modules/ai/orchestration/assistant-orchestrator.ts` |
+| Structured DJ action plan parsing, explicit-intent guard and bounded execution | `modules/ai/application/execute-dj-assistant-actions.ts` |
 | Cloudflare Workers AI invocation and provider response normalization | `integrations/ai/cloudflare-ai.ts` |
 | Authenticated local Claude Code bridge protocol | `integrations/ai/local-ai-bridge.ts` |
 | D1 preference snapshot reads | `modules/ai/infrastructure/assistant-context-repository.ts` |
@@ -54,9 +56,9 @@ The AI context contains:
 - Event-scoped aggregate guest preferences and eligible aggregate crowd feedback; no guest IDs or nicknames.
 - The current DJ-authored question and up to eight prior DJ/AI conversation turns from the same browser session.
 
-The D1 PartyQueue is the source of truth for this event's requested, planned (queued) and completed (played) tracks and saved order. Spotify UP NEXT is populated only from PartyQueue and is the downstream playback view of that same list, not an independent input or second signal. Never count it separately. Request counts represent demand, queued status represents the plan, played status represents completion, and crowd feedback is the separate response signal. The AI must not infer enjoyment from a request or played status. When event phase is supplied in `eventMoment.phase`, the prompt must use that value as the phase source and must not infer rehearsal, warm-up or another phase from clock time alone. The assistant must not claim that UP NEXT, planned tracks or played history are unavailable when their corresponding PartyQueue data is present in context. D1 status/timestamps are not independent Spotify player telemetry; do not claim live player state or catalogue verification unless explicitly supplied. No Spotify search tool is registered with the model. The assistant response returns an empty `spotifyMatches` array for compatibility; it is not a Spotify search result.
+The D1 PartyQueue is the source of truth for this event's requested, planned (queued) and completed (played) tracks and saved order. Spotify UP NEXT is populated only from PartyQueue and is the downstream playback view of that same list, not an independent input or second signal. Never count it separately. Request counts represent demand, queued status represents the plan, played status represents completion, and crowd feedback is the separate response signal. The AI must not infer enjoyment from a request or played status. When event phase is supplied in `eventMoment.phase`, the prompt must use that value as the phase source and must not infer rehearsal, warm-up or another phase from clock time alone. The assistant must not claim that UP NEXT, planned tracks or played history are unavailable when their corresponding PartyQueue data is present in context. D1 status/timestamps are not independent Spotify player telemetry; do not claim live player state or catalogue verification unless explicitly supplied. The model receives the queue item IDs needed for safe remove/reorder proposals. No Spotify search tool or raw catalogue response is exposed to the model; the Worker searches Spotify and enforces exact normalized title-and-artist matching before an add. The assistant response retains an empty `spotifyMatches` array for browser compatibility; it is not a Spotify search result.
 
-Track ideas are unverified suggestions based on general model knowledge. The DJ must search for them separately using the normal Spotify catalogue endpoint and explicitly choose any action. The model cannot add tracks, reorder or moderate requests, alter settings, or control playback.
+Track ideas in advice mode remain unverified suggestions. For explicit mutation commands only, the model returns a JSON action plan. The Worker requires matching user intent, validates bounded action shapes, verifies Spotify matches server-side, restricts removal to currently queued IDs and requires a complete queue for reordering. It executes through existing application use cases; it cannot alter settings or control playback.
 
 The prompt deliberately permits sharp genre, decade and energy changes. Smooth transitions are optional; creative contrast and varied blocks are valid DJ techniques.
 
@@ -66,9 +68,9 @@ The assistant now has two distinct forms of memory:
 - **Preference memory:** only explicit preference statements (for example, “onthoud”, “vanaf nu” or “ik hou van”) are stored; the event profile retains at most 20 statements. Ordinary prompts do not become preferences.
 - **Conversation memory:** a browser-generated UUID scopes the DJ/AI conversation. The Worker stores successful DJ prompts and AI-generated answers in D1, loads at most the last eight turns for the next prompt, and deletes turns older than seven days during scheduled cleanup. The endpoint remains compatible with older clients that omit a session ID; those requests receive a new server-generated session.
 
-Conversation memory is deliberately limited to DJ-authored prompts and AI-generated answers. Spotify catalogue results, selected Spotify tracks, playback state and live queue data are not stored in the conversation table or sent back to the model. A ten-minute answer cache and an atomic eight-second request cooldown remain separate operational mechanisms.
+Conversation memory is deliberately limited to DJ-authored prompts and AI-generated answers. Spotify catalogue results and selected Spotify track metadata are not stored in the conversation table; the current PartyQueue snapshot is loaded separately into each bounded context. Mutating turns bypass the ten-minute answer cache. The atomic eight-second request cooldown remains in place.
 
-The assistant can now resolve follow-ups such as “maak die lijst commerciëler” or “vervang nummer vier” within the retained session. It does not have a separate proposal registry or durable structured track IDs; generated suggestions remain ordinary AI text until the DJ searches Spotify separately.
+The assistant can resolve follow-ups such as “maak die lijst commerciëler” or “vervang nummer vier” within the retained session. General suggestions remain ordinary AI text and have no separate proposal registry. Explicit action plans use only the live PartyQueue request IDs supplied in the current bounded context; catalogue search results are not added to conversation memory.
 
 ## Cost and security invariants
 
@@ -82,10 +84,10 @@ The assistant can now resolve follow-ups such as “maak die lijst commerciëler
 
 ## Focused next work
 
-1. Consider a structured proposal registry only if plain-text conversation history proves insufficient for reliable list/item references.
-2. Keep any future action planner separate from the model; it must validate the DJ's explicit intent and call existing authenticated Spotify workflows.
-3. Extend tests for retention, event/session isolation and prompt/data-boundary invariants as the feature evolves.
-4. Preserve existing provider, budget, cooldown, cache and local-bridge behaviour.
+1. Complete CI and browser validation for the structured action planner and executor.
+2. Extend rehearsal coverage for multi-track exact-count requests, Spotify rate limits, ambiguous catalogue matches, queue changes during execution and partial failures.
+3. Build the next adaptive DJ-direction phase with a bounded decision cadence and clear DJ override.
+4. Preserve existing provider, budget, cooldown, advice-cache and local-bridge behaviour.
 
 ## Related implementation
 

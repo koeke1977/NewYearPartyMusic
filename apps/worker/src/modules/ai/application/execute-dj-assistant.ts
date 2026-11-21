@@ -1,13 +1,18 @@
 import type { CloudflareAIClient, AssistantRepository, LocalAIAssistantClient } from "./assistant-ports";
+import type { DJAssistantActionResult } from "./execute-dj-assistant-actions";
 
 import { runDJAssistantTurn } from "../orchestration/assistant-orchestrator";
 import { buildEventMoment } from "../context/event-moment";
 import { buildDJAssistantContext } from "../context/assistant-context";
 import { buildDJAssistantPrompt } from "../prompts/dj-assistant";
 import { parseDJPreferences } from "../memory/dj-preferences";
+import { detectDJActionIntent, parseDJAssistantActionEnvelope } from "./execute-dj-assistant-actions";
 import { ASSISTANT_MAX_OUTPUT_TOKENS } from "./neuron-budget-policy";
 
 export type DJAssistantHttpResult = { status: number; body: Record<string, unknown> };
+export type DJAssistantActionExecutor = {
+  execute(actions: unknown[]): Promise<DJAssistantActionResult[]>;
+};
 
 async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -23,7 +28,20 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message:
   }
 }
 
-/** Executes a Spotify-independent AI turn using event timing, DJ preferences and bounded DJ/AI conversation history. */
+function actionSummary(results: DJAssistantActionResult[]): string {
+  return results.map(result => {
+    const label = result.type === "add_tracks" ? "Tracks toevoegen"
+      : result.type === "remove_tracks" ? "Tracks verwijderen" : "PartyQueue herschikken";
+    const counts = result.type === "add_tracks"
+      ? result.succeeded + " toegevoegd, " + (result.alreadyPresent || 0) + " stonden al in de wachtrij, " + result.failed + " mislukt"
+      : result.type === "remove_tracks"
+        ? result.succeeded + " verwijderd, " + result.failed + " mislukt"
+        : result.succeeded ? "volgorde bijgewerkt" : "niet gewijzigd";
+    return label + ": " + counts + (result.details.length ? "\n" + result.details.join("\n") : "");
+  }).join("\n\n");
+}
+
+/** Executes a bounded AI turn and, only for explicit DJ commands, validated PartyQueue actions. */
 export async function executeDJAssistant(input: {
   eventId: string;
   eventName: string;
@@ -33,8 +51,11 @@ export async function executeDJAssistant(input: {
   prompt: string;
   repository: AssistantRepository;
   hash(value: string): Promise<string>;
+  actionExecutor?: DJAssistantActionExecutor;
 }): Promise<DJAssistantHttpResult> {
   const { eventId, eventName, ai, prompt, repository } = input;
+  const intent = detectDJActionIntent(prompt);
+  const actionMode = intent.add || intent.remove || intent.reorder;
   const memoryUpdated = await repository.rememberPreference(eventId, prompt);
   const snapshot = await repository.loadContext(eventId);
   const conversation = await repository.loadConversation(eventId, input.sessionId);
@@ -44,7 +65,7 @@ export async function executeDJAssistant(input: {
     djPreferences: parseDJPreferences(snapshot.djPreferences),
     partyQueue: snapshot.partyQueue,
   });
-  const { system, user } = buildDJAssistantPrompt(context, prompt, conversation);
+  const { system, user } = buildDJAssistantPrompt(context, prompt, conversation, actionMode);
   const persistTurn = async (answer: string): Promise<boolean> => {
     try {
       await repository.saveConversation(eventId, input.sessionId, prompt, answer);
@@ -54,12 +75,44 @@ export async function executeDJAssistant(input: {
       return false;
     }
   };
+  const finishAnswer = async (raw: string): Promise<{ answer: string; actions: DJAssistantActionResult[] }> => {
+    if (!actionMode) return { answer: raw, actions: [] };
+    const plan = parseDJAssistantActionEnvelope(raw);
+    if (!plan) {
+      return { answer: "Ik kon geen geldig, veilig actieplan verwerken. Er is niets gewijzigd.", actions: [] };
+    }
+    if (!plan.actions.length) return { answer: plan.answer + "\n\nEr is niets gewijzigd; er werd geen veilige actie gevonden.", actions: [] };
+    if (!input.actionExecutor) {
+      return { answer: plan.answer + "\n\nEr is niets gewijzigd: de actie-uitvoerder is niet beschikbaar.", actions: [] };
+    }
+    const actions = await input.actionExecutor.execute(plan.actions);
+    if (!actions.length) {
+      return { answer: plan.answer + "\n\nEr is niets gewijzigd; de gevraagde actie kon niet veilig worden bevestigd.", actions: [] };
+    }
+    return { answer: plan.answer + "\n\nUitvoering in PartyQueue:\n" + actionSummary(actions), actions };
+  };
+  const completeResponse = async (raw: string, provider: string, cached: boolean) => {
+    const completed = await finishAnswer(raw);
+    const conversationSaved = await persistTurn(completed.answer);
+    if (!actionMode && !cached) await repository.writeAnswerCache(cacheKey, raw);
+    return {
+      status: 200,
+      body: {
+        ok: true, provider, answer: completed.answer, spotifyMatches: [], cached,
+        memoryUpdated, sessionId: input.sessionId, conversationSaved,
+        ...(completed.actions.length ? { actionResults: completed.actions } : {}),
+      },
+    } as DJAssistantHttpResult;
+  };
+
   const provider = input.localAI ? "claude-code-local" : "cloudflare";
-  const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nlive-party-context-v5");
-  const cached = await repository.readAnswerCache(cacheKey);
-  if (cached) {
-    const conversationSaved = await persistTurn(cached.answer);
-    return { status: 200, body: { ok: true, provider, answer: cached.answer, spotifyMatches: [], cached: true, memoryUpdated, sessionId: input.sessionId, conversationSaved } };
+  const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nlive-party-context-v6");
+  if (!actionMode) {
+    const cached = await repository.readAnswerCache(cacheKey);
+    if (cached) {
+      const conversationSaved = await persistTurn(cached.answer);
+      return { status: 200, body: { ok: true, provider, answer: cached.answer, spotifyMatches: [], cached: true, memoryUpdated, sessionId: input.sessionId, conversationSaved } };
+    }
   }
 
   if (input.localAI) {
@@ -67,14 +120,12 @@ export async function executeDJAssistant(input: {
       return { status: 429, body: { error: "Geef DJ#DATUUR AI even een paar seconden." } };
     }
     try {
-      const answer = await withTimeout(
+      const raw = await withTimeout(
         input.localAI.complete(system, user),
         95000,
         "De lokale AI heeft niet tijdig geantwoord. Controleer of Claude Code en de lokale bridge actief zijn.",
       );
-      const conversationSaved = await persistTurn(answer);
-      await repository.writeAnswerCache(cacheKey, answer);
-      return { status: 200, body: { ok: true, provider: "claude-code-local", answer, spotifyMatches: [], cached: false, memoryUpdated, sessionId: input.sessionId, conversationSaved } };
+      return await completeResponse(raw, "claude-code-local", false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Lokale Claude-assistent is tijdelijk niet beschikbaar.";
       const usageLimitReached = /usage limit|rate limit|limit reached|hit your limit|weekly limit|five-hour limit|capacity|429/i.test(errorMessage);
@@ -97,7 +148,7 @@ export async function executeDJAssistant(input: {
 
   try {
     if (!ai) {
-      return { status: 503, body: { error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." } };
+      return { status: 503, body: { error: "Cloudflare Workers AI-binding ontbreekt. Voeg de AI-binding toe aan wrangler.toml en deploy opnieuw." } };
     }
     const model = "@cf/google/gemma-4-26b-a4b-it";
     const { answer } = await withTimeout(
@@ -105,9 +156,7 @@ export async function executeDJAssistant(input: {
       90000,
       "Cloudflare AI antwoordde niet binnen 90 seconden. Probeer het opnieuw.",
     );
-    const conversationSaved = await persistTurn(answer);
-    await repository.writeAnswerCache(cacheKey, answer);
-    return { status: 200, body: { ok: true, provider, answer, spotifyMatches: [], cached: false, memoryUpdated, sessionId: input.sessionId, conversationSaved } };
+    return await completeResponse(answer, provider, false);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "AI-assistent is tijdelijk niet beschikbaar.";
     const freeQuotaReached = /neuron|daily.{0,30}(limit|quota)|quota|limit.{0,30}(reached|exceeded)|exceeded.{0,30}(limit|quota)|HTTP 429|rate limit/i.test(errorMessage);
