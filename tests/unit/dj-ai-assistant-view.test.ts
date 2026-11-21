@@ -27,11 +27,13 @@ function setup() {
 }
 
 describe("DJ AI assistant view", () => {
-  it("explains that general AI advice has no Spotify or live queue context", () => {
+  it("explains the distinction between PartyQueue context and Spotify live state", () => {
     const { view, output } = setup();
     view.renderAdvice(output, "Bouw rustig op.");
     expect(output.children[0].textContent).toBe("Bouw rustig op.");
-    expect(output.children[1].textContent).toContain("geen Spotify-trackdata of live wachtrij");
+    expect(output.children[1].textContent).toContain("PartyQueue-aanvragen");
+    expect(output.children[1].textContent).toContain("Spotify UP NEXT");
+    expect(output.children[1].textContent).toContain("ongeverifieerd");
   });
 
   it("renders Spotify choices with links back to Spotify and passes only selected tracks", async () => {

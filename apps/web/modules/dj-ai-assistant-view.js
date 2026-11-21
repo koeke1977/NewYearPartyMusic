@@ -13,8 +13,8 @@ export function createDjAiAssistantView({ documentRef = document } = {}) {
 
   function renderAdvice(output, answer, cached = false) {
     output.replaceChildren(
-      node("p", "", (cached ? "↻ Eerder advies (wachtrij ongewijzigd)\n\n" : "") + answer),
-      node("p", "dj-ai-results-hint", "AI gebruikt geen Spotify-trackdata of live wachtrij. Trackvoorstellen zijn algemene, niet-geverifieerde ideeën."),
+      node("p", "", (cached ? "↻ Eerder advies (PartyQueue-context kan intussen gewijzigd zijn)\n\n" : "") + answer),
+      node("p", "dj-ai-results-hint", "De AI kan de PartyQueue-aanvragen, recente plays en geaggregeerde publieksvoorkeuren als context gebruiken. Spotify UP NEXT, live playbackstatus en Spotify-catalogusverificatie zijn niet beschikbaar voor de AI; nieuwe trackideeën zijn ongeverifieerd."),
     );
   }
 
