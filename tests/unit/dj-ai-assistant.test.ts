@@ -17,7 +17,7 @@ function element() {
 }
 
 function setup() {
-  const elements = {
+  const planButton = element();\n  planButton.dataset = { aiAction: "plan" };\n  const elements = {
     "#dj-ai-form": element(),
     "#dj-ai-prompt": element(),
     "#dj-ai-submit": element(),
@@ -26,12 +26,12 @@ function setup() {
   const documentRef = {
     querySelector: selector => elements[selector],
     querySelectorAll: () => [],
-    createElement: () => element(),
+    createElement: () => element(),\n    querySelectorAll: selector => selector === "[data-ai-action]" ? [planButton] : [],
   };
   const api = vi.fn(async () => ({ answer: "De sfeer zit goed: bouw rustig op.", conversationSaved: true }));
   const refresh = vi.fn(async () => {});
   const assistant = createDjAiAssistant({ api, refresh, documentRef, getSessionId: () => "11111111-1111-4111-8111-111111111111" });
-  return { assistant, api, refresh, elements };
+  return { assistant, api, refresh, elements, planButton };
 }
 
 describe("DJ AI assistant", () => {
@@ -55,6 +55,17 @@ describe("DJ AI assistant", () => {
     expect(elements["#dj-ai-answer"].children[2].textContent).toContain("Gesprekscontext bewaard");
     expect(elements["#dj-ai-prompt"].value).toBe("");
     expect(elements["#dj-ai-submit"].disabled).toBe(false);
+  });
+
+  it("builds the setplan from PartyQueue and audience context rather than denying queue context", async () => {
+    const { api, planButton } = setup();
+    await planButton.listeners.click();
+    const payload = JSON.parse(api.mock.calls[0][1].body);
+    expect(payload.prompt).toContain("gebruik de meegeleverde LIVE PARTY CONTEXT actief");
+    expect(payload.prompt).toContain("PartyQueue");
+    expect(payload.prompt).toContain("geaggregeerde publieksvoorkeuren");
+    expect(payload.prompt).toContain("PartyQueue is niet hetzelfde als Spotify UP NEXT");
+    expect(payload.prompt).not.toContain("je ziet de actuele Spotify-wachtrij niet");
   });
 
   it("does not send an empty prompt", async () => {
