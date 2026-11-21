@@ -22,6 +22,25 @@ describe("PartyQueue Local AI Bridge client", () => {
     expect(() => createLocalAIBridgeClient({ url: "http://bridge.example.com", token: "x".repeat(40) })).toThrow(/HTTPS/);
   });
 
+  it("rejects bridge URLs that contain paths, credentials or query strings", () => {
+    const token = "x".repeat(40);
+    expect(() => createLocalAIBridgeClient({ url: "https://bridge.example.com/private", token })).toThrow(/origin only/);
+    expect(() => createLocalAIBridgeClient({ url: "https://user:pass@bridge.example.com", token })).toThrow(/origin only/);
+    expect(() => createLocalAIBridgeClient({ url: "https://bridge.example.com?debug=1", token })).toThrow(/origin only/);
+  });
+
+  it("requires Cloudflare Access service-token values as a pair", () => {
+    expect(() => createLocalAIBridgeClient({
+      url: "https://bridge.example.com", token: "x".repeat(40), accessClientId: "client-id",
+    })).toThrow(/both Cloudflare Access/);
+  });
+
+  it("returns a controlled error when the bridge response is not JSON", async () => {
+    const fetcher = vi.fn(async () => new Response("not-json", { status: 502 }));
+    const client = createLocalAIBridgeClient({ url: "https://bridge.example.com", token: "x".repeat(40), fetcher });
+    await expect(client!.complete("system", "user")).rejects.toThrow(/invalid response/i);
+  });
+
   it("requires a long secret and sends only system/user prompt data", async () => {
     const fetcher = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => new Response(JSON.stringify({ answer: "Disco naar rock: onverwacht, maar werkt!" }), { status: 200 }));
     const client = createLocalAIBridgeClient({ url: "https://bridge.example.com", token: "x".repeat(40), fetcher });
