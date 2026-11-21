@@ -44,6 +44,12 @@ const list = spawnSync("npx", ["wrangler", "d1", "migrations", "list", "partyque
 });
 if (list.status !== 0) {
   console.error("Could not inspect production D1 migration state. Deployment blocked.");
+  if (list.error) console.error("Wrangler process error:", list.error.message);
+  console.error("Wrangler exit status:", list.status ?? "unknown");
+  const diagnostic = (list.stderr || list.stdout || "Wrangler returned no diagnostic output.").trim();
+  const secrets = [process.env.CLOUDFLARE_API_TOKEN, process.env.CLOUDFLARE_ACCOUNT_ID].filter(Boolean);
+  const safeDiagnostic = secrets.reduce((value, secret) => value.split(secret).join("[REDACTED]"), diagnostic);
+  console.error(safeDiagnostic.slice(-6000));
   process.exit(list.status ?? 1);
 }
 const migrationOutput = (list.stdout || "") + "\n" + (list.stderr || "");
