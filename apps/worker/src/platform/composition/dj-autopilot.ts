@@ -7,7 +7,6 @@ import { createD1AssistantNeuronUsageRepository } from "../../modules/ai/infrast
 import { createGuestRequestRepository } from "../../modules/requests/infrastructure/guest-request-d1-repository";
 import { createDjQueueRepository } from "../../modules/requests/infrastructure/dj-queue-d1-repository";
 import { addDjTrackToPartyQueue, moderatePartyRequest } from "../../modules/requests/application/guest-request-lifecycle";
-import { reorderDjQueue } from "../../modules/requests/application/dj-queue-management";
 import { getSpotifyCatalogTrack, searchSpotifyCatalog } from "../../integrations/spotify/catalog-api";
 import type { AssistantContextSnapshot } from "../../modules/ai/application/assistant-ports";
 
@@ -53,18 +52,6 @@ export function runDJAutopilotFromEnvironment(env: Env) {
             trackId,
             createId: () => crypto.randomUUID(),
             trackGateway: { getTrack: id => getSpotifyCatalogTrack(env, id) },
-          }),
-          readQueueIds: () => djQueueRepository.readQueuedRequestIds(env.EVENT_ID),
-          removeQueuedTrack: requestId => moderatePartyRequest({
-            repository: guestRequestRepository,
-            eventId: env.EVENT_ID,
-            requestId,
-            action: "reject",
-          }),
-          reorderQueue: order => reorderDjQueue({
-            repository: djQueueRepository,
-            eventId: env.EVENT_ID,
-            order,
           }),
           canContinue: async () => await canContinue()
             && (await djQueueRepository.readQueuedRequestIds(env.EVENT_ID)).length < 8,
