@@ -6,11 +6,16 @@ import { requireDJSession } from "./dj-auth";
 export const djAiRoutes = new Hono<{ Bindings: Env }>();
 djAiRoutes.use("/api/dj/*", requireDJSession("DJ-sessie verlopen. Meld opnieuw aan."));
 djAiRoutes.post("/api/dj/ai/assistant", async (c) => {
-  let body: { prompt?: unknown };
+  let body: { prompt?: unknown; sessionId?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
   if (!prompt || prompt.length > 600) return c.json({ error: "Stel een vraag van maximaal 600 tekens." }, 400);
-  const result = await executeDJAssistantFromEnvironment(c.env, prompt);
+  const sessionId = typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+  if (body.sessionId !== undefined && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)) {
+    return c.json({ error: "Ongeldig AI-sessie-ID." }, 400);
+  }
+  const activeSessionId = sessionId || crypto.randomUUID();
+  const result = await executeDJAssistantFromEnvironment(c.env, prompt, activeSessionId);
   return c.json(result.body, result.status as 200 | 429 | 503 | 502);
 });
 djAiRoutes.post("/api/dj/ai/music/search", async (c) => {

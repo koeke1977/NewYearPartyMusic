@@ -2,6 +2,8 @@ export type AssistantContextSnapshot = {
   djPreferences: string | null;
 };
 
+export type AssistantConversationTurn = { role: "user" | "assistant"; content: string };
+
 export type CachedAssistantAnswer = {
   answer: string;
 };
@@ -14,6 +16,8 @@ export interface AssistantNeuronBudget {
 export interface AssistantRepository {
   rememberPreference(eventId: string, prompt: string): Promise<boolean>;
   loadContext(eventId: string): Promise<AssistantContextSnapshot>;
+  loadConversation(eventId: string, sessionId: string): Promise<AssistantConversationTurn[]>;
+  saveConversation(eventId: string, sessionId: string, prompt: string, answer: string): Promise<void>;
   readAnswerCache(cacheKey: string): Promise<CachedAssistantAnswer | null>;
   writeAnswerCache(cacheKey: string, answer: string): Promise<void>;
   claimRateLimit(): Promise<boolean>;

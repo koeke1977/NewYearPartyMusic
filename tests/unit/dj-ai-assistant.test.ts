@@ -28,9 +28,9 @@ function setup() {
     querySelectorAll: () => [],
     createElement: () => element(),
   };
-  const api = vi.fn(async () => ({ answer: "De sfeer zit goed: bouw rustig op." }));
+  const api = vi.fn(async () => ({ answer: "De sfeer zit goed: bouw rustig op.", conversationSaved: true }));
   const refresh = vi.fn(async () => {});
-  const assistant = createDjAiAssistant({ api, refresh, documentRef });
+  const assistant = createDjAiAssistant({ api, refresh, documentRef, getSessionId: () => "11111111-1111-4111-8111-111111111111" });
   return { assistant, api, refresh, elements };
 }
 
@@ -47,11 +47,12 @@ describe("DJ AI assistant", () => {
     expect(prevented).toBe(true);
     expect(api).toHaveBeenCalledWith("/api/dj/ai/assistant", {
       method: "POST",
-      body: JSON.stringify({ prompt: "Geef advies over de sfeer van de avond." }),
+      body: JSON.stringify({ prompt: "Geef advies over de sfeer van de avond.", sessionId: "11111111-1111-4111-8111-111111111111" }),
       timeoutMs: 110000,
     });
     expect(elements["#dj-ai-answer"].children[0].textContent).toBe("De sfeer zit goed: bouw rustig op.");
     expect(elements["#dj-ai-answer"].children[1].textContent).toContain("geen Spotify-trackdata of live wachtrij");
+    expect(elements["#dj-ai-answer"].children[2].textContent).toContain("Gesprekscontext bewaard");
     expect(elements["#dj-ai-prompt"].value).toBe("");
     expect(elements["#dj-ai-submit"].disabled).toBe(false);
   });

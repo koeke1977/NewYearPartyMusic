@@ -29,6 +29,9 @@ jobs:
       - name: Architecture dependency boundary check
         run: npm run test:architecture
 
+      - name: Apply D1 migrations to a local database
+        run: npm run db:migrate:local
+
       - name: Security characterization tests
         run: npm test
 

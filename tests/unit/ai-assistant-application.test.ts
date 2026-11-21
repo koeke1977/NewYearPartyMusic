@@ -5,7 +5,9 @@ import type { AssistantRepository } from "../../apps/worker/src/modules/ai/appli
 function createRepository(): AssistantRepository {
   return {
     rememberPreference: vi.fn(async () => false),
-    loadContext: vi.fn(async () => ({ requestCounts: [], djPreferences: null })),
+    loadContext: vi.fn(async () => ({ djPreferences: null })),
+    loadConversation: vi.fn(async () => []),
+    saveConversation: vi.fn(async () => {}),
     readAnswerCache: vi.fn(async () => null),
     writeAnswerCache: vi.fn(async () => {}),
     claimRateLimit: vi.fn(async () => true),
@@ -23,7 +25,7 @@ describe("executeDJAssistant", () => {
     });
     const ai = { run: vi.fn() };
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party", ai,
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1", ai,
       prompt: "Geef me wat disco-advies", repository, hash: async value => value,
     });
     expect(result.status).toBe(429);
@@ -36,7 +38,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     vi.mocked(repository.readAnswerCache).mockResolvedValue({ answer: "Prima!" });
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party",
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1",
       prompt: "Geef me disco-advies", repository, hash: async value => value,
     });
     expect(result.status).toBe(200);
@@ -49,7 +51,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     const complete = vi.fn(async () => "Maak er een disco-versus-rock moment van!");
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party",
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1",
       prompt: "Verras me", repository, hash: async value => value,
       localAI: { complete },
     });
@@ -59,13 +61,38 @@ describe("executeDJAssistant", () => {
     expect(complete).toHaveBeenCalledOnce();
     expect(repository.createNeuronBudget).not.toHaveBeenCalled();
     expect(repository.writeAnswerCache).toHaveBeenCalledOnce();
+    expect(repository.saveConversation).toHaveBeenCalledWith("event-1", "session-1", "Verras me", "Maak er een disco-versus-rock moment van!");
+  });
+
+  it("uses recent DJ/AI turns to resolve follow-up questions and persists the next answer", async () => {
+    const repository = createRepository();
+    vi.mocked(repository.loadConversation).mockResolvedValue([
+      { role: "user", content: "Maak een gevarieerde lijst." },
+      { role: "assistant", content: "1. Music Sounds Better With You — Stardust\\n2. Freed From Desire — Gala" },
+    ]);
+    const complete = vi.fn(async (_system: string, user: string) => {
+      expect(user).toContain("Music Sounds Better With You");
+      expect(user).toContain("DJ QUESTION:\nMaak die lijst commerciëler");
+      return "Vervang de minder bekende keuzes door herkenbare dancehits.";
+    });
+    const result = await executeDJAssistant({
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1",
+      prompt: "Maak die lijst commerciëler", repository, hash: async value => value,
+      localAI: { complete },
+    });
+    expect(result.status).toBe(200);
+    expect(result.body.conversationSaved).toBe(true);
+    expect(repository.saveConversation).toHaveBeenCalledWith(
+      "event-1", "session-1", "Maak die lijst commerciëler",
+      "Vervang de minder bekende keuzes door herkenbare dancehits.",
+    );
   });
 
   it("returns a controlled error when the local AI bridge never responds", async () => {
     vi.useFakeTimers();
     const repository = createRepository();
     const pending = executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party",
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1",
       prompt: "Verras me", repository, hash: async value => value,
       localAI: { complete: () => new Promise(() => {}) },
     });
@@ -80,7 +107,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     const ai = { run: vi.fn() };
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party", ai,
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1", ai,
       prompt: "Verras me", repository, hash: async value => value,
       localAI: { complete: async () => { throw new Error("weekly usage limit reached"); } },
     });

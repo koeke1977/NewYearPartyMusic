@@ -10,11 +10,15 @@ import {
 import { createDailyAssistantNeuronBudget } from "../../modules/ai/application/neuron-budget-policy";
 import { createD1AssistantNeuronUsageRepository } from "../../modules/ai/infrastructure/neuron-budget";
 import { createLocalAIBridgeClient } from "../../integrations/ai/local-ai-bridge";
+import { loadAssistantConversation, saveAssistantConversationTurn } from "../../modules/ai/infrastructure/assistant-conversation-repository";
 
-export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
+export function executeDJAssistantFromEnvironment(env: Env, prompt: string, sessionId: string) {
   const repository: AssistantRepository = {
     rememberPreference: (eventId, value) => rememberDJPreferenceInDatabase(env.DB, eventId, value),
     loadContext: eventId => loadAssistantContextSnapshot(env.DB, eventId),
+    loadConversation: (eventId, sessionId) => loadAssistantConversation(env.DB, eventId, sessionId),
+    saveConversation: (eventId, sessionId, prompt, answer) =>
+      saveAssistantConversationTurn(env.DB, eventId, sessionId, prompt, answer),
     readAnswerCache: key => readAssistantAnswerCache(env.DB, key),
     writeAnswerCache: (key, answer) => writeAssistantAnswerCache(env.DB, key, answer),
     claimRateLimit: () => claimAssistantRateLimit(env.DB),
@@ -24,6 +28,6 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
     eventId: env.EVENT_ID, eventName: env.EVENT_NAME, ai: env.AI,
     localAI: createLocalAIBridgeClient({ url: env.LOCAL_AI_BRIDGE_URL, token: env.LOCAL_AI_BRIDGE_TOKEN,
       accessClientId: env.LOCAL_AI_ACCESS_CLIENT_ID, accessClientSecret: env.LOCAL_AI_ACCESS_CLIENT_SECRET }),
-    prompt, repository, hash: sha256,
+    prompt, sessionId, repository, hash: sha256,
   });
 }

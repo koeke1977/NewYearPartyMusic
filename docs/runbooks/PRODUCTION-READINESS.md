@@ -1,6 +1,6 @@
 # PartyQueue production operations runbook
 
-Last verified: 2026-11-20
+Last verified: 2026-11-21
 
 ## Live production topology
 
@@ -15,7 +15,7 @@ PartyQueue is deployed and serving the public event application.
 | Public hostname | — | `https://spotify.electrafest.be` |
 | Workers.dev | Test worker | `https://partyqueue-production.koen-f02.workers.dev` |
 
-Production D1 is provisioned in the EU jurisdiction. Migrations `0001` and `0002` are applied and recorded in the production migration ledger. The production Worker has the D1, QueueRoom Durable Object, Workers AI and static assets bindings. Its daily scheduled cleanup trigger is configured.
+Production D1 is provisioned in the EU jurisdiction. Migrations `0001`, `0002` and `0003` are applied and recorded in the production migration ledger. Proposed migration `0004_dj_ai_conversation.sql` exists on the architecture-mainline PR branch and is **not applied** to production. The production Worker has the D1, QueueRoom Durable Object, Workers AI and static assets bindings. Its daily scheduled cleanup trigger is configured.
 
 The public hostname `spotify.electrafest.be` is attached to `partyqueue-production`; the test Worker no longer owns the hostname. The release owner has confirmed that the public application is visible and that the Spotify account connection succeeds.
 
@@ -75,6 +75,7 @@ Application retention:
 - Completed/declined/cancelled request rows older than 30 days are deleted by the daily scheduled cleanup.
 - Pending, approved and queued requests are deliberately excluded from that cleanup.
 - Authentication attempt buckets older than one day are deleted by the same daily cleanup.
+- Once migration `0004_dj_ai_conversation.sql` is released, DJ AI conversation turns (DJ prompts and AI-generated answers only) are available as context for seven days, capped at the latest eight turns per browser session; the daily cleanup removes expired rows. Spotify search results and live queue data are not part of this conversation store.
 - No separate R2 export/archive is currently configured.
 
 Recovery procedure (D1 data recovery is separate from Worker code rollback):
@@ -100,7 +101,7 @@ GitHub pull-request validation runs:
 
 Cloudflare production builds run typecheck, architecture checks and Vitest before applying production D1 migrations and deploying. A failed build command must stop before the deploy command. Production build configuration is bound to the Worker system tag, not the human-readable Worker name.
 
-The production release completed on 2026-11-20. The latest validated build reported 65 test files and 268 unit tests passing on Vitest 5.1.1. Bun audit reported zero vulnerabilities across 198 packages (and zero in production dependencies). The active production Worker version is 9: `b0d3f711-316b-440e-a3f1-d235e72dce5e`. The Cloudflare production build now gates deployment on typecheck, architecture checks, unit tests and a full dependency audit; any audit finding fails the build. Always inspect the active deployment before a release or rollback.
+The latest read-only Cloudflare check on 2026-11-21 found production deployment `8d71ab10-dbd8-4025-b68f-1a5bd3e13b6b`, created at `2026-11-21T08:35:44Z`, serving 100% of traffic with Worker version ID `ce398cbc-ed90-4c25-89ef-d26dcec9957e`. The production D1 migration ledger contains exactly migrations 0001–0003. The Cloudflare production build gates deployment on typecheck, architecture checks, unit tests and a full dependency audit; any audit finding fails the build. PR dry-runs do not deploy or apply production migrations. Always inspect the active deployment and migration ledger before a release or rollback.
 
 ## Release verification checklist
 

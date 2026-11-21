@@ -21,6 +21,7 @@ const webTransportOwners = new Set([
 const webStorageOwners = new Set([
   "apps/web/modules/dj-session.js",
   "apps/web/modules/guest-session.js",
+  "apps/web/modules/dj-ai-session.js",
 ]);
 
 const forbiddenImport = /(?:^|\/)(?:integrations|infrastructure|platform|routes)(?:\/|$)/;

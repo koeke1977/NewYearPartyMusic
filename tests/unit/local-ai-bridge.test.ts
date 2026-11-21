@@ -7,6 +7,8 @@ function repository(): AssistantRepository {
   return {
     rememberPreference: vi.fn(async () => false),
     loadContext: vi.fn(async () => ({ djPreferences: null })),
+    loadConversation: vi.fn(async () => []),
+    saveConversation: vi.fn(async () => {}),
     readAnswerCache: vi.fn(async () => null),
     writeAnswerCache: vi.fn(async () => {}),
     claimRateLimit: vi.fn(async () => true),
@@ -65,7 +67,7 @@ describe("PartyQueue Local AI Bridge client", () => {
     const localAI = { complete: vi.fn(async () => "Whaoww. Eerst disco, dan 90s eurodance!") };
     const cloudflare = { run: vi.fn() };
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Kallo Rulez", ai: cloudflare, localAI,
+      eventId: "event-1", eventName: "Kallo Rulez", sessionId: "session-1", ai: cloudflare, localAI,
       prompt: "Verras me", repository: repo, hash: async value => value,
     });
     expect(result.status).toBe(200);
@@ -80,7 +82,7 @@ describe("PartyQueue Local AI Bridge client", () => {
     const localAI = { complete: vi.fn(async () => { throw new Error("Claude usage limit reached"); }) };
     const cloudflare = { run: vi.fn() };
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Kallo Rulez", ai: cloudflare, localAI,
+      eventId: "event-1", eventName: "Kallo Rulez", sessionId: "session-1", ai: cloudflare, localAI,
       prompt: "Nog een idee", repository: repo, hash: async value => value,
     });
     expect(result.status).toBe(429);
