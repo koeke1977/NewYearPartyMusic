@@ -19,7 +19,7 @@ function trackWasRecentlyQueuedOrPlayed(
   track: { name: string; artists: string[] },
   snapshot: AssistantContextSnapshot,
 ): boolean {
-  const candidates = [...snapshot.partyQueue.queued, ...snapshot.partyQueue.recentlyPlayed]
+  const candidates = [...snapshot.partyQueue.queued, ...(snapshot.partyQueue.incomingRequests || []), ...snapshot.partyQueue.recentlyPlayed]
     .map(item => item.track);
   const candidateKeys = new Set(candidates.map(normalizeTrack));
   return track.artists.some(artist => candidateKeys.has(normalizeTrack(track.name + " — " + artist)));
