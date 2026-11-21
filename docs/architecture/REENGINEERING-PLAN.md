@@ -12,7 +12,7 @@
 
 The current branch has completed the initial Worker route composition and the first feature-scoped frontend CSS extraction. System health/config routes and scheduled cleanup have dedicated adapters; the Worker entrypoint is now a composition root. DJ route authorization is centralized and characterized across all protected feature endpoints. The shared stylesheet is limited to shared foundations, and DJ presentation is split into layout, playback, request-search, queue and AI files. These are migration milestones, not a claim that the full architecture is finished.
 
-The first security/platform extraction has been implemented on `refactor/architecture-foundation`:
+The security/platform extraction described below is already present in the current mainline baseline:
 
 - `apps/worker/src/platform/env.ts`: Worker binding contract.
 - `apps/worker/src/platform/security/crypto.ts`: SHA-256, HMAC signing, base64url, constant-time comparison and AES-GCM encryption/decryption.
@@ -21,12 +21,12 @@ The first security/platform extraction has been implemented on `refactor/archite
 
 Compatibility tests verify that session tokens from the old implementation remain accepted and that Spotify OAuth tokens encrypted by either the old or new implementation remain decryptable. Tests also cover tampering, expiry, wrong secrets, malformed tokens, catalogue token caching/API request construction, and DJ assistant prompt rules/context.
 
-The GitHub Actions validation run has passed:
+The historical GitHub Actions validation run on the architecture branch passed:
 - TypeScript strict typecheck.
 - Security compatibility tests.
 - Cloudflare Worker bundle dry-run.
 
-The current Worker, frontend and AI responsibility maps are documented in `WORKER-RESPONSIBILITY-MAP.md`, `FRONTEND-RESPONSIBILITY-MAP.md` and `AI-RESPONSIBILITY-MAP.md`. System, guest, DJ identity, AI, DJ request management and Spotify playback endpoints are grouped into dedicated Hono route modules. Shared event-scoped DJ authorization is applied as route middleware. Scheduled cleanup and QueueRoom are isolated from the composition root.
+The current Worker, frontend and AI responsibility maps are documented in `WORKER-RESPONSIBILITY-MAP.md`, `FRONTEND-RESPONSIBILITY-MAP.md` and `AI-RESPONSIBILITY-MAP.md`. These maps must describe the checked-out mainline implementation, not historical architecture-branch behaviour. System, guest, DJ identity, AI, DJ request management and Spotify playback endpoints are grouped into dedicated Hono route modules. Shared event-scoped DJ authorization is applied as route middleware. Scheduled cleanup and QueueRoom are isolated from the composition root.
 
 The Worker composition root now mounts dedicated system, guest, DJ identity, AI, request and playback route groups. Scheduled cleanup and the QueueRoom Durable Object also have dedicated owners. DJ feature routes use shared event-scoped session middleware. The remaining backend work is deeper boundary hardening, route/use-case contract characterization and integration seams rather than moving these HTTP handlers out of the entrypoint. No production deployment or D1 mutation was performed.
 
