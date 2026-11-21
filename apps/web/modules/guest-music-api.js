@@ -37,3 +37,15 @@ export async function saveGuestMusicPreferences(preferences, token, fetchImpl = 
   if (!response.ok) throw new Error(data.error || "Opslaan lukte niet.");
   return data;
 }
+
+
+export async function submitGuestCrowdFeedback(feedback, token, fetchImpl = fetch) {
+  const response = await fetchImpl("/api/guests/crowd-feedback", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+    body: JSON.stringify({ feedback }),
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || "Feedback versturen lukte niet.");
+  return data;
+}
