@@ -80,6 +80,20 @@ async function testGuestJourney(browser) {
       assert.deepEqual(call.body, { nickname: "Disco Koen", eventCode: "NYE2026" });
       return { body: { sessionToken: "guest-test-token", guest: { nickname: "Disco Koen" }, expiresAt: 1893456000 } };
     }
+    if (call.path === "/api/music/taxonomy" && call.method === "GET") {
+      return { body: {
+        genres: [{ id: "pop", label: "Pop", subgenres: [{ id: "dance-pop", label: "Dance pop" }] }],
+        decades: [{ id: "2020s", label: "2020s" }],
+        moods: ["feel-good"],
+      } };
+    }
+    if (call.path === "/api/guests/preferences" && call.method === "PUT") {
+      assert.equal(call.request.headers()["authorization"], "Bearer guest-test-token");
+      assert.deepEqual(call.body.preferences, {
+        genreIds: ["pop"], decadeIds: [], moodIds: [], energy: null,
+      });
+      return { body: { success: true } };
+    }
     if (call.path === "/api/spotify/search" && call.method === "GET") {
       assert.equal(call.url.searchParams.get("q"), "Music Sounds Better");
       return {
@@ -109,6 +123,10 @@ async function testGuestJourney(browser) {
 
   await page.locator("#guest-track-search").waitFor({ state: "visible" });
   assert.match(await page.locator(".join-card").innerText(), /Welkom, Disco Koen/);
+
+  await page.locator(".preference-choice input[value='pop']").evaluate(input => { input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true })); });
+  await page.locator(".preference-save").click();
+  await page.getByText(/Bedankt! Je muzieksmaak telt mee/).waitFor({ state: "visible", timeout: 5000 });
 
   await page.locator("#guest-track-search").fill("Music Sounds Better");
   await page.locator(".track-item").waitFor({ state: "visible", timeout: 5000 });

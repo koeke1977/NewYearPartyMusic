@@ -6,8 +6,16 @@ import { guestRequestErrorStatus } from "./guest-request-http";
 import {
   joinGuestFromEnvironment, submitGuestRequestFromEnvironment, searchGuestTracksFromEnvironment,
 } from "../platform/composition/guest-workflows";
+import { saveGuestPreferencesFromEnvironment } from "../platform/composition/guest-preference-workflows";
+import { MUSIC_DECADES, MUSIC_GENRES, MUSIC_MOODS } from "../modules/music/domain/genre-taxonomy";
 
 export const guestRoutes = new Hono<{ Bindings: Env }>();
+
+guestRoutes.get("/music/taxonomy", (c) => c.json({
+  genres: MUSIC_GENRES.map(({ id, label, subgenres }) => ({ id, label, subgenres: subgenres.map(({ id: subgenreId, label: subgenreLabel }) => ({ id: subgenreId, label: subgenreLabel })) })),
+  decades: MUSIC_DECADES,
+  moods: MUSIC_MOODS,
+}));
 
 guestRoutes.post("/guests/join", async (c) => {
   if (!c.env.EVENT_ACCESS_CODE_HASH || !c.env.SESSION_SECRET) {
@@ -31,6 +39,22 @@ guestRoutes.post("/guests/join", async (c) => {
   );
   if (!result.ok) return c.json({ error: result.error.message }, guestRequestErrorStatus(result.error.code));
   return c.json({ ok: true, ...result.value }, 201);
+});
+
+guestRoutes.put("/guests/preferences", async (c) => {
+  const session = await readSession(c.req.raw, c.env.SESSION_SECRET);
+  if (!session || session.eventId !== c.env.EVENT_ID) {
+    return c.json({ error: "Je sessie is verlopen. Meld je opnieuw aan." }, 401);
+  }
+  let body: { preferences?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Ongeldige aanvraag." }, 400);
+  }
+  const result = await saveGuestPreferencesFromEnvironment(c.env, session.sub, body.preferences);
+  if (!result.ok) return c.json({ error: result.message }, 400);
+  return c.json({ ok: true });
 });
 
 guestRoutes.get("/spotify/search", async (c) => {

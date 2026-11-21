@@ -33,3 +33,21 @@
   .track-cover{width:42px;height:42px;flex-basis:42px}
   .request-button{padding:0 7px;font-size:7px}
 }
+
+
+/* Event-scoped guest music preference onboarding */
+.guest-preferences{margin:0 0 24px;padding:17px;border:1px solid rgba(30,215,96,.2);border-radius:14px;background:rgba(5,12,7,.58)}
+.guest-preferences .section-heading{margin-bottom:14px}
+.preference-groups{display:grid;gap:14px}
+.preference-group h3{margin:0 0 8px;color:#dce5de;font-size:11px;font-weight:800;letter-spacing:.04em}
+.preference-genre{margin:6px 0;border:1px solid rgba(220,235,225,.12);border-radius:9px;background:rgba(255,255,255,.025)}
+.preference-genre summary{padding:10px 12px;color:#e5eee7;font-size:12px;font-weight:750;cursor:pointer}
+.preference-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:0 10px 10px}
+.preference-inline{grid-template-columns:repeat(auto-fit,minmax(90px,1fr))}
+.preference-choice{display:flex;align-items:center;gap:7px;min-width:0;margin:0;padding:7px 8px;border:1px solid rgba(220,235,225,.1);border-radius:8px;background:rgba(255,255,255,.025);color:#cbd6ce;font-size:10px;line-height:1.3;cursor:pointer}
+.preference-choice input{width:14px;min-height:14px;flex:0 0 14px;margin:0;accent-color:var(--green)}
+.preference-energy-label{display:block;margin:0 0 8px;color:#dce5de;font-size:11px}
+.preference-energy{min-height:22px;padding:0;accent-color:var(--green)}
+.preference-save{width:100%;min-height:44px;margin-top:12px;font-size:10px}
+.preference-message{margin:8px 0 0}
+@media(max-width:390px){.preference-options{grid-template-columns:minmax(0,1fr)}.preference-inline{grid-template-columns:repeat(2,minmax(0,1fr))}}

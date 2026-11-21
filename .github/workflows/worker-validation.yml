@@ -1,11 +1,18 @@
-name: Worker validation
+name: Worker validation and production deployment
 
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: partyqueue-main-release
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -78,3 +85,45 @@ jobs:
           path: artifacts/ui-baseline/*.png
           if-no-files-found: error
           retention-days: 14
+
+  auto-merge:
+    name: Automatically merge validated pull requests
+    runs-on: ubuntu-latest
+    needs: [validate, ui-screenshot-baseline]
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
+    steps:
+      - name: Enable squash auto-merge after all required checks pass
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh pr merge "$PR_NUMBER" --squash
+
+  deploy-production:
+    name: Deploy production Worker to Cloudflare
+    runs-on: ubuntu-latest
+    needs: [validate, ui-screenshot-baseline, auto-merge]
+    if: >-
+      always() &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.validate.result == 'success' && needs.ui-screenshot-baseline.result == 'success') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.validate.result == 'success' && needs.ui-screenshot-baseline.result == 'success' && needs.auto-merge.result == 'success'))
+    steps:
+      - name: Checkout merged main revision
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install --no-package-lock --no-audit --no-fund
+
+      - name: Deploy approved main revision
+        run: npm run deploy:production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY: YES
