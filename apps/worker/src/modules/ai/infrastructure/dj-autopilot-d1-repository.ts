@@ -1,4 +1,4 @@
-import { loadAssistantContextSnapshot } from "./assistant-context-repository";
+import { loadAssistantContextSnapshot } from "./assistant-context-repository";\nimport { claimAssistantRateLimit } from "./assistant-settings-repository";
 
 export type DJAutopilotDatabase = Pick<D1Database, "prepare">;
 
@@ -6,7 +6,7 @@ export type DJAutopilotDatabase = Pick<D1Database, "prepare">;
 export function createDJAutopilotRepository(db: DJAutopilotDatabase) {
   const settingKey = (name: string, eventId: string) => "dj_autopilot_" + name + "_" + eventId;
   return {
-    async isEnabled(_eventId: string): Promise<boolean> {
+    claimRateLimit: () => claimAssistantRateLimit(db as never),\n    async isEnabled(_eventId: string): Promise<boolean> {
       const row = await db.prepare("SELECT value FROM settings WHERE key=?")
         .bind("ai_autopilot").first<{ value: string }>();
       return row?.value === "true";
