@@ -36,7 +36,7 @@
 | `modules/dj-queue.js`, `dj-queue-reorder.js` | Pure queue ordering and drag/drop interaction |
 | `modules/dj-overview-model.js` | Pure projection of API overview data into UI state |
 | `modules/dj-overview-view.js` | Dashboard stats, request cards, moderation action wiring and UP NEXT rendering |
-| `modules/dj-ai-intent.js` | Prompt intent resolution and recovery of numbered suggestions |
+| `modules/dj-ai-intent.js` | Deterministic distinction between explicit queue reordering and importing a referenced numbered suggestion list from the current or previous answer |
 | `modules/dj-ai-queue-parser.js` | Matching and validation of AI queue proposals against current queued tracks |
 | `modules/dj-ai-suggestions.js` | Bounded extraction of numbered track suggestions |
 | `modules/dj-ai-actions.js` | Sequential track-add workflow, duplicate handling, partial failure reporting and full queue-permutation validation |
