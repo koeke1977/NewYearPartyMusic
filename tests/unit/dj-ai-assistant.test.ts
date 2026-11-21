@@ -48,6 +48,7 @@ describe("DJ AI assistant", () => {
     expect(api).toHaveBeenCalledWith("/api/dj/ai/assistant", {
       method: "POST",
       body: JSON.stringify({ prompt: "Geef advies over de sfeer van de avond." }),
+      timeoutMs: 110000,
     });
     expect(elements["#dj-ai-answer"].children[0].textContent).toBe("De sfeer zit goed: bouw rustig op.");
     expect(elements["#dj-ai-answer"].children[1].textContent).toContain("geen Spotify-trackdata of live wachtrij");
