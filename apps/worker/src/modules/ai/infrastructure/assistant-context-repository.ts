@@ -38,7 +38,9 @@ export async function loadAssistantContextSnapshot(db: AssistantContextDatabase,
     },
     crowdFeedback: {
       eligible: crowdFeedback.eligible, respondents: crowdFeedback.respondents, windowMinutes: crowdFeedback.windowMinutes,
-      atmosphere: crowdFeedback.atmosphere, averageEnergy: crowdFeedback.averageEnergy, trend: crowdFeedback.trend,
+      atmosphere: crowdFeedback.atmosphere, averageEnergy: crowdFeedback.averageEnergy,
+      trend: crowdFeedback.trend === "negative" || crowdFeedback.trend === "positive" || crowdFeedback.trend === "mixed"
+        ? crowdFeedback.trend : "insufficient",
     },
   };
   return { djPreferences: profile?.value ?? null, partyQueue };
