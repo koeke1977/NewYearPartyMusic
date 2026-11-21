@@ -72,7 +72,7 @@ document.querySelector("#dj-flush").addEventListener("click",async event=>{
 });
 document.querySelector("#pause-toggle").addEventListener("click",()=>commands.updateSetting("requests_paused",!overviewView.getSettings().requestsPaused));
 document.querySelector("#approval-toggle").addEventListener("click",()=>commands.updateSetting("auto_approve",!overviewView.getSettings().autoApprove));
-document.querySelector("#auto-queue-toggle").addEventListener("click",()=>commands.updateSetting("auto_queue",!overviewView.getSettings().autoQueue));
+document.querySelector("#auto-queue-toggle").addEventListener("click",()=>commands.updateSetting("auto_queue",!overviewView.getSettings().autoQueue));\ndocument.querySelector("#ai-autopilot-toggle").addEventListener("click",()=>commands.updateSetting("ai_autopilot",!overviewView.getSettings().aiAutopilot));
 
 createDjAiAssistant({api,refresh:()=>refresh()});
 
