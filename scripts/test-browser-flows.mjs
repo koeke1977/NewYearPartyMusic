@@ -94,6 +94,11 @@ async function testGuestJourney(browser) {
       });
       return { body: { success: true } };
     }
+    if (call.path === "/api/guests/crowd-feedback" && call.method === "POST") {
+      assert.equal(call.request.headers()["authorization"], "Bearer guest-test-token");
+      assert.deepEqual(call.body, { feedback: { atmosphere: "bad", energy: 2 } });
+      return { body: { ok: true } };
+    }
     if (call.path === "/api/spotify/search" && call.method === "GET") {
       assert.equal(call.url.searchParams.get("q"), "Music Sounds Better");
       return {
@@ -127,6 +132,10 @@ async function testGuestJourney(browser) {
   await page.locator(".preference-choice input[value='pop']").evaluate(input => { input.checked = true; input.dispatchEvent(new Event("change", { bubbles: true })); });
   await page.locator(".preference-save").click();
   await page.getByText(/Bedankt! Je muzieksmaak telt mee/).waitFor({ state: "visible", timeout: 5000 });
+  await page.locator(".crowd-choice[data-value='bad']").click();
+  await page.locator(".crowd-energy").fill("2");
+  await page.locator(".crowd-send").click();
+  await page.getByText(/Je signaal telt mee voor de DJ/).waitFor({ state: "visible", timeout: 5000 });
 
   await page.locator("#guest-track-search").fill("Music Sounds Better");
   await page.locator(".track-item").waitFor({ state: "visible", timeout: 5000 });
