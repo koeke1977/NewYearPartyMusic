@@ -15,7 +15,8 @@ Private, QR-based music request and DJ playback application for New Year's Eve 2
 ## Stack
 - Cloudflare Workers + Hono
 - Cloudflare D1 and Durable Objects
-- Cloudflare Workers AI binding (optional at runtime; subject to account availability and limits)
+- Cloudflare Workers AI binding (budget-guarded fallback when no local provider is configured)
+- Optional owner-operated Local AI Bridge: Claude Code CLI on the DJ PC, reached through an authenticated HTTPS Cloudflare Tunnel; no Anthropic API key or paid API fallback
 - Spotify Web API; audio remains in the official Spotify player/app.
 
 ## Repository layout
@@ -34,6 +35,7 @@ npm run dev
 npm run typecheck
 npm test
 npm run test:browser
+npm run test:local-ai-bridge
 ```
 For a disposable local D1 database only: `npm run db:local`.
 
@@ -57,6 +59,7 @@ PartyQueue does not stream audio. Spotify playback is controlled through the Web
 - DJ login and event-scoped protected routes.
 - Spotify DJ OAuth, encrypted token storage and serialized token refresh.
 - DJ overview, queue ordering, request moderation and Spotify playback controls.
-- AI-assisted general DJ advice and unverified track ideas; no Spotify metadata or live queue is sent to AI, and no AI queue reordering is available. Spotify lookup happens separately and the DJ explicitly selects tracks.
+- AI-assisted DJ advice and unverified track ideas; a five-role Party Brain prompt encourages bold genre, decade and energy pivots. When configured, the local Claude Code bridge is preferred; the Cloudflare Workers AI path remains neuron-budget guarded. No Spotify metadata or live queue is sent to AI, and no AI queue reordering is available. Spotify lookup happens separately and the DJ explicitly selects tracks.
+- Local AI bridge setup: `tools/local-ai-bridge/README.md`.
 
 See [the API inventory](docs/architecture/API-INVENTORY.md) for current routes, access rules and side effects.

@@ -32,6 +32,9 @@ jobs:
       - name: Security characterization tests
         run: npm test
 
+      - name: Local AI bridge contract tests
+        run: npm run test:local-ai-bridge
+
       - name: Test Worker dry run
         run: npx wrangler deploy --dry-run
 

@@ -13,7 +13,8 @@
     "screenshots:baseline": "node scripts/capture-ui-baseline.mjs",
     "release:preflight": "node scripts/release-guard.mjs preflight",
     "test:architecture": "node scripts/check-architecture-boundaries.mjs",
-    "deploy:production": "node scripts/release-guard.mjs deploy"
+    "deploy:production": "node scripts/release-guard.mjs deploy",
+    "test:local-ai-bridge": "node --test scripts/local-ai-bridge-contract.mjs"
   },
   "dependencies": {
     "hono": "^4.10.0"

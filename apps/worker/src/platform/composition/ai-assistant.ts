@@ -9,6 +9,7 @@ import {
 } from "../../modules/ai/infrastructure/assistant-settings-repository";
 import { createDailyAssistantNeuronBudget } from "../../modules/ai/application/neuron-budget-policy";
 import { createD1AssistantNeuronUsageRepository } from "../../modules/ai/infrastructure/neuron-budget";
+import { createLocalAIBridgeClient } from "../../integrations/ai/local-ai-bridge";
 
 export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
   const repository: AssistantRepository = {
@@ -21,6 +22,8 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string) {
   };
   return executeDJAssistant({
     eventId: env.EVENT_ID, eventName: env.EVENT_NAME, ai: env.AI,
+    localAI: createLocalAIBridgeClient({ url: env.LOCAL_AI_BRIDGE_URL, token: env.LOCAL_AI_BRIDGE_TOKEN,
+      accessClientId: env.LOCAL_AI_ACCESS_CLIENT_ID, accessClientSecret: env.LOCAL_AI_ACCESS_CLIENT_SECRET }),
     prompt, repository, hash: sha256,
   });
 }
