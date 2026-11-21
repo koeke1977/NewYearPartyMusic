@@ -80,5 +80,5 @@ Routes own HTTP parsing, authentication, validation and response serialization. 
 ## Remaining focused work
 
 1. Continue replacing HTTP-shaped application outcomes with typed outcomes only where a concrete boundary improves correctness; preserve external API contracts.
-2. Add and validate conversation follow-up behaviour, session/event isolation, seven-day retention and Spotify-data exclusion before enabling the migration in production.
+2. Before production enablement, review migration 0004 and plan post-release smoke tests for session/event isolation, seven-day retention and Spotify-data exclusion; local migration and CI coverage are already green.
 3. Keep browser and Worker changes small, testable and tied to real behaviour. Do not create speculative services or modules.
