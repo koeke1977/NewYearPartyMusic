@@ -35,6 +35,20 @@ describe("DJ assistant prompt", () => {
     expect(user).not.toContain("Artist C");
   });
 
+  it("sets hard diversity targets for an explicitly surprising track list", () => {
+    const { system } = buildDJAssistantPrompt(context, "Geef me een verrassende uiteenlopende lijst nummers.");
+    expect(system).toContain("SURPRISE LIST CONTRACT (MANDATORY FOR THIS REQUEST)");
+    expect(system).toContain("at least 6 meaningfully different genres");
+    expect(system).toContain("at least 5 different decades");
+    expect(system).toContain("at least 3 left-field");
+    expect(system).toContain("Unless the DJ specifies another count, give 12 tracks");
+  });
+
+  it("does not impose surprise-list rules on an ordinary track list", () => {
+    const { system } = buildDJAssistantPrompt(context, "Maak een lijst met bekende feestnummers.");
+    expect(system).not.toContain("SURPRISE LIST CONTRACT");
+  });
+
   it("requires exact-count numbered output when the DJ asks for twenty suggestions", () => {
     const { system } = buildDJAssistantPrompt(context, "Geef me 20 nummers.");
     expect(system).toContain("return exactly 20 concrete numbered ideas");
