@@ -1,21 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const runAutopilot = vi.fn(async () => ({ status: "disabled", queued: 0 }));
-const cleanupRequests = vi.fn(async () => {});
-const cleanupAuth = vi.fn(async () => {});
-const cleanupConversations = vi.fn(async () => {});
+const mocks = vi.hoisted(() => ({
+  runAutopilot: vi.fn(async () => ({ status: "disabled", queued: 0 })),
+  cleanupRequests: vi.fn(async () => {}),
+  cleanupAuth: vi.fn(async () => {}),
+  cleanupConversations: vi.fn(async () => {}),
+}));
 
 vi.mock("../../apps/worker/src/platform/composition/dj-autopilot", () => ({
-  runDJAutopilotFromEnvironment: (...args: unknown[]) => runAutopilot(...args),
+  runDJAutopilotFromEnvironment: (...args: unknown[]) => mocks.runAutopilot(...args),
 }));
 vi.mock("../../apps/worker/src/modules/requests/application/cleanup-completed-requests", () => ({
-  cleanupCompletedRequests: (...args: unknown[]) => cleanupRequests(...args),
+  cleanupCompletedRequests: (...args: unknown[]) => mocks.cleanupRequests(...args),
 }));
 vi.mock("../../apps/worker/src/platform/infrastructure/auth-attempt-d1-repository", () => ({
-  deleteExpiredAuthAttemptBuckets: (...args: unknown[]) => cleanupAuth(...args),
+  deleteExpiredAuthAttemptBuckets: (...args: unknown[]) => mocks.cleanupAuth(...args),
 }));
 vi.mock("../../apps/worker/src/modules/ai/infrastructure/assistant-conversation-repository", () => ({
-  deleteExpiredAssistantConversationTurns: (...args: unknown[]) => cleanupConversations(...args),
+  deleteExpiredAssistantConversationTurns: (...args: unknown[]) => mocks.cleanupConversations(...args),
 }));
 vi.mock("../../apps/worker/src/modules/requests/infrastructure/request-retention-repository", () => ({
   createRequestRetentionRepository: vi.fn(() => "retention-repository"),
@@ -32,10 +34,10 @@ describe("scheduled Worker jobs", () => {
     const env = { DB: {} };
     handleScheduled({ cron: "*/5 * * * *" } as ScheduledController, env as never, ctx as never);
     await scheduled;
-    expect(runAutopilot).toHaveBeenCalledWith(env);
-    expect(cleanupRequests).not.toHaveBeenCalled();
-    expect(cleanupAuth).not.toHaveBeenCalled();
-    expect(cleanupConversations).not.toHaveBeenCalled();
+    expect(mocks.runAutopilot).toHaveBeenCalledWith(env);
+    expect(mocks.cleanupRequests).not.toHaveBeenCalled();
+    expect(mocks.cleanupAuth).not.toHaveBeenCalled();
+    expect(mocks.cleanupConversations).not.toHaveBeenCalled();
   });
 
   it("keeps retention and security cleanup on the daily cron", async () => {
@@ -44,9 +46,9 @@ describe("scheduled Worker jobs", () => {
     const env = { DB: {} };
     handleScheduled({ cron: "0 3 * * *" } as ScheduledController, env as never, ctx as never);
     await scheduled;
-    expect(runAutopilot).not.toHaveBeenCalled();
-    expect(cleanupRequests).toHaveBeenCalledOnce();
-    expect(cleanupAuth).toHaveBeenCalledWith(env.DB);
-    expect(cleanupConversations).toHaveBeenCalledWith(env.DB);
+    expect(mocks.runAutopilot).not.toHaveBeenCalled();
+    expect(mocks.cleanupRequests).toHaveBeenCalledOnce();
+    expect(mocks.cleanupAuth).toHaveBeenCalledWith(env.DB);
+    expect(mocks.cleanupConversations).toHaveBeenCalledWith(env.DB);
   });
 });
