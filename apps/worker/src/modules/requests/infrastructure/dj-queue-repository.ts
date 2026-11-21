@@ -17,7 +17,7 @@ export async function readRecentPlayedDjRequests(db: GuestRequestDatabase, event
 
 export async function readDjOverviewSettings(db: GuestRequestDatabase) {
   const result = await db.prepare(
-    "SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve','auto_queue','partyqueue_order')",
+    "SELECT key, value FROM settings WHERE key IN ('requests_paused','auto_approve','auto_queue','ai_autopilot','partyqueue_order')",
   ).all<{ key: string; value: string }>();
   return Object.fromEntries((result.results || []).map(row => [row.key, row.value])) as Record<string, string>;
 }
