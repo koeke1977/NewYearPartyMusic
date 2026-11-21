@@ -11,7 +11,7 @@ function fakeDb(rows: Array<{ role: string; content: string }> = []) {
   const statement = { bind: vi.fn(), all, run };
   statement.bind = vi.fn().mockReturnValue(statement);
   const prepare = vi.fn().mockReturnValue(statement);
-  const batch = vi.fn(async () => [{ meta: { changes: 1 } }, { meta: { changes: 1 } }]);
+  const batch = vi.fn(async (_statements: unknown[]) => [{ meta: { changes: 1 } }, { meta: { changes: 1 } }]);
   return { db: { prepare, batch } as never, prepare, statement, batch, all, run };
 }
 
