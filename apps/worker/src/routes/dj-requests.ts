@@ -8,12 +8,16 @@ import { requireDJSession } from "./dj-auth";
 import { getAudienceIntelligenceFromEnvironment } from "../platform/composition/audience-intelligence-workflows";
 import { getCrowdFeedbackFromEnvironment } from "../platform/composition/crowd-feedback-workflows";
 import { flushEventFromEnvironment } from "../platform/composition/event-flush-workflow";
+import { allowAuthAttempt } from "../platform/composition/auth-attempt-guard";
 
 export const djRequestRoutes = new Hono<{ Bindings: Env }>();
 
 djRequestRoutes.use("/api/dj/*", requireDJSession("DJ-sessie verlopen. Meld opnieuw aan."));
 
 djRequestRoutes.post("/api/dj/event/flush", async (c) => {
+  if (!await allowAuthAttempt(c.env, c.req.raw, "dj_login")) {
+    return c.json({ error: "Te veel pogingen. Probeer het over 15 minuten opnieuw." }, 429, { "Retry-After": "900" });
+  }
   let body: { confirmation?: unknown; code?: unknown };
   try { body = await c.req.json(); } catch { return c.json({ error: "Ongeldige aanvraag." }, 400); }
   const result = await flushEventFromEnvironment(c.env, body.confirmation, body.code);
