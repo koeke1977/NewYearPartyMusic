@@ -30,7 +30,7 @@ describe("DJ assistant action planning", () => {
     expect(detectDJActionIntent("Voeg 20 schuurschijven toe aan PartyQueue")).toEqual({ add: true, remove: false, reorder: false });
     expect(detectDJActionIntent("Haal track X uit de wachtrij")).toEqual({ add: false, remove: true, reorder: false });
     expect(detectDJActionIntent("Herschik de PartyQueue")).toEqual({ add: false, remove: false, reorder: true });
-    expect(detectDJActionIntent("Geef me een verrassend disco-setplan")).toEqual({ add: false, remove: false, reorder: false });
+    expect(detectDJActionIntent("Geef me een verrassend disco-setplan")).toEqual({ add: false, remove: false, reorder: false });\n    expect(detectDJActionIntent("Vul de lijst met suggesties aan")).toEqual({ add: false, remove: false, reorder: false });
   });
 
   it("parses only bounded, known action envelopes", () => {
