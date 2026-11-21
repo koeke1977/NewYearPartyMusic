@@ -92,7 +92,7 @@ export function createDjOverviewView({
       summary.append(elementFactory("p", "dj-muted", "Nog geen gasten hebben hun muziekvoorkeuren ingevuld."));
       return;
     }
-    const columns: Array<[string, typeof audience.genres]> = [
+    const columns = [
       ["POPULAIRSTE STIJLEN", audience.genres],
       ["SUBGENRES", audience.subgenres],
       ["FAVORIETE DECENNIA", audience.decades],
