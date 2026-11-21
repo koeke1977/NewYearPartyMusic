@@ -13,7 +13,8 @@ export const DJ_AUTOPILOT_QUEUE_TARGET = 8;
 export const DJ_AUTOPILOT_MAX_ADDS_PER_RUN = 3;
 
 export interface DJAutopilotRepository {
-  isEnabled(eventId: string): Promise<boolean>;\n  claimRateLimit(): Promise<boolean>;
+  isEnabled(eventId: string): Promise<boolean>;
+  claimRateLimit(): Promise<boolean>;
   acquireLock(eventId: string, nowEpochSeconds: number): Promise<boolean>;
   releaseLock(eventId: string, nowEpochSeconds: number): Promise<void>;
   loadContext(eventId: string): Promise<AssistantContextSnapshot>;
@@ -62,7 +63,8 @@ export async function runDJAutopilot(input: {
     if (lastFailedAttempt > 0 && epochSeconds() - lastFailedAttempt < 900) {
       return { status: "cooldown", queued };
     }
-    if (!input.ai) return { status: "error", queued, message: "Cloudflare AI-binding ontbreekt." };\n    if (!await input.repository.claimRateLimit()) return { status: "cooldown", queued };
+    if (!input.ai) return { status: "error", queued, message: "Cloudflare AI-binding ontbreekt." };
+    if (!await input.repository.claimRateLimit()) return { status: "cooldown", queued };
 
     const count = Math.min(DJ_AUTOPILOT_MAX_ADDS_PER_RUN, DJ_AUTOPILOT_QUEUE_TARGET - queued);
     if (count <= 0) return { status: "queue_sufficient", queued };
