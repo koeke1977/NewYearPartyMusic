@@ -6,15 +6,14 @@ import { createDJAutopilotRepository } from "../../modules/ai/infrastructure/dj-
 import { createD1AssistantNeuronUsageRepository } from "../../modules/ai/infrastructure/neuron-budget";
 import { createGuestRequestRepository } from "../../modules/requests/infrastructure/guest-request-d1-repository";
 import { createDjQueueRepository } from "../../modules/requests/infrastructure/dj-queue-d1-repository";
-import { addDjTrackToPartyQueue } from "../../modules/requests/application/guest-request-lifecycle";
-import { moderatePartyRequest } from "../../modules/requests/application/guest-request-lifecycle";
+import { addDjTrackToPartyQueue, moderatePartyRequest } from "../../modules/requests/application/guest-request-lifecycle";
 import { reorderDjQueue } from "../../modules/requests/application/dj-queue-management";
 import { getSpotifyCatalogTrack, searchSpotifyCatalog } from "../../integrations/spotify/catalog-api";
 import type { AssistantContextSnapshot } from "../../modules/ai/application/assistant-ports";
 
 function normalizeTrack(value: string): string {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
-    .toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, " ").trim().replace(/\\s+/g, " ");
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 }
 
 function trackWasRecentlyQueuedOrPlayed(
