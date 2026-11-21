@@ -27,6 +27,7 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message:
 export async function executeDJAssistant(input: {
   eventId: string;
   eventName: string;
+  sessionId: string;
   ai?: CloudflareAIClient;
   localAI?: LocalAIAssistantClient;
   prompt: string;
@@ -36,17 +37,28 @@ export async function executeDJAssistant(input: {
   const { eventId, eventName, ai, prompt, repository } = input;
   const memoryUpdated = await repository.rememberPreference(eventId, prompt);
   const snapshot = await repository.loadContext(eventId);
+  const conversation = await repository.loadConversation(eventId, input.sessionId);
   const context = buildDJAssistantContext({
     event: eventName,
     eventMoment: buildEventMoment(),
     djPreferences: parseDJPreferences(snapshot.djPreferences),
   });
-  const { system, user } = buildDJAssistantPrompt(context, prompt);
+  const { system, user } = buildDJAssistantPrompt(context, prompt, conversation);
+  const persistTurn = async (answer: string): Promise<boolean> => {
+    try {
+      await repository.saveConversation(eventId, input.sessionId, prompt, answer);
+      return true;
+    } catch (error) {
+      console.error("DJ AI conversation persistence failed", error instanceof Error ? error.message : "unknown error");
+      return false;
+    }
+  };
   const provider = input.localAI ? "claude-code-local" : "cloudflare";
   const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nspotify-independent-context-v3");
   const cached = await repository.readAnswerCache(cacheKey);
   if (cached) {
-    return { status: 200, body: { ok: true, provider, answer: cached.answer, spotifyMatches: [], cached: true, memoryUpdated } };
+    const conversationSaved = await persistTurn(cached.answer);
+    return { status: 200, body: { ok: true, provider, answer: cached.answer, spotifyMatches: [], cached: true, memoryUpdated, sessionId: input.sessionId, conversationSaved } };
   }
 
   if (input.localAI) {
@@ -59,8 +71,9 @@ export async function executeDJAssistant(input: {
         95000,
         "De lokale AI heeft niet tijdig geantwoord. Controleer of Claude Code en de lokale bridge actief zijn.",
       );
+      const conversationSaved = await persistTurn(answer);
       await repository.writeAnswerCache(cacheKey, answer);
-      return { status: 200, body: { ok: true, provider: "claude-code-local", answer, spotifyMatches: [], cached: false, memoryUpdated } };
+      return { status: 200, body: { ok: true, provider: "claude-code-local", answer, spotifyMatches: [], cached: false, memoryUpdated, sessionId: input.sessionId, conversationSaved } };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Lokale Claude-assistent is tijdelijk niet beschikbaar.";
       const usageLimitReached = /usage limit|rate limit|limit reached|hit your limit|weekly limit|five-hour limit|capacity|429/i.test(errorMessage);
@@ -91,8 +104,9 @@ export async function executeDJAssistant(input: {
       90000,
       "Cloudflare AI antwoordde niet binnen 90 seconden. Probeer het opnieuw.",
     );
+    const conversationSaved = await persistTurn(answer);
     await repository.writeAnswerCache(cacheKey, answer);
-    return { status: 200, body: { ok: true, provider, answer, spotifyMatches: [], cached: false, memoryUpdated } };
+    return { status: 200, body: { ok: true, provider, answer, spotifyMatches: [], cached: false, memoryUpdated, sessionId: input.sessionId, conversationSaved } };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "AI-assistent is tijdelijk niet beschikbaar.";
     const freeQuotaReached = /neuron|daily.{0,30}(limit|quota)|quota|limit.{0,30}(reached|exceeded)|exceeded.{0,30}(limit|quota)|HTTP 429|rate limit/i.test(errorMessage);
