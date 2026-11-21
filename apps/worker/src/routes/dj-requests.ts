@@ -6,6 +6,7 @@ import {
 } from "../platform/composition/dj-request-workflows";
 import { requireDJSession } from "./dj-auth";
 import { getAudienceIntelligenceFromEnvironment } from "../platform/composition/audience-intelligence-workflows";
+import { getCrowdFeedbackFromEnvironment } from "../platform/composition/crowd-feedback-workflows";
 
 export const djRequestRoutes = new Hono<{ Bindings: Env }>();
 
@@ -47,4 +48,9 @@ djRequestRoutes.post("/api/dj/settings/:key", async (c) => {
 
 djRequestRoutes.get("/api/dj/audience", async (c) => {
   return c.json(await getAudienceIntelligenceFromEnvironment(c.env));
+});
+
+
+djRequestRoutes.get("/api/dj/crowd-feedback", async (c) => {
+  return c.json(await getCrowdFeedbackFromEnvironment(c.env));
 });
