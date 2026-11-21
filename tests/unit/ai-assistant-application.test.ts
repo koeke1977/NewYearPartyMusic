@@ -10,7 +10,7 @@ function createRepository(): AssistantRepository {
     writeAnswerCache: vi.fn(async () => {}),
     claimRateLimit: vi.fn(async () => true),
     createNeuronBudget: vi.fn(async () => ({
-      canAfford: () => false, record: vi.fn(async () => 0),
+      canAfford: () => true, record: vi.fn(async () => 0),
     })),
   };
 }
@@ -18,6 +18,9 @@ function createRepository(): AssistantRepository {
 describe("executeDJAssistant", () => {
   it("stops at the free-tier budget before cooldown or provider invocation", async () => {
     const repository = createRepository();
+    vi.mocked(repository.createNeuronBudget).mockResolvedValue({
+      canAfford: () => false, record: vi.fn(async () => 0),
+    });
     const ai = { run: vi.fn() };
     const result = await executeDJAssistant({
       eventId: "event-1", eventName: "Test Party", ai,
@@ -41,6 +44,7 @@ describe("executeDJAssistant", () => {
     expect(result.body.spotifyMatches).toEqual([]);
     expect(repository.claimRateLimit).not.toHaveBeenCalled();
   });
+
   it("uses the local Claude subscription bridge before the Cloudflare neuron budget", async () => {
     const repository = createRepository();
     const complete = vi.fn(async () => "Maak er een disco-versus-rock moment van!");
@@ -57,6 +61,21 @@ describe("executeDJAssistant", () => {
     expect(repository.writeAnswerCache).toHaveBeenCalledOnce();
   });
 
+  it("returns a controlled error when the local AI bridge never responds", async () => {
+    vi.useFakeTimers();
+    const repository = createRepository();
+    const pending = executeDJAssistant({
+      eventId: "event-1", eventName: "Test Party",
+      prompt: "Verras me", repository, hash: async value => value,
+      localAI: { complete: () => new Promise(() => {}) },
+    });
+    await vi.advanceTimersByTimeAsync(95000);
+    const result = await pending;
+    expect(result.status).toBe(502);
+    expect(String(result.body.error)).toContain("niet tijdig geantwoord");
+    vi.useRealTimers();
+  });
+
   it("does not fall back to a paid API when the local subscription reaches its limit", async () => {
     const repository = createRepository();
     const ai = { run: vi.fn() };
@@ -70,5 +89,4 @@ describe("executeDJAssistant", () => {
     expect(ai.run).not.toHaveBeenCalled();
     expect(repository.createNeuronBudget).not.toHaveBeenCalled();
   });
-
 });
