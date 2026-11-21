@@ -79,3 +79,17 @@ CREATE TABLE IF NOT EXISTS auth_attempt_buckets (
 );
 CREATE INDEX IF NOT EXISTS idx_auth_attempt_buckets_window
   ON auth_attempt_buckets(window_started_at);
+
+-- Bounded DJ/AI conversation history; only DJ prompts and AI-generated answers are stored.
+CREATE TABLE IF NOT EXISTS dj_ai_turns (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  session_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+  content TEXT NOT NULL CHECK (length(content) <= 8000),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_dj_ai_turns_session
+  ON dj_ai_turns(event_id, session_id, id);
+CREATE INDEX IF NOT EXISTS idx_dj_ai_turns_retention
+  ON dj_ai_turns(created_at);
