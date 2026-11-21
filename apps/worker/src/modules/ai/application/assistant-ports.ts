@@ -10,7 +10,7 @@ export type PartyQueueContext = {
     failed: number;
     topArtists: Array<{ artist: string; requests: number }>;
   };
-  queued: Array<{ track: string; durationMs: number | null }>;
+  queued: Array<{ id: string; track: string; durationMs: number | null }>;
   recentlyPlayed: Array<{ track: string; playedAt: string | null }>;
   audience: {
     respondents: number;
