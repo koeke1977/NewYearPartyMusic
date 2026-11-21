@@ -98,3 +98,59 @@
 @media(min-width:1500px){.dj-shell .dj-mixer{grid-template-columns:minmax(0,1.15fr) minmax(440px,.85fr)}.dj-shell .dj-requests{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.dj-shell{width:calc(100% - 32px)}.dj-shell .dj-mixer{grid-template-columns:1fr}.dj-shell .dj-requests{grid-template-columns:1fr}.dj-shell .deck-panel{min-height:unset}.dj-shell .dj-stats{grid-template-columns:repeat(3,minmax(0,1fr));padding:6px 3px}.dj-shell .dj-stat:nth-child(3){border-right:0}.dj-shell .dj-stat:nth-child(n+4){border-top:1px solid rgba(255,255,255,.09)}}
 @media(max-width:560px){.dj-shell{width:calc(100% - 24px)}.dj-shell .dj-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.dj-shell .dj-stat{justify-content:flex-start;padding:9px 10px;gap:9px}.dj-shell .dj-stat:nth-child(odd){border-right:1px solid rgba(255,255,255,.09)}.dj-shell .dj-stat:nth-child(even){border-right:0}.dj-shell .dj-stat:nth-child(3){border-top:1px solid rgba(255,255,255,.09)}.dj-shell .dj-stat:nth-child(4){border-top:1px solid rgba(255,255,255,.09)}.dj-shell .dj-stat:nth-child(5){grid-column:1/-1;border-top:1px solid rgba(255,255,255,.09);border-right:0}.dj-shell .topbar{min-height:60px}.dj-shell .dj-controls{grid-template-columns:1fr 1fr;gap:8px}.dj-shell .control-tile{min-height:84px;padding:12px}.dj-shell .dj-stats{gap:8px}.dj-shell .dj-stat{min-height:70px;padding:11px}.dj-shell .now-playing{min-height:130px;gap:14px}.dj-shell .deck-art,.dj-shell .vinyl-disc{width:100px;height:100px;flex-basis:100px}.dj-shell .deck-panel{padding:15px}.dj-shell .dj-request{align-items:center}.dj-shell .dj-actions{padding-left:0;max-width:92px;flex-basis:92px}}
+
+
+/* DJ console: readable controls and labels at real-world viewing distance */
+.dj-shell .dj-muted{font-size:14px;line-height:1.45}
+.dj-shell .dj-stat-copy .dj-muted{font-size:11px}
+.dj-shell .dj-stat-copy strong{font-size:clamp(21px,1.8vw,29px)}
+.dj-shell .deck-heading,.dj-shell .deck-channel{font-size:12px}
+.dj-shell .queue-track-info strong{font-size:15px}
+.dj-shell .queue-track-info span{font-size:13px}
+.dj-shell .dj-track-name{font-size:16px}
+.dj-shell .dj-requester{font-size:11px}
+.dj-shell .dj-status{font-size:11px}
+.dj-shell .dj-action{min-height:42px;font-size:11px}
+.dj-shell .booth-topline,.dj-shell .booth-nowline{font-size:11px}
+.dj-shell .booth-device-line{font-size:13px}
+.dj-shell .booth-deck-meta span,.dj-shell .booth-deck-meta small{font-size:12px}
+@media(max-width:900px){
+ .dj-shell .dj-toolbar h2{font-size:clamp(26px,5vw,34px)}
+ .dj-shell .dj-stat-copy .dj-muted{font-size:11px}
+ .dj-shell .dj-stat-copy strong{font-size:24px}
+ .dj-shell .dj-action{min-height:46px;font-size:12px}
+ .dj-shell .queue-track-info strong{font-size:15px}
+ .dj-shell .queue-track-info span{font-size:13px}
+}
+@media(max-width:600px){
+ .dj-shell{width:calc(100% - 28px)}
+ .dj-shell .dj-toolbar{align-items:flex-start}
+ .dj-shell .dj-toolbar h2{font-size:27px}
+ .dj-shell .dj-stat{min-height:76px}
+ .dj-shell .dj-stat-copy .dj-muted{font-size:10px;white-space:normal;line-height:1.25}
+ .dj-shell .dj-stat-copy strong{font-size:25px}
+ .dj-shell .dj-audience-panel,.dj-shell .dj-ai-panel,.dj-shell .request-panel{padding:16px}
+ .dj-shell .dj-audience-heading h2,.dj-shell .dj-list-heading h2{font-size:21px}
+ .dj-shell .dj-audience-column h3{font-size:12px}
+ .dj-shell .dj-audience-choice{font-size:13px;padding:8px 0}
+ .dj-shell .dj-audience-choice strong{font-size:12px}
+ .dj-shell .dj-crowd-trend{font-size:12px}
+ .dj-shell .dj-crowd-meta{font-size:13px;line-height:1.4}
+ .dj-shell .dj-ai-intro{font-size:14px;line-height:1.5}
+ .dj-shell .dj-ai-action{min-height:48px;font-size:12px}
+ .dj-shell .dj-ai-form input{min-height:52px;font-size:16px}
+ .dj-shell .dj-ai-form button{min-height:48px;font-size:12px}
+ .dj-shell .dj-ai-answer{font-size:15px;line-height:1.55}
+ .dj-shell .dj-request{gap:12px;padding:13px}
+ .dj-shell .dj-track-name{font-size:16px}
+ .dj-shell .dj-track .dj-muted{font-size:14px}
+ .dj-shell .dj-requester{font-size:12px}
+ .dj-shell .dj-status{font-size:11px}
+ .dj-shell .dj-actions{width:100%;max-width:none;flex:1 0 100%;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .dj-shell .dj-actions .dj-action{min-height:46px;font-size:12px}
+ .dj-shell .booth-topline,.dj-shell .booth-nowline{font-size:11px;letter-spacing:.08em}
+ .dj-shell .booth-device-line{font-size:13px;line-height:1.5}
+ .dj-shell .booth-deck-meta span,.dj-shell .booth-deck-meta small{font-size:12px}
+ .dj-shell .queue-track-info strong{font-size:15px}
+ .dj-shell .queue-track-info span{font-size:13px}
+}
