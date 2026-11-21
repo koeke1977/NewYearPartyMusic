@@ -3,6 +3,7 @@ import { buildDJAssistantContext } from "../../apps/worker/src/modules/ai/contex
 import { buildEventMoment } from "../../apps/worker/src/modules/ai/context/event-moment";
 
 const partyQueue = {
+  activity: { totalRequests: 0, uniqueTracksRequested: 0, pending: 0, approved: 0, queued: 0, played: 0, rejected: 0, failed: 0, topArtists: [] },
   queued: [{ track: "Track A — Artist A", durationMs: 200000 }],
   recentlyPlayed: [{ track: "Track B — Artist B", playedAt: null }],
   audience: { respondents: 0, genres: [], subgenres: [], decades: [], moods: [], averageEnergy: null },
