@@ -154,6 +154,14 @@ async function testDjJourney(browser) {
       return { body: { token: "dj-browser-test-token" } };
     }
     if (call.path === "/api/dj/overview") return { body: overview };
+    if (call.path === "/api/dj/audience") return { body: {
+      eventId: "NYE2026", respondents: 3,
+      genres: [{ id: "electronic-dance", label: "Electronic & Dance", guests: 2, share: 0.667, balancedWeight: 0.35 }],
+      subgenres: [{ id: "house", label: "House", guests: 2, share: 0.667, balancedWeight: 0.35 }],
+      decades: [{ id: "90s", label: "90s", guests: 2, share: 0.667, balancedWeight: 0.35 }],
+      moods: [{ id: "energetic", label: "energetic", guests: 2, share: 0.667, balancedWeight: 0.35 }],
+      averageEnergy: 7,
+    } };
     if (call.path === "/api/dj/spotify/status") return { body: spotifyStatus };
     if (call.path === "/api/dj/spotify/devices") return { body: { devices: [] } };
     throw new Error("Unexpected DJ API call: " + call.method + " " + call.path);
@@ -170,6 +178,9 @@ async function testDjJourney(browser) {
   await page.getByText("Music Sounds Better With You").first().waitFor({ state: "visible", timeout: 5000 });
   assert.equal(await page.evaluate(() => localStorage.getItem("partyqueue_dj_token")), "dj-browser-test-token");
   assert.ok(calls.some(call => call.path === "/api/dj/overview"));
+  assert.ok(calls.some(call => call.path === "/api/dj/audience"));
+  assert.match(await page.locator("#dj-audience").innerText(), /Electronic & Dance/);
+  assert.match(await page.locator("#dj-audience").innerText(), /3 GASTEN/);
   assert.ok(calls.some(call => call.path === "/api/dj/spotify/status"));
   const aiStyles = await page.evaluate(() => ({
     actionsDisplay: getComputedStyle(document.querySelector(".dj-ai-actions")).display,
