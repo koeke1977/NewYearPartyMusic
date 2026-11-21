@@ -1,4 +1,5 @@
 import { element } from "./dom.js";
+import { loadGuestMusicTaxonomy, saveGuestMusicPreferences } from "./guest-music-api.js";
 
 export function renderGuestMusicPreferences(card, session) {
   const panel = element("section", "guest-preferences");
@@ -35,9 +36,7 @@ export function renderGuestMusicPreferences(card, session) {
 
   async function load() {
     try {
-      const response = await fetch("/api/music/taxonomy");
-      if (!response.ok) throw new Error("Muziekstijlen laden lukte niet.");
-      const taxonomy = await response.json();
+      const taxonomy = await loadGuestMusicTaxonomy();
       const genreGroup = element("div", "preference-group");
       genreGroup.append(element("h3", "", "Muziekstijlen — kies wat je graag hoort"));
       for (const genre of taxonomy.genres) {
@@ -93,16 +92,10 @@ export function renderGuestMusicPreferences(card, session) {
     save.disabled = true;
     status.textContent = "We bewaren je voorkeuren…";
     try {
-      const response = await fetch("/api/guests/preferences", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.token },
-        body: JSON.stringify({ preferences: {
-          genreIds: [...selected.genreIds], decadeIds: [...selected.decadeIds],
-          moodIds: [...selected.moodIds], energy: selected.energy,
-        } }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Opslaan lukte niet.");
+      await saveGuestMusicPreferences({
+        genreIds: [...selected.genreIds], decadeIds: [...selected.decadeIds],
+        moodIds: [...selected.moodIds], energy: selected.energy,
+      }, session.token);
       status.textContent = "Bedankt! Je muzieksmaak telt mee voor de DJ.";
       save.textContent = "VOORKEUREN BEWAARD ✓";
     } catch (error) {
