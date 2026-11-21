@@ -13,7 +13,7 @@ export const DJ_AUTOPILOT_QUEUE_TARGET = 8;
 export const DJ_AUTOPILOT_MAX_ADDS_PER_RUN = 3;
 
 export interface DJAutopilotRepository {
-  isEnabled(eventId: string): Promise<boolean>;
+  isEnabled(eventId: string): Promise<boolean>;\n  claimRateLimit(): Promise<boolean>;
   acquireLock(eventId: string, nowEpochSeconds: number): Promise<boolean>;
   releaseLock(eventId: string, nowEpochSeconds: number): Promise<void>;
   loadContext(eventId: string): Promise<AssistantContextSnapshot>;
@@ -62,13 +62,13 @@ export async function runDJAutopilot(input: {
     if (lastFailedAttempt > 0 && epochSeconds() - lastFailedAttempt < 900) {
       return { status: "cooldown", queued };
     }
-    if (!input.ai) return { status: "error", queued, message: "Cloudflare AI-binding ontbreekt." };
+    if (!input.ai) return { status: "error", queued, message: "Cloudflare AI-binding ontbreekt." };\n    if (!await input.repository.claimRateLimit()) return { status: "cooldown", queued };
 
     const count = Math.min(DJ_AUTOPILOT_MAX_ADDS_PER_RUN, DJ_AUTOPILOT_QUEUE_TARGET - queued);
     if (count <= 0) return { status: "queue_sufficient", queued };
     const prompt = "Vul PartyQueue autonoom aan: voeg maximaal " + count
       + " concrete tracks toe aan PartyQueue. Dit is een expliciete Autopilot-opdracht. "
-      + "Kies gevarieerd op basis van de actuele publieksvoorkeuren, toegestane sfeerfeedback en de eventfase. "
+      + "Combineer verschillende genres en decennia op basis van de actuele publieksvoorkeuren, toegestane sfeerfeedback en de eventfase. "
       + "Vermijd alle tracks die al in de geplande wachtrij staan of recent gespeeld zijn; vermijd ook een opeenvolging van dezelfde artiest. "
       + "Kies alleen bestaande, herkenbare nummers met exacte titel en artiest. Gebruik geen gokjes, remixes of alternatieve versies tenzij die expliciet passend zijn. "
       + "Voeg uitsluitend tracks toe; verwijder of herschik niets. Als er onvoldoende betrouwbare keuzes zijn, geef minder tracks of geen actie.";
