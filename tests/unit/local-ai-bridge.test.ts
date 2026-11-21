@@ -18,6 +18,14 @@ function repository(): AssistantRepository {
 }
 
 describe("PartyQueue Local AI Bridge client", () => {
+  it("keeps the local bridge disabled when only its pre-provisioned token is present", () => {
+    expect(createLocalAIBridgeClient({ token: "x".repeat(40) })).toBeUndefined();
+  });
+
+  it("requires a token when a bridge URL activates the integration", () => {
+    expect(() => createLocalAIBridgeClient({ url: "https://bridge.example.com" })).toThrow(/LOCAL_AI_BRIDGE_TOKEN/);
+  });
+
   it("requires HTTPS for remote bridge endpoints", () => {
     expect(() => createLocalAIBridgeClient({ url: "http://bridge.example.com", token: "x".repeat(40) })).toThrow(/HTTPS/);
   });
