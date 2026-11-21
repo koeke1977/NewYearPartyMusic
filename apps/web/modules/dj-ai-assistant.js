@@ -2,11 +2,14 @@ import { extractDjTrackSuggestions } from "./dj-ai-suggestions.js";
 import { resolveDjAiPrompt } from "./dj-ai-intent.js";
 import { addSelectedDjTracks } from "./dj-ai-actions.js";
 import { createDjAiAssistantView } from "./dj-ai-assistant-view.js";
+import { getOrCreateDjAiSessionId } from "./dj-ai-session.js";
 
 // Owns DJ#DATUUR AI request orchestration and the explicit DJ-selected Spotify search/add flow.
-export function createDjAiAssistant({ api, refresh, documentRef = document }) {
+export function createDjAiAssistant({ api, refresh, documentRef = document, getSessionId = getOrCreateDjAiSessionId }) {
   const aiForm = documentRef.querySelector("#dj-ai-form");
   const view = createDjAiAssistantView({ documentRef });
+  const sessionId = getSessionId();
+  let previousAssistantAnswer = "";
 
   async function askDJAI(prompt, mode = "advice") {
     const input = documentRef.querySelector("#dj-ai-prompt");
@@ -22,10 +25,11 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
         ? { answer: prompt, cached: false }
         : await api("/api/dj/ai/assistant", {
           method: "POST",
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify({ prompt, sessionId }),
           timeoutMs: 110000,
         });
       const answer = result.answer || "Geen advies ontvangen.";
+      previousAssistantAnswer = answer;
 
       if (mode === "starter" || mode === "fill" || mode === "import") {
         const suggestions = extractDjTrackSuggestions(answer);
@@ -74,7 +78,7 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
     const prompt = documentRef.querySelector("#dj-ai-prompt").value.trim();
     if (!prompt) return;
     const output = documentRef.querySelector("#dj-ai-answer");
-    const resolved = resolveDjAiPrompt(prompt, output.innerText || output.textContent || "");
+    const resolved = resolveDjAiPrompt(prompt, previousAssistantAnswer);
     if (resolved) await askDJAI(resolved.prompt, resolved.mode);
   });
 
