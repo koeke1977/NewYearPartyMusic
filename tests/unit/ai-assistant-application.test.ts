@@ -5,7 +5,9 @@ import type { AssistantRepository } from "../../apps/worker/src/modules/ai/appli
 function createRepository(): AssistantRepository {
   return {
     rememberPreference: vi.fn(async () => false),
-    loadContext: vi.fn(async () => ({ requestCounts: [], djPreferences: null })),
+    loadContext: vi.fn(async () => ({ djPreferences: null })),
+    loadConversation: vi.fn(async () => []),
+    saveConversation: vi.fn(async () => {}),
     readAnswerCache: vi.fn(async () => null),
     writeAnswerCache: vi.fn(async () => {}),
     claimRateLimit: vi.fn(async () => true),
@@ -23,7 +25,7 @@ describe("executeDJAssistant", () => {
     });
     const ai = { run: vi.fn() };
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party", ai,
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1", ai,
       prompt: "Geef me wat disco-advies", repository, hash: async value => value,
     });
     expect(result.status).toBe(429);
@@ -36,7 +38,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     vi.mocked(repository.readAnswerCache).mockResolvedValue({ answer: "Prima!" });
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party",
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1",
       prompt: "Geef me disco-advies", repository, hash: async value => value,
     });
     expect(result.status).toBe(200);
@@ -49,7 +51,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     const complete = vi.fn(async () => "Maak er een disco-versus-rock moment van!");
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party",
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1",
       prompt: "Verras me", repository, hash: async value => value,
       localAI: { complete },
     });
@@ -80,7 +82,7 @@ describe("executeDJAssistant", () => {
     const repository = createRepository();
     const ai = { run: vi.fn() };
     const result = await executeDJAssistant({
-      eventId: "event-1", eventName: "Test Party", ai,
+      eventId: "event-1", eventName: "Test Party", sessionId: "session-1", ai,
       prompt: "Verras me", repository, hash: async value => value,
       localAI: { complete: async () => { throw new Error("weekly usage limit reached"); } },
     });
