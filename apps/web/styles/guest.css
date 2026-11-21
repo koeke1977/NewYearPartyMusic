@@ -64,3 +64,45 @@
 .crowd-energy{width:100%;min-height:22px;padding:0;accent-color:var(--green)}
 .crowd-send{width:100%;min-height:42px;margin-top:10px;font-size:10px}
 .crowd-status{margin:8px 0 0}
+
+
+/* Readability and low-clutter guest experience */
+.guest-preferences-disclosure{margin:0 0 16px;border:1px solid rgba(30,215,96,.22);border-radius:14px;background:rgba(5,12,7,.58)}
+.guest-preferences-summary{display:flex;flex-direction:column;gap:4px;padding:15px 16px;color:#f2fff5;font-size:16px;font-weight:800;cursor:pointer;list-style:none}
+.guest-preferences-summary::-webkit-details-marker{display:none}
+.guest-preferences-summary::after{content:"＋";float:right;align-self:flex-end;margin-top:-23px;color:var(--green);font-size:22px}
+.guest-preferences-disclosure[open] .guest-preferences-summary::after{content:"−"}
+.preferences-summary-hint{color:#aebbb2;font-size:13px;font-weight:500}
+.guest-preferences{margin:0;padding:0 15px 16px;border:0;background:transparent}
+.preference-group h3{font-size:14px}
+.preference-genre summary{padding:13px 12px;font-size:15px}
+.preference-choice{gap:10px;padding:10px;font-size:14px;line-height:1.4}
+.preference-choice input{width:20px;min-height:20px;flex-basis:20px}
+.preference-energy-label{font-size:14px}
+.preference-save{min-height:50px;font-size:13px}
+.guest-crowd-feedback h2{font-size:18px}
+.crowd-feedback-intro{font-size:14px;line-height:1.5}
+.crowd-choice{min-height:72px;font-size:13px}
+.crowd-send{min-height:50px;font-size:13px}
+.crowd-status{font-size:13px;line-height:1.45}
+.track-name{font-size:16px}
+.track-artist{font-size:14px}
+.track-duration{font-size:12px}
+.request-button{min-height:46px;font-size:11px}
+.search-hint,.search-feedback{font-size:14px;line-height:1.5}
+@media(max-width:600px){
+  .guest-preferences-summary{padding:16px;font-size:17px}
+  .preferences-summary-hint{font-size:14px}
+  .guest-preferences{padding:0 12px 14px}
+  .preference-options{grid-template-columns:1fr}
+  .preference-inline{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .preference-choice{font-size:14px}
+  .crowd-atmosphere{gap:6px}
+  .crowd-choice{min-height:76px;padding:10px 4px;font-size:13px}
+  .crowd-choice span:first-child{font-size:24px}
+  .track-item{gap:10px;padding:10px}
+  .track-cover{width:56px;height:56px;flex-basis:56px}
+  .track-name{font-size:16px}
+  .track-artist{font-size:14px}
+  .request-button{min-height:46px;min-width:76px;padding:0 10px;font-size:10px}
+}
