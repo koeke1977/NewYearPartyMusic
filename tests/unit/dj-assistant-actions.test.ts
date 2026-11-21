@@ -31,6 +31,8 @@ describe("DJ assistant action planning", () => {
     expect(detectDJActionIntent("Voeg die lijst toe")).toEqual({ add: true, remove: false, reorder: false });
     expect(detectDJActionIntent("Zet die lijst in PartyQueue")).toEqual({ add: true, remove: false, reorder: false });
     expect(detectDJActionIntent("Haal track X uit de wachtrij")).toEqual({ add: false, remove: true, reorder: false });
+    expect(detectDJActionIntent("Ik wil de Frank Sinatra tracks uit PartyQueue verwijderen")).toEqual({ add: false, remove: true, reorder: false });
+    expect(detectDJActionIntent("Haal Frank Sinatra eruit")).toEqual({ add: false, remove: true, reorder: false });
     expect(detectDJActionIntent("Herschik de PartyQueue")).toEqual({ add: false, remove: false, reorder: true });
     expect(detectDJActionIntent("Geef me een verrassend disco-setplan")).toEqual({ add: false, remove: false, reorder: false });
     expect(detectDJActionIntent("Vul de lijst met suggesties aan")).toEqual({ add: false, remove: false, reorder: false });
@@ -101,8 +103,11 @@ describe("DJ assistant action planning", () => {
     expect(result[0].details[0]).toContain("recente herhaling");
   });
 
-  it("removes only IDs that are still in the live PartyQueue", async () => {
-    const dependencies = ports();
+  it("removes only live queue IDs and verifies that each removed track disappeared", async () => {
+    const readQueueIds = vi.fn()
+      .mockResolvedValueOnce(["queue-1", "queue-2"])
+      .mockResolvedValueOnce(["queue-2"]);
+    const dependencies = ports({ readQueueIds });
     const result = await executeDJAssistantActions({
       prompt: "Verwijder deze tracks uit de wachtrij",
       actions: [{ type: "remove_tracks", requestIds: ["queue-1", "not-queued"] }],
@@ -110,7 +115,19 @@ describe("DJ assistant action planning", () => {
     });
     expect(dependencies.removeQueuedTrack).toHaveBeenCalledTimes(1);
     expect(dependencies.removeQueuedTrack).toHaveBeenCalledWith("queue-1");
+    expect(readQueueIds).toHaveBeenCalledTimes(2);
     expect(result[0]).toMatchObject({ type: "remove_tracks", succeeded: 1, failed: 1 });
+  });
+
+  it("does not report success when the Worker says ok but the track remains queued", async () => {
+    const dependencies = ports();
+    const result = await executeDJAssistantActions({
+      prompt: "Haal track X uit de wachtrij",
+      actions: [{ type: "remove_tracks", requestIds: ["queue-1"] }],
+      ports: dependencies,
+    });
+    expect(result[0]).toMatchObject({ type: "remove_tracks", succeeded: 0, failed: 1 });
+    expect(result[0].details[0]).toContain("staat nog in PartyQueue");
   });
 
   it("reorders only when the model returns the complete current queue", async () => {
