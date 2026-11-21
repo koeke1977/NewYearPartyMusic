@@ -42,7 +42,7 @@ describe("DJ assistant prompt", () => {
     ]);
     expect(user).toContain("RECENT DJ/AI CONVERSATION");
     expect(user).toContain("Music Sounds Better With You");
-    expect(user).toContain("DJ QUESTION:\\nMaak die lijst commerciëler");
+    expect(user).toContain("DJ QUESTION:\nMaak die lijst commerciëler");
     expect(system).toContain("resolve references such as");
     expect(user).not.toContain("spotify_track_id");
     expect(user).not.toContain("album_image_url");
