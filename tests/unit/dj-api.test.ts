@@ -45,8 +45,9 @@ describe("DJ API client", () => {
     }));
     const api = createDjApi(() => "token", fetcher);
     const pending = api("/api/dj/ai/assistant", { timeoutMs: 1000 });
+    const rejection = expect(pending).rejects.toThrow("De aanvraag duurde te lang.");
     await vi.advanceTimersByTimeAsync(1000);
-    await expect(pending).rejects.toThrow("De aanvraag duurde te lang.");
+    await rejection;
     expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true);
   });
 });
