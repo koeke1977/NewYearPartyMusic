@@ -410,3 +410,21 @@
     margin-top:2px;
   }
 }
+
+
+/* Persistent Spotify volume error: stays visible until a later successful volume update. */
+.master-volume-error{
+  margin:0;
+  padding:10px 12px;
+  border:1px solid rgba(255,91,91,.55);
+  border-radius:7px;
+  background:rgba(105,18,18,.28);
+  color:#ffb0b0;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.5;
+  letter-spacing:normal;
+  text-align:left;
+  overflow-wrap:anywhere;
+}
+.master-volume-error[hidden]{display:none}
