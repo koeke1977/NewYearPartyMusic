@@ -23,7 +23,7 @@ export function createDJAutopilotRepository(db: DJAutopilotDatabase) {
       await db.prepare("UPDATE settings SET value='0',updated_at=CURRENT_TIMESTAMP WHERE key=? AND value=?")
         .bind(settingKey("lock", eventId), String(lockEpochSeconds)).run();
     },
-    loadContext: (eventId: string) => loadAssistantContextSnapshot(db as never, eventId),
+    loadContext: (eventId: string) => loadAssistantContextSnapshot(db, eventId),
     async readLastFailedAttempt(eventId: string): Promise<number> {
       const row = await db.prepare("SELECT value FROM settings WHERE key=?")
         .bind(settingKey("last_failed", eventId)).first<{ value: string }>();
