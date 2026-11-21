@@ -20,7 +20,11 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
     try {
       const result = mode === "import"
         ? { answer: prompt, cached: false }
-        : await api("/api/dj/ai/assistant", { method: "POST", body: JSON.stringify({ prompt }) });
+        : await api("/api/dj/ai/assistant", {
+          method: "POST",
+          body: JSON.stringify({ prompt }),
+          timeoutMs: 110000,
+        });
       const answer = result.answer || "Geen advies ontvangen.";
 
       if (mode === "starter" || mode === "fill" || mode === "import") {
@@ -32,6 +36,7 @@ export function createDjAiAssistant({ api, refresh, documentRef = document }) {
           const results = await api("/api/dj/ai/music/search", {
             method: "POST",
             body: JSON.stringify({ queries: suggestions }),
+            timeoutMs: 30000,
           });
           view.renderTrackSuggestions(output, {
             answer,
