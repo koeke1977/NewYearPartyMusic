@@ -81,7 +81,6 @@ export function createDjAiAssistant({ api, refresh, documentRef = document, getS
     event.preventDefault();
     const prompt = documentRef.querySelector("#dj-ai-prompt").value.trim();
     if (!prompt) return;
-    const output = documentRef.querySelector("#dj-ai-answer");
     const resolved = resolveDjAiPrompt(prompt, previousAssistantAnswer);
     if (resolved) await askDJAI(resolved.prompt, resolved.mode);
   });
@@ -89,7 +88,10 @@ export function createDjAiAssistant({ api, refresh, documentRef = document, getS
   documentRef.querySelectorAll("[data-ai-action]").forEach(button => button.addEventListener("click", async () => {
     const action = button.dataset.aiAction;
     if (action === "plan") {
-      await askDJAI("Maak een creatief DJ-setplan voor een Oud & Nieuw-feest in België. Denk in energieblokken, genres, decennia, meezingers, rustmomenten en verrassende stijlwissels. Geef advies op basis van algemene DJ-kennis; je ziet de actuele Spotify-wachtrij niet en mag geen bestaande queuevolgorde verzinnen.", "advice");
+      await askDJAI(
+        "Maak een concreet, persoonlijk DJ-setplan voor dit Belgische Oud & Nieuw-feest. Gebruik de meegeleverde LIVE PARTY CONTEXT actief: vertrek vanuit de huidige PartyQueue (queued tracks en volgorde), vermijd recent gespeelde tracks, verwerk de geaggregeerde publieksvoorkeuren en respecteer de actuele eventfase en Belgische lokale tijd. Benoem eerst kort wat je uit de PartyQueue en publieksdata afleidt; zeg expliciet wanneer een onderdeel leeg of onvoldoende betrouwbaar is. Bouw daarna 4–6 opeenvolgende energieblokken met per blok: doel, vibe/genres, gewenste energie, concrete trackankers uit PartyQueue waar relevant, en een verrassende stijl- of decenniumwissel. Maak duidelijk welke tracks al in PartyQueue staan en welke nieuwe ideeën algemene, niet-geverifieerde suggesties zijn. Verzin geen queue-items, publieksvoorkeuren of live Spotify-status. PartyQueue is niet hetzelfde als Spotify UP NEXT.",
+        "advice",
+      );
     } else if (action === "starter") {
       await askDJAI("Maak een gevarieerde basisselectie van 12 bekende, feestgeschikte nummers voor een Oud & Nieuw-feest in België. Bouw op van warm-up naar dansvloer en meezingers. Geef een genummerde lijst met exact Titel — Artiest en vermeld kort waarom de set werkt. Dit zijn ongeverifieerde suggesties.", "starter");
     } else {
