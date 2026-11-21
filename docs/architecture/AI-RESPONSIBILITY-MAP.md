@@ -70,7 +70,7 @@ The assistant now has two distinct forms of memory:
 
 Conversation memory is deliberately limited to DJ-authored prompts and AI-generated answers. Spotify catalogue results and selected Spotify track metadata are not stored in the conversation table; the current PartyQueue snapshot is loaded separately into each bounded context. Mutating turns bypass the ten-minute answer cache. The atomic eight-second request cooldown remains in place.
 
-The assistant can now resolve follow-ups such as “maak die lijst commerciëler” or “vervang nummer vier” within the retained session. It does not have a separate proposal registry or durable structured track IDs; generated suggestions remain ordinary AI text until the DJ searches Spotify separately.
+The assistant can resolve follow-ups such as “maak die lijst commerciëler” or “vervang nummer vier” within the retained session. General suggestions remain ordinary AI text and have no separate proposal registry. Explicit action plans use only the live PartyQueue request IDs supplied in the current bounded context; catalogue search results are not added to conversation memory.
 
 ## Cost and security invariants
 
