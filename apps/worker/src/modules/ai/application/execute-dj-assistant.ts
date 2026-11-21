@@ -9,6 +9,20 @@ import { ASSISTANT_MAX_OUTPUT_TOKENS } from "./neuron-budget-policy";
 
 export type DJAssistantHttpResult = { status: number; body: Record<string, unknown> };
 
+async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation,
+      new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => reject(new Error(message)), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
+
 /** Executes a Spotify-independent AI turn using only event timing and DJ-authored preferences. */
 export async function executeDJAssistant(input: {
   eventId: string;
@@ -40,7 +54,11 @@ export async function executeDJAssistant(input: {
       return { status: 429, body: { error: "Geef DJ#DATUUR AI even een paar seconden." } };
     }
     try {
-      const answer = await input.localAI.complete(system, user);
+      const answer = await withTimeout(
+        input.localAI.complete(system, user),
+        95000,
+        "De lokale AI heeft niet tijdig geantwoord. Controleer of Claude Code en de lokale bridge actief zijn.",
+      );
       await repository.writeAnswerCache(cacheKey, answer);
       return { status: 200, body: { ok: true, provider: "claude-code-local", answer, spotifyMatches: [], cached: false, memoryUpdated } };
     } catch (error) {
@@ -68,7 +86,11 @@ export async function executeDJAssistant(input: {
       return { status: 503, body: { error: "Cloudflare Workers AI-binding ontbreekt. Voeg [ai] binding = \"AI\" toe en deploy opnieuw." } };
     }
     const model = "@cf/google/gemma-4-26b-a4b-it";
-    const { answer } = await runDJAssistantTurn(ai, model, system, user, neuronBudget);
+    const { answer } = await withTimeout(
+      runDJAssistantTurn(ai, model, system, user, neuronBudget),
+      90000,
+      "Cloudflare AI antwoordde niet binnen 90 seconden. Probeer het opnieuw.",
+    );
     await repository.writeAnswerCache(cacheKey, answer);
     return { status: 200, body: { ok: true, provider, answer, spotifyMatches: [], cached: false, memoryUpdated } };
   } catch (error) {
