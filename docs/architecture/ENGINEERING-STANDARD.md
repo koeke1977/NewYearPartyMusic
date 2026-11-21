@@ -97,7 +97,7 @@ Keep the modular-monolith boundaries in `REENGINEERING-PLAN.md`:
 - Repositories own D1 access.
 - Integration adapters own Spotify/provider protocols.
 - The composition root wires concrete dependencies.
-- AI returns advice/proposals and may use explicitly permitted read-only tools. It must not bypass DJ authorization or directly control Spotify playback, mutate queue state or write D1 outside approved application workflows.
+- AI returns advice and unverified track suggestions only. It must not receive Spotify catalogue/search results, track metadata, playback state, live queue, guest requests or Spotify-derived metrics. No Spotify tool is exposed to the model. Any future tool integration requires a separately reviewed decision and must preserve this data boundary. AI must never bypass DJ authorization, control playback, mutate queue state or write D1 outside approved application workflows.
 - Queue and playback application services remain the authoritative path for state transitions and dispatch.
 
 ## 5. Naming, size and complexity
@@ -147,7 +147,7 @@ If tests or browser validation cannot be run, state that explicitly. Never repor
 - Never expose Spotify client secrets, refresh tokens, session secrets or other credentials to browser code.
 - Preserve token encryption, signing, expiry, refresh leases and owner checks.
 - Treat external/model-provided input as untrusted and validate/bound it at the owning boundary.
-- Preserve the existing free-tier AI budget guard and bounded read-only Spotify AI tool.
+- Preserve the existing free-tier AI budget guard. Keep the assistant Spotify-independent; do not add a Spotify catalogue or queue tool to the model.
 - Do not add paid services, runtime dependencies or frameworks without an explicit architectural decision.
 - Test Worker/D1 resources may be changed or recreated only after confirming the target environment. Production Worker/D1 resources and event data are live: no reset, destructive migration, hostname cutover, secret rotation or deployment without explicit approval. Keep credentials secret and never commit them.
 - Never force-push, reset away work or resolve merge conflicts by blindly choosing one side.
@@ -163,7 +163,7 @@ A refactoring task is complete only when:
 - Browser/screenshot validation passes for UI/CSS changes.
 - Documentation and responsibility maps reflect the actual code.
 - Unavailable validation and remaining risks are stated honestly.
-- Test resources may be changed or recreated. Any future real public event release must be explicitly reviewed.
+- Test resources may be changed or recreated. Every production migration, deployment, hostname change and secret change must be explicitly reviewed and approved.
 
 ## 10. Relationship to other architecture documents
 
