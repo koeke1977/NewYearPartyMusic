@@ -39,6 +39,8 @@ describe("DJ assistant action prompt", () => {
 
     const advicePrompt = buildDJAssistantPrompt(context, "Geef me een verrassend setplan");
     expect(advicePrompt.system).not.toContain("ACTION PLANNER MODE");
+    expect(advicePrompt.system).not.toContain("add_tracks action plan");
+    expect(advicePrompt.user).not.toContain("Return the required JSON action plan");
     expect(advicePrompt.user).not.toContain("Return the required JSON action plan");
   });
 });
