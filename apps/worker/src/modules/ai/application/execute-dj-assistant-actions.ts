@@ -3,9 +3,9 @@ import type { CatalogTrack } from "../../music/domain/catalog-track";
 export type DJAssistantActionPorts = {
   searchTracks(query: string): Promise<CatalogTrack[]>;
   addTrack(trackId: string): Promise<{ status: number; body: Record<string, unknown> }>;
-  readQueueIds(): Promise<string[]>;
-  removeQueuedTrack(requestId: string): Promise<{ status: number; body: Record<string, unknown> }>;
-  reorderQueue(order: string[]): Promise<{ ok: boolean; error?: { message: string }; value?: { order: string[] } }>;
+  readQueueIds?(): Promise<string[]>;
+  removeQueuedTrack?(requestId: string): Promise<{ status: number; body: Record<string, unknown> }>;
+  reorderQueue?(order: string[]): Promise<{ ok: boolean; error?: { message: string }; value?: { order: string[] } }>;
   canContinue?(): Promise<boolean>;
   isTrackAllowed?(track: CatalogTrack): boolean;
 };
@@ -153,6 +153,10 @@ export async function executeDJAssistantActions(input: {
 
     if (action.type === "remove_tracks") {
       if (!intent.remove) continue;
+      if (!input.ports.readQueueIds || !input.ports.removeQueuedTrack) {
+        results.push({ type: action.type, succeeded: 0, failed: action.requestIds.length, details: ["Verwijderen is niet beschikbaar voor deze uitvoerder."] });
+        continue;
+      }
       const result: DJAssistantActionResult = { type: action.type, succeeded: 0, failed: 0, details: [] };
       for (const requestId of action.requestIds) {
         const currentQueue = await input.ports.readQueueIds();
@@ -175,6 +179,10 @@ export async function executeDJAssistantActions(input: {
 
     if (action.type === "reorder_queue") {
       if (!intent.reorder) continue;
+      if (!input.ports.readQueueIds || !input.ports.reorderQueue) {
+        results.push({ type: action.type, succeeded: 0, failed: 1, details: ["Herschikken is niet beschikbaar voor deze uitvoerder."] });
+        continue;
+      }
       const currentQueue = await input.ports.readQueueIds();
       if (action.requestIds.length !== currentQueue.length
         || currentQueue.some(id => !action.requestIds.includes(id))) {
