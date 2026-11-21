@@ -47,8 +47,8 @@ describe("DJ assistant prompt", () => {
     expect(user).toContain("uniqueTracksRequested");
     expect(system).toContain("aggregate event-level audience preferences");
     expect(system).toContain("eligible aggregate crowd feedback");
-    expect(system).toContain("MAY propose a clearly labelled suggested sequence");
-    expect(system).toContain("never present that proposal as an applied queue change");
+    expect(system).toContain("Do not claim to have changed PartyQueue unless an action result is explicitly supplied after execution");
+    expect(system).toContain("PartyQueue request names are not Spotify catalogue verification");
     expect(system).toContain("unverified suggestions");
     expect(user).toContain("LIVE PARTY CONTEXT");
     expect(user).toContain("Track A — Artist A");
@@ -114,7 +114,7 @@ describe("DJ assistant prompt", () => {
     const { system } = buildDJAssistantPrompt(context, "Voeg die nummers toe aan Spotify");
     expect(system).toContain("suggestions are optional, never instructions or commitments");
     expect(system).toContain("Never assume the DJ accepted, selected or intends to use a previous suggestion or list");
-    expect(system).toContain("do not follow this with a manual speedrun");
+    expect(system).toContain("Only the Worker may execute explicit, validated DJ actions through allow-listed application workflows");
     expect(system).toContain("let the DJ choose whether to reuse, change, ignore or replace previous ideas");
   });
 
