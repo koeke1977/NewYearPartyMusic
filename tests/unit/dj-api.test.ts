@@ -1,7 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDjApi } from "../../apps/web/modules/dj-api.js";
 
 describe("DJ API client", () => {
+  afterEach(() => vi.useRealTimers());
+
   it("adds the current DJ bearer token and JSON content type for a body", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     const api = createDjApi(() => "dj-token", fetcher);
@@ -9,14 +11,15 @@ describe("DJ API client", () => {
       method: "POST",
       body: JSON.stringify({ enabled: true }),
     })).resolves.toEqual({ ok: true });
-    expect(fetcher).toHaveBeenCalledWith("/api/dj/settings/auto_queue", {
+    expect(fetcher).toHaveBeenCalledWith("/api/dj/settings/auto_queue", expect.objectContaining({
       method: "POST",
       body: JSON.stringify({ enabled: true }),
+      signal: expect.any(AbortSignal),
       headers: {
         Authorization: "Bearer dj-token",
         "Content-Type": "application/json",
       },
-    });
+    }));
   });
 
   it("preserves caller headers and reports API errors", async () => {
@@ -33,5 +36,17 @@ describe("DJ API client", () => {
     const fetcher = vi.fn().mockResolvedValue(new Response("not-json", { status: 502 }));
     const api = createDjApi(() => "token", fetcher);
     await expect(api("/api/dj/overview")).rejects.toThrow("Ongeldig antwoord van server.");
+  });
+
+  it("aborts a request that exceeds its configured timeout", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn((_path, options) => new Promise((_resolve, reject) => {
+      options.signal.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+    }));
+    const api = createDjApi(() => "token", fetcher);
+    const pending = api("/api/dj/ai/assistant", { timeoutMs: 1000 });
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(pending).rejects.toThrow("De aanvraag duurde te lang.");
+    expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true);
   });
 });
