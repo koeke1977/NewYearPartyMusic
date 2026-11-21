@@ -37,8 +37,8 @@ function actionSummary(results: DJAssistantActionResult[]): string {
       : result.type === "remove_tracks"
         ? result.succeeded + " verwijderd, " + result.failed + " mislukt"
         : result.succeeded ? "volgorde bijgewerkt" : "niet gewijzigd";
-    return label + ": " + counts + (result.details.length ? "\\n" + result.details.join("\\n") : "");
-  }).join("\\n\\n");
+    return label + ": " + counts + (result.details.length ? "\n" + result.details.join("\n") : "");
+  }).join("\n\n");
 }
 
 /** Executes a bounded AI turn and, only for explicit DJ commands, validated PartyQueue actions. */
@@ -83,13 +83,13 @@ export async function executeDJAssistant(input: {
     }
     if (!plan.actions.length) return { answer: plan.answer, actions: [] };
     if (!input.actionExecutor) {
-      return { answer: plan.answer + "\\n\\nEr is niets gewijzigd: de actie-uitvoerder is niet beschikbaar.", actions: [] };
+      return { answer: plan.answer + "\n\nEr is niets gewijzigd: de actie-uitvoerder is niet beschikbaar.", actions: [] };
     }
     const actions = await input.actionExecutor.execute(plan.actions);
     if (!actions.length) {
-      return { answer: plan.answer + "\\n\\nEr is niets gewijzigd; de gevraagde actie kon niet veilig worden bevestigd.", actions: [] };
+      return { answer: plan.answer + "\n\nEr is niets gewijzigd; de gevraagde actie kon niet veilig worden bevestigd.", actions: [] };
     }
-    return { answer: plan.answer + "\\n\\nUitvoering in PartyQueue:\\n" + actionSummary(actions), actions };
+    return { answer: plan.answer + "\n\nUitvoering in PartyQueue:\n" + actionSummary(actions), actions };
   };
   const completeResponse = async (raw: string, provider: string, cached: boolean) => {
     const completed = await finishAnswer(raw);
@@ -106,7 +106,7 @@ export async function executeDJAssistant(input: {
   };
 
   const provider = input.localAI ? "claude-code-local" : "cloudflare";
-  const cacheKey = await input.hash(provider + "\\n" + system + "\\n" + user + "\\nlive-party-context-v6");
+  const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nlive-party-context-v6");
   if (!actionMode) {
     const cached = await repository.readAnswerCache(cacheKey);
     if (cached) {
