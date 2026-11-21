@@ -4,7 +4,7 @@
 **Applies to:** `apps/web`, `apps/worker`, shared contracts, tests and tooling  
 **Purpose:** Preserve existing behaviour while establishing explicit ownership, separation of concerns and maintainable module boundaries.
 
-This standard complements `REENGINEERING-PLAN.md`, the responsibility maps and the API inventory. Where this document defines frontend presentation rules, it is authoritative. It does not authorize a framework migration, an external public event launch or an untested behaviour change.
+This standard complements `REENGINEERING-PLAN.md`, the responsibility maps and the API inventory. Where this document defines frontend presentation rules, it is authoritative. It does not authorize a framework migration, an untested behaviour change, destructive production-data operations or a production deployment.
 
 ## 1. Non-negotiable principles
 
@@ -14,7 +14,7 @@ This standard complements `REENGINEERING-PLAN.md`, the responsibility maps and t
 4. Prefer cohesive modules over arbitrary file splitting. Do not split code merely to hit a line count.
 5. Make the smallest safe change that advances the architecture.
 6. Add or update focused tests at the boundary being changed.
-7. Treat the current Cloudflare Worker, D1 and Spotify OAuth connection as test-only and disposable. Test deployments, database rebuilds and test-token recreation are allowed when useful; do not expose a real event without a separate decision.
+7. Treat the production Worker, D1 database, hostname, secrets and Spotify OAuth connection as live event infrastructure and business-critical data. Never reset, recreate, repoint or migrate production resources as routine development work. Test resources may be disposable only after their bindings and data have been positively identified. Production changes require a reviewed migration/release plan and explicit approval.
 
 ## 2. Frontend asset separation
 
@@ -149,7 +149,7 @@ If tests or browser validation cannot be run, state that explicitly. Never repor
 - Treat external/model-provided input as untrusted and validate/bound it at the owning boundary.
 - Preserve the existing free-tier AI budget guard and bounded read-only Spotify AI tool.
 - Do not add paid services, runtime dependencies or frameworks without an explicit architectural decision.
-- The current test Worker/D1 may be changed, reset or redeployed as needed. Keep credentials secret and never commit them; a real public event launch remains a separate decision.
+- Test Worker/D1 resources may be changed or recreated only after confirming the target environment. Production Worker/D1 resources and event data are live: no reset, destructive migration, hostname cutover, secret rotation or deployment without explicit approval. Keep credentials secret and never commit them.
 - Never force-push, reset away work or resolve merge conflicts by blindly choosing one side.
 
 ## 9. Definition of done
