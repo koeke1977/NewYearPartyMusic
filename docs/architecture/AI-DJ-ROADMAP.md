@@ -6,7 +6,7 @@
 
 ## Product goal
 
-PartyQueue is the DJ booth and source of truth for the party queue. Spotify is the catalogue and playback environment. Spotify's own UP NEXT is downstream and is not the PartyQueue queue.
+PartyQueue is the DJ booth and source of truth for the party queue, including requested, queued and played lifecycle state. In this event setup Spotify UP NEXT is populated from PartyQueue and is the downstream playback view of the same list, not an independent queue or signal. Spotify remains the catalogue and playback environment.
 
 The AI-DJ should understand the music, understand the aggregate audience, make deliberate musical decisions, and execute approved DJ workflows through the existing application boundaries. It should not remain a chat-only suggestion generator.
 
@@ -76,7 +76,7 @@ The model does not receive database credentials, raw D1 handles, Spotify access 
 - [ ] Keep taxonomy, DJ prompts/rules, Spotify OAuth connection and application settings.
 - [ ] Implement DJ-authenticated, server-side password re-verification using the existing DJ Booth credential verification approach, explicit confirmation, CSRF/session protections and audit-safe result reporting.
 - [ ] Execute deletion transactionally where D1 permits; handle related Durable Object state deliberately.
-- [ ] Do not silently clear Spotify UP NEXT; it is a separate Spotify-owned queue.
+- [ ] Do not claim that FLUSH cleared an independent Spotify queue. In this event setup UP NEXT is populated from PartyQueue; any Spotify-side state outside that dispatch path must be treated as separate only when explicitly established.
 - [ ] Require a reviewed migration and explicit release approval before any production FLUSH capability is enabled.
 - Done when: a tested reset leaves the app configured and general DJ knowledge intact while all temporary event data is gone.
 
@@ -118,7 +118,7 @@ The model does not receive database credentials, raw D1 handles, Spotify access 
 | Crowd feedback and derived trends | Current event | Delete |
 | PartyQueue queue, order and played history | Current event | Delete |
 | Temporary AI conversation and decisions | Current event/session | Delete |
-| Spotify UP NEXT | Spotify-owned | Separate explicit handling; never imply FLUSH cleared it |
+| Spotify UP NEXT | Downstream view populated from PartyQueue in this event setup | It reflects PartyQueue dispatch; do not count or describe it as an independent PartyQueue source |
 
 ## Current implementation facts
 
@@ -128,7 +128,7 @@ The model does not receive database credentials, raw D1 handles, Spotify access 
 - DJ track insertion already verifies a track against Spotify and inserts it into PartyQueue as queued.
 - PartyQueue order is stored separately in the D1 settings table under partyqueue_order.
 - Existing queue dispatch reads PartyQueue queued requests/order and starts the selected track through the Spotify playback workflow.
-- Current AI assistant is text-only and Spotify-independent. It stores bounded DJ/AI conversation turns for seven days and a small set of explicit DJ preferences.
+- Current AI assistant is text-only and uses bounded D1-backed PartyQueue and aggregate audience context. It does not use Spotify UP NEXT as an independent source, and it must not use Spotify catalogue content for AI classification or training. It stores bounded DJ/AI conversation turns for seven days and a small set of explicit DJ preferences.
 - Current AI track flow is browser-orchestrated: AI produces text suggestions, the browser separately searches Spotify, and the DJ explicitly selects tracks to add.
 - Migration `0005_guest_music_preferences.sql` adds temporary event-scoped guest genre/subgenre, decade, mood and energy preferences. The Audience Intelligence workflow reads these records and calculates aggregate counts and capped genre weights at request time; no derived personal profile is persisted.\n- The DJ-only `GET /api/dj/audience` endpoint exposes the aggregate event profile. The DJ console refreshes and displays it alongside the queue overview.\n- Crowd feedback, test/live event separation, FLUSH and AI-context integration are not implemented yet.
 
