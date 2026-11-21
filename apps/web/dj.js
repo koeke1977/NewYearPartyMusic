@@ -51,7 +51,7 @@ const overviewView=createDjOverviewView({
   getQueuePreview:()=>spotifyQueuePreview,
 });
 async function refresh(){
-  try{const data=await api("/api/dj/overview");overviewView.render(data);}
+  try{const [data,audience]=await Promise.all([api("/api/dj/overview"),api("/api/dj/audience").catch(()=>null)]);overviewView.render(data,audience);}
   catch(e){if(e.message.toLowerCase().includes("sessie")){auth.logout();return;}message.textContent=e.message;}
 }
 document.querySelector("#dj-logout").addEventListener("click",()=>auth.logout());

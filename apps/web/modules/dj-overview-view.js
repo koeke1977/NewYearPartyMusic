@@ -77,7 +77,49 @@ export function createDjOverviewView({
     upcoming.forEach((request, index) => list.append(trackLine(request, index)));
   }
 
-  function render(data) {
+  function renderAudience(audience) {
+    const count = documentRef.querySelector("#dj-audience-count");
+    const summary = documentRef.querySelector("#dj-audience-summary");
+    if (!count || !summary) return;
+    if (!audience) {
+      count.textContent = "NIET BESCHIKBAAR";
+      summary.replaceChildren(elementFactory("p", "dj-muted", "Publieksprofiel tijdelijk niet beschikbaar."));
+      return;
+    }
+    count.textContent = audience.respondents + (audience.respondents === 1 ? " GAST" : " GASTEN");
+    summary.replaceChildren();
+    if (!audience.respondents) {
+      summary.append(elementFactory("p", "dj-muted", "Nog geen gasten hebben hun muziekvoorkeuren ingevuld."));
+      return;
+    }
+    const columns = [
+      ["POPULAIRSTE STIJLEN", audience.genres],
+      ["SUBGENRES", audience.subgenres],
+      ["FAVORIETE DECENNIA", audience.decades],
+      ["GEWENSTE SFEER", audience.moods],
+    ];
+    for (const [heading, items] of columns) {
+      const column = elementFactory("div", "dj-audience-column");
+      column.append(elementFactory("h3", "", heading));
+      if (!items.length) {
+        column.append(elementFactory("p", "dj-muted", "Nog geen voorkeuren"));
+      } else {
+        for (const item of items.slice(0, 3)) {
+          const line = elementFactory("div", "dj-audience-choice");
+          const label = elementFactory("span", "", item.label || item.id);
+          const value = elementFactory("strong", "", item.guests + " · " + Math.round(item.share * 100) + "%");
+          line.append(label, value);
+          column.append(line);
+        }
+      }
+      summary.append(column);
+    }
+    const energy = audience.averageEnergy === null ? "geen energievoorkeur opgegeven" : "gemiddelde energie " + audience.averageEnergy + "/10";
+    summary.append(elementFactory("p", "dj-audience-energy", energy + " · gewichten begrenzen dominante genres voor meer variatie"));
+  }
+
+  function render(data, audience) {
+    renderAudience(audience);
     latestDJOverview = data;
     currentSettings = data.settings || currentSettings;
     const autoQueueState = documentRef.querySelector("#auto-queue-state");

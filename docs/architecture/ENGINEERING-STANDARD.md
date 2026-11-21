@@ -97,8 +97,25 @@ Keep the modular-monolith boundaries in `REENGINEERING-PLAN.md`:
 - Repositories own D1 access.
 - Integration adapters own Spotify/provider protocols.
 - The composition root wires concrete dependencies.
-- AI returns advice and unverified track suggestions only. It must not receive Spotify catalogue/search results, track metadata, playback state, live queue, guest requests or Spotify-derived metrics. No Spotify tool is exposed to the model. Any future tool integration requires a separately reviewed decision and must preserve this data boundary. AI must never bypass DJ authorization, control playback, mutate queue state or write D1 outside approved application workflows.
+- The current AI assistant is advice-only. The approved target AI-DJ authority boundary is defined below and in `AI-DJ-ROADMAP.md`; it does not take effect until each implementation phase is delivered, tested and reviewed.
 - Queue and playback application services remain the authoritative path for state transitions and dispatch.
+
+
+
+### AI-DJ authority boundary
+
+The approved AI-DJ product direction evolves the current advice-only assistant in controlled phases. This section supersedes only the former blanket prohibition on AI access to bounded music context or application actions; it does not authorize an immediate implementation or bypass existing safeguards.
+
+- The current assistant remains text-only until the relevant implementation phase is delivered and reviewed.
+- The target AI may receive a bounded, event-scoped projection of PartyQueue state, aggregate audience preferences and recent feedback only where required for a decision.
+- The model may propose only schema-defined, allow-listed actions. The Worker validates intent, arguments, authorization, event scope, limits and current state before executing an existing application use case.
+- The model never receives raw D1 handles, database credentials, Spotify access/refresh tokens or unrestricted network access.
+- The model never writes directly to D1 and never bypasses repository/application workflows.
+- Spotify catalogue results and track metadata may be returned to the model only if the action-planner phase explicitly requires them; expose only the minimum normalized fields needed. Never expose credentials or unrestricted Spotify APIs.
+- PartyQueue is authoritative for its own queue/order. Spotify UP NEXT is separate. Playback control is a distinct permission/action from queue planning.
+- Guest identity is temporary nickname/session only. Audience intelligence is event-level aggregate data, not durable personal profiling.
+- All AI actions must be bounded, validated, auditable by outcome, idempotent where possible and covered by tests. The AI must report only actions confirmed by the application.
+- Preserve the configured local Claude bridge / Cloudflare Workers AI providers and Neuron budget guard. No paid provider fallback without an explicit product decision.
 
 ## 5. Naming, size and complexity
 
