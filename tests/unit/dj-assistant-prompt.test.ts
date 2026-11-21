@@ -35,6 +35,18 @@ describe("DJ assistant prompt", () => {
     expect(user).not.toContain("Artist C");
   });
 
+  it("includes only bounded prior DJ prompts and AI answers for follow-up resolution", () => {
+    const { user, system } = buildDJAssistantPrompt(context, "Maak die lijst commerciëler", [
+      { role: "user", content: "Maak een verrassende lijst." },
+      { role: "assistant", content: "1. Music Sounds Better With You — Stardust" },
+    ]);
+    expect(user).toContain("RECENT DJ/AI CONVERSATION");
+    expect(user).toContain("Music Sounds Better With You");
+    expect(user).toContain("DJ QUESTION:\\nMaak die lijst commerciëler");
+    expect(system).toContain("resolve references such as");
+    expect(user).not.toContain("Spotify search results");
+  });
+
   it("sets hard diversity targets for an explicitly surprising track list", () => {
     const { system } = buildDJAssistantPrompt(context, "Geef me een verrassende uiteenlopende lijst nummers.");
     expect(system).toContain("SURPRISE LIST CONTRACT (MANDATORY FOR THIS REQUEST)");
