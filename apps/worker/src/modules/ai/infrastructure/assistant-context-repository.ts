@@ -14,9 +14,10 @@ function parseOrder(value: string | undefined): string[] {
 }
 /** Loads DJ preferences plus bounded, event-scoped queue and aggregate audience signals. */
 export async function loadAssistantContextSnapshot(db: AssistantContextDatabase, eventId: string): Promise<AssistantContextSnapshot> {
-  const [profile, queueRows, playedRows, orderSetting, audience, crowdFeedback, activity, artistRows] = await Promise.all([
+  const [profile, queueRows, incomingRows, playedRows, orderSetting, audience, crowdFeedback, activity, artistRows] = await Promise.all([
     db.prepare("SELECT value FROM settings WHERE key=?").bind("dj_ai_profile_" + eventId).first<{ value: string }>(),
     db.prepare("SELECT id,track_name,artist_name,duration_ms,queued_at,played_at FROM requests WHERE event_id=? AND status='queued'").bind(eventId).all<QueueRow>(),
+    db.prepare("SELECT track_name,artist_name,status FROM requests WHERE event_id=? AND status IN ('pending','approved') ORDER BY requested_at ASC LIMIT 12").bind(eventId).all<{ track_name: string; artist_name: string; status: "pending" | "approved" }>(),
     db.prepare("SELECT id,track_name,artist_name,duration_ms,queued_at,played_at FROM requests WHERE event_id=? AND status='played' ORDER BY played_at DESC LIMIT 8").bind(eventId).all<QueueRow>(),
     db.prepare("SELECT value FROM settings WHERE key='partyqueue_order'").first<{ value: string }>(),
     getAudienceIntelligence({ repository: createAudienceIntelligenceRepository(db), eventId }),
@@ -45,6 +46,7 @@ export async function loadAssistantContextSnapshot(db: AssistantContextDatabase,
       topArtists: (artistRows.results || []).map(row => ({ artist: row.artist_name, requests: row.requests })),
     },
     queued: queued.slice(0, 20).map(row => ({ id: row.id, track: row.track_name + " — " + row.artist_name, durationMs: typeof row.duration_ms === "number" ? row.duration_ms : null })),
+    incomingRequests: (incomingRows.results || []).map(row => ({ status: row.status, track: row.track_name + " — " + row.artist_name })),
     recentlyPlayed: (playedRows.results || []).map(row => ({ track: row.track_name + " — " + row.artist_name, playedAt: row.played_at })),
     audience: {
       respondents: audience.respondents, genres: compactChoices(audience.genres), subgenres: compactChoices(audience.subgenres),

@@ -11,6 +11,7 @@ const snapshot: AssistantContextSnapshot = {
       { id: "q1", track: "Music Sounds Better With You — Stardust", durationMs: 360000 },
       { id: "q2", track: "Murder on the Dancefloor — Sophie Ellis-Bextor", durationMs: 230000 },
     ],
+    incomingRequests: [{ status: "approved", track: "Murder on the Dancefloor — Sophie Ellis-Bextor" }],
     recentlyPlayed: [{ track: "Freed From Desire — Gala", playedAt: "2026-11-21T18:00:00Z" }],
     audience: { respondents: 8, genres: [{ label: "Disco", guests: 5, share: 0.62 }], subgenres: [], decades: [], moods: [], averageEnergy: 7 },
     crowdFeedback: { eligible: true, respondents: 5, windowMinutes: 30, atmosphere: { good: 4, neutral: 1, bad: 0 }, averageEnergy: 4, trend: "positive" },
@@ -95,6 +96,7 @@ describe("DJ Autopilot", () => {
     expect(userMessage).toContain("Disco");
     expect(userMessage).toContain("Music Sounds Better With You");
     expect(userMessage).toContain("Freed From Desire");
+    expect(userMessage).toContain("approved");
     expect(executor.execute).toHaveBeenCalledOnce();
     expect(repo.releaseLock).toHaveBeenCalledOnce();
     expect(dailyBudget.record).toHaveBeenCalledOnce();

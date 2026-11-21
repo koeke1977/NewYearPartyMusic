@@ -26,12 +26,13 @@ describe("AI assistant context repository", () => {
     expect(snapshot.djPreferences).toBe('["disco","90s"]');
     expect(snapshot.partyQueue).toEqual({
       activity: { totalRequests: 0, uniqueTracksRequested: 0, pending: 0, approved: 0, queued: 0, played: 0, rejected: 0, failed: 0, topArtists: [] },
-      queued: [], recentlyPlayed: [],
+      queued: [], incomingRequests: [], recentlyPlayed: [],
       audience: { respondents: 0, genres: [], subgenres: [], decades: [], moods: [], averageEnergy: null },
       crowdFeedback: { eligible: false, respondents: 0, windowMinutes: 30, atmosphere: null, averageEnergy: null, trend: "insufficient" },
     });
     expect(db.calls.some(sql => /requests.*status='queued'/.test(sql))).toBe(true);
     expect(db.calls.some(sql => /status='played'.*LIMIT 8/.test(sql))).toBe(true);
+    expect(db.calls.some(sql => sql.includes("LIMIT 12") && sql.includes("pending") && sql.includes("approved"))).toBe(true);
     expect(db.calls.some(sql => /COUNT\(DISTINCT spotify_track_id\)/.test(sql))).toBe(true);
     expect(db.calls.some(sql => /GROUP BY artist_name/.test(sql))).toBe(true);
     expect(db.calls.some(sql => /guest_music_preferences/.test(sql))).toBe(true);

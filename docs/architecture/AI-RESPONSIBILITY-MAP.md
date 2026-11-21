@@ -54,7 +54,7 @@ The existing catalogue search, verified track insertion, queued-request moderati
 The AI context contains:
 - Event name and derived Belgian local event time.
 - Explicit DJ-authored preferences persisted in the event profile.
-- A bounded D1-backed PartyQueue snapshot: queued tracks in saved order, up to eight recently played tracks, request lifecycle counts, distinct requested-track count and top requested artists.
+- A bounded D1-backed PartyQueue snapshot: queued tracks in saved order, up to twelve pending or approved guest-request tracks (without guest identity), up to eight recently played tracks, request lifecycle counts, distinct requested-track count and top requested artists.
 - Event-scoped aggregate guest preferences and eligible aggregate crowd feedback; no guest IDs or nicknames.
 - The current DJ-authored question and up to eight prior DJ/AI conversation turns from the same browser session.
 
