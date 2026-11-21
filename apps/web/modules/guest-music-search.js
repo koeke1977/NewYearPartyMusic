@@ -3,6 +3,7 @@ import { clearGuestSession } from "./guest-session.js";
 import { searchGuestTracks, submitGuestTrackRequest } from "./guest-music-api.js";
 import { renderGuestTrackResults } from "./guest-track-results-view.js";
 import { renderGuestMusicPreferences } from "./guest-music-preferences.js";
+import { renderGuestCrowdFeedback } from "./guest-crowd-feedback.js";
 
 export function showMusicSearch(card, session) {
   if (!card) return;
@@ -14,6 +15,7 @@ export function showMusicSearch(card, session) {
   top.append(title);
   card.append(top);
   renderGuestMusicPreferences(card, session);
+  renderGuestCrowdFeedback(card, session);
 
   const searchForm = element("form", "search-form");
   searchForm.id = "track-search-form";
