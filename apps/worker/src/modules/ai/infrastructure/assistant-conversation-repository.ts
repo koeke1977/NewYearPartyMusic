@@ -39,6 +39,10 @@ export async function saveAssistantConversationTurn(
     db.prepare(
       "INSERT INTO dj_ai_turns (event_id,session_id,role,content) VALUES (?,?, 'assistant',?)",
     ).bind(eventId, sessionId, answer.slice(0, 8000)),
+    db.prepare(
+      "DELETE FROM dj_ai_turns WHERE event_id=? AND session_id=? AND id NOT IN " +
+      "(SELECT id FROM dj_ai_turns WHERE event_id=? AND session_id=? ORDER BY id DESC LIMIT 8)",
+    ).bind(eventId, sessionId, eventId, sessionId),
   ]);
 }
 
