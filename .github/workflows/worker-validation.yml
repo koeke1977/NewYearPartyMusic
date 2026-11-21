@@ -3,7 +3,6 @@ name: Worker validation and production deployment
 on:
   pull_request:
     branches: [main]
-    types: [opened, synchronize, reopened, ready_for_review, closed]
   push:
     branches: [main]
 
@@ -91,22 +90,23 @@ jobs:
     name: Automatically merge validated pull requests
     runs-on: ubuntu-latest
     needs: [validate, ui-screenshot-baseline]
-    if: github.event_name == 'pull_request' && github.event.action != 'closed' && github.event.pull_request.draft == false
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     steps:
       - name: Enable squash auto-merge after all required checks pass
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash
+        run: gh pr merge "$PR_NUMBER" --squash
 
   deploy-production:
     name: Deploy production Worker to Cloudflare
     runs-on: ubuntu-latest
-    needs: [validate, ui-screenshot-baseline]
+    needs: [validate, ui-screenshot-baseline, auto-merge]
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request' && github.event.action == 'closed' && github.event.pull_request.merged == true)
+      always() &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.validate.result == 'success' && needs.ui-screenshot-baseline.result == 'success') ||
+      (github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.validate.result == 'success' && needs.ui-screenshot-baseline.result == 'success' && needs.auto-merge.result == 'success'))
     steps:
       - name: Checkout merged main revision
         uses: actions/checkout@v4
