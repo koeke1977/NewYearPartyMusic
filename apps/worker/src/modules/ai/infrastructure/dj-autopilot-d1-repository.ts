@@ -1,3 +1,5 @@
+import { loadAssistantContextSnapshot } from "./assistant-context-repository";
+
 export type DJAutopilotDatabase = Pick<D1Database, "prepare">;
 
 /** D1-backed opt-in switch, stale-safe lease and retry cooldown for the scheduled DJ Autopilot. */
@@ -21,10 +23,7 @@ export function createDJAutopilotRepository(db: DJAutopilotDatabase) {
       await db.prepare("UPDATE settings SET value='0',updated_at=CURRENT_TIMESTAMP WHERE key=? AND value=?")
         .bind(settingKey("lock", eventId), String(lockEpochSeconds)).run();
     },
-    async loadContext(eventId: string) {
-      const { loadAssistantContextSnapshot } = await import("./assistant-context-repository");
-      return loadAssistantContextSnapshot(db as never, eventId);
-    },
+    loadContext: (eventId: string) => loadAssistantContextSnapshot(db as never, eventId),
     async readLastFailedAttempt(eventId: string): Promise<number> {
       const row = await db.prepare("SELECT value FROM settings WHERE key=?")
         .bind(settingKey("last_failed", eventId)).first<{ value: string }>();
