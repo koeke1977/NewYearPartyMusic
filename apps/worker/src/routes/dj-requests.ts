@@ -5,6 +5,7 @@ import {
   reorderDjQueueFromEnvironment, updateDjSettingFromEnvironment,
 } from "../platform/composition/dj-request-workflows";
 import { requireDJSession } from "./dj-auth";
+import { getAudienceIntelligenceFromEnvironment } from "../platform/composition/audience-intelligence-workflows";
 
 export const djRequestRoutes = new Hono<{ Bindings: Env }>();
 
@@ -41,4 +42,9 @@ djRequestRoutes.post("/api/dj/settings/:key", async (c) => {
   const result = await updateDjSettingFromEnvironment(c.env, c.req.param("key"), body.enabled);
   if (!result.ok) return c.json({ error: result.error.message }, 400);
   return c.json({ ok: true, enabled: result.value.enabled }, 200);
+});
+
+
+djRequestRoutes.get("/api/dj/audience", async (c) => {
+  return c.json(await getAudienceIntelligenceFromEnvironment(c.env));
 });
