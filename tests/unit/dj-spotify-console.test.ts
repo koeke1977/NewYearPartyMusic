@@ -33,7 +33,7 @@ function setup() {
     "#spotify-connect", "#spotify-disconnect", "#partyqueue-booth", "#booth-play-state", "#booth-track-link-left",
     "#booth-track-title-left", "#booth-track-artist-left", "#booth-track-image-left", "#booth-track-placeholder-left",
     "#partyqueue-next", "#master-volume", "#master-volume-value",
-    "#master-volume-leds", "#master-volume-status",
+    "#master-volume-leds", "#master-volume-status", "#master-volume-error",
     '[data-spotify-command="play"]', '[data-spotify-command="pause"]',
   ];
   const elements = Object.fromEntries(selectors.map(selector => [selector, fakeElement()]));
@@ -109,4 +109,42 @@ describe("DJ Spotify console", () => {
     expect(elements["#spotify-now-playing-link"].href).toBe("");
     expect(playback.completeStatus).toHaveBeenCalledWith(7);
   });
+  it("keeps Spotify volume errors visible across status refreshes until a successful retry", async () => {
+    const { spotify, api, elements } = setup();
+    spotify.bindControls();
+    const slider = elements["#master-volume"];
+    api.mockImplementation(async path => {
+      if (path === "/api/dj/spotify/volume") throw new Error("Spotify kon het volume niet aanpassen (HTTP 403). Controleer Premium en apparaat.");
+      return {
+        connected: true,
+        playing: true,
+        device: { name: "Living Room", type: "Speaker", volume: 65 },
+        track: null,
+      };
+    });
+
+    await slider.listeners.change();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(elements["#master-volume-error"].hidden).toBe(false);
+    expect(elements["#master-volume-error"].textContent).toContain("HTTP 403");
+    expect(elements["#master-volume-status"].textContent).toBe("SPOTIFY VOLUME ERROR");
+
+    await spotify.refreshStatus();
+    expect(elements["#master-volume-error"].hidden).toBe(false);
+    expect(elements["#master-volume-error"].textContent).toContain("HTTP 403");
+
+    api.mockImplementation(async path => path === "/api/dj/spotify/volume" ? {} : {
+      connected: true, playing: true,
+      device: { name: "Living Room", type: "Speaker", volume: 65 }, track: null,
+    });
+    await slider.listeners.change();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(elements["#master-volume-error"].hidden).toBe(true);
+    expect(elements["#master-volume-error"].textContent).toBe("");
+  });
+
 });

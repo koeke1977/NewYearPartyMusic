@@ -16,11 +16,20 @@ export function createDjSpotifyConsole({ api, getPlayback, onMessage = () => {},
       await api("/api/dj/spotify/volume", { method: "PUT", body: JSON.stringify({ volume: value }) });
       if (!isCurrent()) return;
       status.textContent = "SPOTIFY MASTER OUTPUT";
+      const errorNotice = documentRef.querySelector("#master-volume-error");
+      if (errorNotice) {
+        errorNotice.textContent = "";
+        errorNotice.hidden = true;
+      }
       updateMasterVolumeDisplay(value);
     } catch (error) {
       if (!isCurrent()) return;
-      status.textContent = error.message;
-      await refreshStatus();
+      status.textContent = "SPOTIFY VOLUME ERROR";
+      const errorNotice = documentRef.querySelector("#master-volume-error");
+      if (errorNotice) {
+        errorNotice.textContent = error instanceof Error ? error.message : "Spotify-volume aanpassen is mislukt.";
+        errorNotice.hidden = false;
+      }
     }
   });
 
