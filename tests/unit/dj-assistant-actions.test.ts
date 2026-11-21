@@ -3,6 +3,7 @@ import type { CatalogTrack } from "../../apps/worker/src/modules/music/domain/ca
 import {
   detectDJActionIntent, executeDJAssistantActions, parseDJAssistantActionEnvelope,
 } from "../../apps/worker/src/modules/ai/application/execute-dj-assistant-actions";
+import type { DJAssistantActionPorts } from "../../apps/worker/src/modules/ai/application/execute-dj-assistant-actions";
 
 const track: CatalogTrack = {
   id: "1234567890123456789012",
