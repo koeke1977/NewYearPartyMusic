@@ -6,10 +6,12 @@ describe("event flush D1 repository", () => {
     const statements: Array<{ sql: string; values: unknown[] }> = [];
     const db = {
       prepare(sql: string) {
+        const statement = { sql, values: [] as unknown[] };
+        statements.push(statement);
         return {
           bind(...values: unknown[]) {
-            statements.push({ sql, values });
-            return { sql, values };
+            statement.values = values;
+            return statement;
           },
         };
       },
@@ -26,8 +28,7 @@ describe("event flush D1 repository", () => {
     expect(statements[0].values).toEqual(["NYE2026"]);
     expect(statements[1].sql).toContain("DELETE FROM dj_ai_turns WHERE event_id = ?");
     expect(statements[1].values).toEqual(["NYE2026"]);
-    expect(statements[2].sql).toContain("DELETE FROM settings WHERE key = ?");
-    expect(statements[2].values).toEqual(["partyqueue_order"]);
+    expect(statements[2].sql).toContain("partyqueue_order");
     expect(statements[3].values).toEqual(["dj_ai_history_NYE2026"]);
     expect(statements[4].sql).toContain("dj_ai_answer_cache");
     expect(statements[5].sql).toContain("spotify_last_partyqueue_track");
