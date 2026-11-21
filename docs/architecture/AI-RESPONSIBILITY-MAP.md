@@ -1,6 +1,6 @@
 # AI responsibility map
 
-**Snapshot:** `refactor/architecture-mainline`, based on `main` commit `3100095d09ff3065f7bc55c7de73bb35260aaea6`; reviewed 2026-11-21.
+**Snapshot:** Audience Intelligence feature branch, based on `main` commit `c5b8f5c641c76d1925e317b8ba26a3eba0ab0a8a`; reviewed 2026-11-21.
 
 ## Current request flow
 
@@ -52,7 +52,7 @@ The AI context contains only:
 - Explicit DJ-authored preferences persisted in the event profile.
 - The current DJ-authored question and up to eight prior DJ/AI conversation turns from the same browser session.
 
-The AI receives **no** Spotify catalogue results, track or artist metadata, album art, playback state, live queue, guest requests, request counts, saved queue order, accepted-set history or Spotify-derived usage metrics. No Spotify search tool is registered with the model. The assistant response returns an empty `spotifyMatches` array for compatibility; it is not a Spotify search result.
+The AI currently receives **no** aggregate audience profile, Spotify catalogue results, track or artist metadata, album art, playback state, live queue, guest requests, request counts, saved queue order, accepted-set history or Spotify-derived usage metrics. The DJ console separately reads the DJ-authenticated `/api/dj/audience` endpoint, which returns only event-scoped aggregate preference counts and capped genre weights; it does not return guest IDs or nicknames. This audience profile is not yet wired into the AI prompt/context. No Spotify search tool is registered with the model. The assistant response returns an empty `spotifyMatches` array for compatibility; it is not a Spotify search result.
 
 Track ideas are unverified suggestions based on general model knowledge. The DJ must search for them separately using the normal Spotify catalogue endpoint and explicitly choose any action. The model cannot add tracks, reorder or moderate requests, alter settings, or control playback.
 
@@ -93,7 +93,7 @@ The assistant can now resolve follow-ups such as “maak die lijst commerciëler
 - `docs/runbooks/PRODUCTION-READINESS.md`
 
 
-## Approved target direction — implementation pending
+## Approved target direction — staged implementation
 
 The product owner has approved evolving the assistant into an audience-aware AI-DJ. The current request flow above remains the actual implementation until later roadmap phases are delivered.
 
