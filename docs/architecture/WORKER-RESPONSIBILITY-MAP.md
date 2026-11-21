@@ -14,7 +14,7 @@
 | `routes/dj-ai.ts` | DJ-authenticated AI advice/action endpoint plus DJ-initiated Spotify search/add endpoints |
 | `routes/dj-requests.ts` | DJ overview, queue reorder, moderation and settings |
 | `routes/dj-playback.ts` | Spotify status, devices, NEXT, volume, transport commands and approved-request queueing |
-| `scheduled/handler.ts` | Scheduled-event adapter; delegates completed-request cleanup, expired auth-attempt cleanup and AI conversation retention |
+| `scheduled/handler.ts` | Five-minute opt-in Autopilot tick plus daily completed-request, expired auth-attempt and AI conversation cleanup |
 | `durable-objects/queue-room.ts` | Isolated Durable Object export; currently a health endpoint, not queue synchronization |
 
 Routes own HTTP parsing, authentication, validation and response serialization. They do not own D1 query logic, provider wiring or business policy.
@@ -34,7 +34,7 @@ Routes own HTTP parsing, authentication, validation and response serialization. 
 | Playback automation | `modules/playback/application/playback-automation.ts` | Queue advancement and fallback eligibility/retry policy |
 | Playback status | `modules/playback/application/get-dj-spotify-playback-status.ts` | Status orchestration while preserving polling side effects |
 | DJ playback controls | `modules/playback/application/dj-playback-controls.ts` | Device listing, volume validation and transport-command policy |
-| AI assistant | `modules/ai/application/execute-dj-assistant.ts` | Preference and conversation memory, prompt/context construction, cache, provider selection, budget, cooldown and stable result mapping |
+| AI assistant | `modules/ai/application/execute-dj-assistant.ts` | Preference and conversation memory, prompt/context construction, cache, provider selection, budget, cooldown and stable result mapping |\n| AI Autopilot | `modules/ai/application/dj-autopilot.ts` | Opt-in scheduled refill policy, queue threshold, retry cooldown, free Neuron budget and hard-stop checks |
 
 ## Infrastructure and provider ownership
 
@@ -47,7 +47,7 @@ Routes own HTTP parsing, authentication, validation and response serialization. 
 - `modules/ai/infrastructure/assistant-context-repository.ts`: event-scoped DJ preference snapshot reads.
 - `modules/ai/infrastructure/assistant-settings-repository.ts`: explicit preference persistence, answer cache and atomic eight-second cooldown.
 - `modules/ai/infrastructure/assistant-conversation-repository.ts`: event/session-scoped DJ prompts and AI answers; seven-day retention.
-- `modules/ai/infrastructure/neuron-budget.ts`: D1-backed daily Workers AI usage tracking.
+- `modules/ai/infrastructure/neuron-budget.ts`: D1-backed daily Workers AI usage tracking.\n- `modules/ai/infrastructure/dj-autopilot-d1-repository.ts`: D1 Autopilot switch, stale-safe lease and failed-attempt cooldown.
 - `integrations/ai/cloudflare-ai.ts`: Cloudflare Workers AI invocation and response normalization.
 - `integrations/ai/local-ai-bridge.ts`: authenticated HTTPS bridge to the owner-operated Claude Code CLI.
 - `integrations/spotify/catalog-token.ts` and `catalog-api.ts`: public catalogue client-credentials flow and Spotify catalogue protocol.
@@ -58,11 +58,13 @@ Routes own HTTP parsing, authentication, validation and response serialization. 
 ## AI trust and authority boundary
 
 - The AI receives event name/time, explicit DJ-authored preferences, the DJ's current prompt and a bounded history of prior DJ prompts plus AI-generated answers.
-- The AI receives no Spotify catalogue results, Spotify track/artist metadata, album art, playback state, live queue, guest requests, request counts or Spotify-derived metrics.
+- The assistant receives bounded PartyQueue, recent-played, request aggregate, event-level audience preference and eligible crowd-feedback context. The scheduled Autopilot uses the same snapshot.
+- The model receives no Spotify OAuth token, raw catalogue response, album art, playback telemetry or direct D1 binding.
 - The conversation repository stores only DJ prompts and AI-generated answers. Spotify search results and selected Spotify tracks are not persisted as conversation context.
-- The AI has no Spotify search tool, DJ OAuth token or direct D1 binding.
-- AI suggestions are unverified general-knowledge ideas. Spotify lookup happens separately through an authenticated DJ action after the AI response.
-- AI cannot add tracks, reorder or moderate requests, change settings or control Spotify playback. The DJ explicitly selects tracks and invokes the existing authenticated workflows.
+- For explicit DJ commands, the model proposes title/artist pairs or current queue IDs. The Worker validates intent, exact-matches Spotify server-side and invokes existing application use cases.
+- Scheduled Autopilot is OFF by default, enabled only through the authenticated DJ settings route, runs every five minutes only when at most five tracks are queued, adds at most three toward a target of eight, and shares the existing free daily Neuron budget and eight-second AI cooldown.
+- The Worker checks the persisted Autopilot switch before search and before each insertion; turning it OFF prevents further additions. A stale-safe lease prevents overlapping scheduled runs and a 15-minute cooldown follows a tick that adds no tracks.
+- Autopilot may add only; it cannot remove/reorder tracks, change settings or control Spotify playback. Manual AI action plans retain the DJ's explicit intent guard.
 - No paid API fallback is configured. Preserve the local bridge authentication, Cloudflare Neuron budget guard, safety buffer, timeout, cache and cooldown.
 
 ## Behaviour and security invariants
