@@ -106,6 +106,7 @@ describe("DJ assistant action planning", () => {
   it("removes only live queue IDs and verifies that each removed track disappeared", async () => {
     const readQueueIds = vi.fn()
       .mockResolvedValueOnce(["queue-1", "queue-2"])
+      .mockResolvedValueOnce(["queue-2"])
       .mockResolvedValueOnce(["queue-2"]);
     const dependencies = ports({ readQueueIds });
     const result = await executeDJAssistantActions({
@@ -115,7 +116,7 @@ describe("DJ assistant action planning", () => {
     });
     expect(dependencies.removeQueuedTrack).toHaveBeenCalledTimes(1);
     expect(dependencies.removeQueuedTrack).toHaveBeenCalledWith("queue-1");
-    expect(readQueueIds).toHaveBeenCalledTimes(2);
+    expect(readQueueIds).toHaveBeenCalledTimes(3);
     expect(result[0]).toMatchObject({ type: "remove_tracks", succeeded: 1, failed: 1 });
   });
 
