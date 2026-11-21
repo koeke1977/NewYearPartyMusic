@@ -81,7 +81,7 @@ export async function executeDJAssistant(input: {
     if (!plan) {
       return { answer: "Ik kon geen geldig, veilig actieplan verwerken. Er is niets gewijzigd.", actions: [] };
     }
-    if (!plan.actions.length) return { answer: plan.answer, actions: [] };
+    if (!plan.actions.length) return { answer: plan.answer + "\n\nEr is niets gewijzigd; er werd geen veilige actie gevonden.", actions: [] };
     if (!input.actionExecutor) {
       return { answer: plan.answer + "\n\nEr is niets gewijzigd: de actie-uitvoerder is niet beschikbaar.", actions: [] };
     }
