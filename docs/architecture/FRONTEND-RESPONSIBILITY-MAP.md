@@ -33,7 +33,8 @@
 | `modules/dj-playback-state.js`, `dj-playback-display.js` | Pure playback state projection and progress/time calculations |
 | `modules/dj-spotify-console.js` | Spotify API lifecycle, volume-write sequencing and control event binding |
 | `modules/dj-spotify-console-view.js` | DOM-only Spotify status, deck, volume, progress, transport and offline rendering |
-| `modules/dj-command-service.js` | DJ moderation, queue reorder persistence, settings updates and NEXT command workflows |\n| `dj.js` + `modules/dj-overview-view.js` | Authenticated Autopilot start/stop setting and persisted ON/OFF state rendering |
+| `modules/dj-command-service.js` | DJ moderation, queue reorder persistence, settings updates and NEXT command workflows |
+| `dj.js` + `modules/dj-overview-view.js` | Authenticated Autopilot start/stop setting and persisted ON/OFF state rendering |
 | `modules/dj-queue.js`, `dj-queue-reorder.js` | Pure queue ordering and drag/drop interaction |
 | `modules/dj-overview-model.js` | Pure projection of API overview data into UI state |
 | `modules/dj-overview-view.js` | Dashboard stats, request cards, moderation action wiring and UP NEXT rendering |
@@ -84,7 +85,8 @@ A green browser journey does not replace Worker/API contract tests or a future r
 
 - Preserve existing DOM IDs, localStorage keys, endpoint paths and payloads.
 - Browser code calls PartyQueue API routes; Spotify secrets/tokens remain server-side.
-- The AI receives a bounded PartyQueue snapshot and may request add/remove/reorder actions only through a structured plan. The Worker validates the DJ's explicit intent and current queue state, verifies Spotify matches server-side and returns confirmed outcomes; the browser never writes the queue directly. Ordinary AI suggestions remain unverified until the DJ explicitly asks to add them.\n- Autopilot is explicitly OFF by default. Its large DJ-only toggle persists the state through the authenticated settings route; OFF immediately blocks subsequent scheduled actions. The browser does not run the scheduler or call Spotify autonomously.
+- The AI receives a bounded PartyQueue snapshot and may request add/remove/reorder actions only through a structured plan. The Worker validates the DJ's explicit intent and current queue state, verifies Spotify matches server-side and returns confirmed outcomes; the browser never writes the queue directly. Ordinary AI suggestions remain unverified until the DJ explicitly asks to add them.
+- Autopilot is explicitly OFF by default. Its large DJ-only toggle persists the state through the authenticated settings route; OFF immediately blocks subsequent scheduled actions. The browser does not run the scheduler or call Spotify autonomously.
 - Track additions are sequential, duplicate-aware and report partial failures.
 - Stale polling responses must never overwrite newer state.
 - Outstanding searches are aborted and polling/task queues are invalidated when the DJ session ends.
