@@ -5,10 +5,11 @@ function createDatabase(profile: string | null) {
   const calls: string[] = [];
   const prepare = vi.fn((sql: string) => {
     calls.push(sql);
+    const values: unknown[] = [];
     const statement = {
-      bind: (..._args: unknown[]) => statement,
+      bind: (...args: unknown[]) => { values.push(...args); return statement; },
       async first() {
-        if (sql.includes("dj_ai_profile_")) return profile ? { value: profile } : null;
+        if (values[0] && String(values[0]).startsWith("dj_ai_profile_")) return profile ? { value: profile } : null;
         return null;
       },
       async all() { return { results: [] }; },
