@@ -82,7 +82,7 @@ describe("DJ assistant action planning", () => {
     });
     expect(dependencies.searchTracks).toHaveBeenCalledOnce();
     expect(dependencies.addTrack).not.toHaveBeenCalled();
-    expect(result[0].details.join(" ")).toContain("Autopilot is uitgeschakeld");
+    expect(result[0].details.join(" ")).toContain("Autopilot is gestopt");
   });
 
   it("skips a track rejected by the recent-repeat guard", async () => {
