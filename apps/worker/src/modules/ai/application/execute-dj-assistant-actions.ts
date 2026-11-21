@@ -57,10 +57,14 @@ function parsePlannedAction(value: unknown): PlannedAction | null {
 /** Only explicit DJ commands can authorize mutations; suggestions and set plans remain read-only. */
 export function detectDJActionIntent(prompt: string): { add: boolean; remove: boolean; reorder: boolean } {
   const text = prompt.toLocaleLowerCase("nl");
+  const explicitListAdd = /\b(voeg|toevoegen)\b/.test(text)
+    && /\b(lijst|selectie)\b/.test(text)
+    && /\btoe\b/.test(text);
   const add = /\b(voeg|toevoegen|zet|plaats|stop|vul)\b/.test(text)
     && (/\b(queue|partyqueue|wachtrij|up next)\b/.test(text)
       || /\b(tracks?|nummers?|liedjes|songs|hits|schuurschijven)\b/.test(text)
-      || /\bzet\s+\d+\s+\w+/.test(text));
+      || /\bzet\s+\d+\s+\w+/.test(text)
+      || explicitListAdd);
   const remove = /\b(verwijder|haal|schrap|remove)\b/.test(text)
     && /\b(queue|partyqueue|wachtrij|up next|tracks?|nummers?|liedjes|uit)\b/.test(text);
   const reorder = /\b(herschik|herorden|herordeneer|verplaats|volgorde aanpassen|volgorde wijzigen|reorder)\b/.test(text);
