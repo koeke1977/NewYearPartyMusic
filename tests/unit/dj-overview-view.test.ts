@@ -45,6 +45,8 @@ describe("DJ overview view", () => {
       name: "Track",
     }));
     expect(view.getLatestOverview().requests).toHaveLength(1);
-    expect(view.getSettings().autoQueue).toBe(false);\n    expect(elements["#ai-autopilot-toggle"].textContent).toBe("AUTOPILOT AAN · STOP NU");\n    expect(elements["#ai-autopilot-toggle"].setAttribute).toHaveBeenCalledWith("aria-pressed", "true");
+    expect(view.getSettings().autoQueue).toBe(false);
+    expect(elements["#ai-autopilot-toggle"].textContent).toBe("AUTOPILOT AAN · STOP NU");
+    expect(elements["#ai-autopilot-toggle"].setAttribute).toHaveBeenCalledWith("aria-pressed", "true");
   });
 });
