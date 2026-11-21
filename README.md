@@ -40,15 +40,15 @@ npm run test:local-ai-bridge
 For a disposable local D1 database only: `npm run db:local`.
 
 ## Deployment environments
-- `npm run deploy` deploys the disposable test Worker `partyqueue`.
-- `npm run deploy:production` is the separate guarded deployment path for `partyqueue-production`.
-- Production uses a dedicated EU D1 database and isolated Durable Object namespace. Production secrets and the Spotify OAuth app must be provisioned separately.
-- The public hostname remains attached to the test Worker until production smoke tests pass and the cutover is explicitly approved.
+- `npm run deploy` targets the separate test Worker `partyqueue`.
+- `npm run deploy:production` is the guarded deployment path for the live Worker `partyqueue-production`.
+- Production uses its own EU D1 database, Durable Object namespace, secrets and Spotify OAuth connection.
+- The public hostname `spotify.electrafest.be` is attached to the production Worker. Production data is live and must never be treated as disposable.
 
-The production environment is not considered live merely because its D1 database and Wrangler configuration exist. Follow the complete checklist in `docs/runbooks/PRODUCTION-READINESS.md`.
+Read `docs/runbooks/PRODUCTION-READINESS.md` before any production change. A passing preflight does not replace explicit release approval.
 
 ## Security
-The AI assistant and the ChatGPT handoff receive no Spotify track metadata, album art, playback state or live queue. The assistant receives only event timing, DJ-authored preferences and the DJ's own question. AI-generated track ideas are searched separately through Spotify after the AI response; Spotify results are never sent back to an AI model. The AI cannot reorder the live queue. Public event-code and DJ-code endpoints use atomic D1 per-IP attempt buckets (guest join: 120/15 minutes; DJ login: 10/15 minutes). IP addresses are HMAC-hashed with the session secret before storage, and stale buckets are pruned daily. Never commit secrets, tokens, event codes, cookies or passwords. Spotify credentials and session secrets belong in Worker secrets, never browser code or committed Wrangler variables. Keep the production and test OAuth credentials and access codes separate.
+The AI assistant and the ChatGPT handoff receive no Spotify track metadata, album art, playback state or live queue. The assistant receives event timing, DJ-authored preferences, the DJ's current question and up to eight prior DJ/AI conversation turns from the same browser session. AI-generated track ideas are searched separately through Spotify after the AI response; Spotify results are never sent back to an AI model. The AI cannot reorder the live queue. Public event-code and DJ-code endpoints use atomic D1 per-IP attempt buckets (guest join: 120/15 minutes; DJ login: 10/15 minutes). IP addresses are HMAC-hashed with the session secret before storage, and stale buckets are pruned daily. Never commit secrets, tokens, event codes, cookies or passwords. Spotify credentials and session secrets belong in Worker secrets, never browser code or committed Wrangler variables. Keep the production and test OAuth credentials and access codes separate.
 
 PartyQueue does not stream audio. Spotify playback is controlled through the Web API while audio is played by the official Spotify app/player. Verify current Spotify Developer Mode eligibility, scopes, account restrictions and Premium playback entitlement before a live event.
 
