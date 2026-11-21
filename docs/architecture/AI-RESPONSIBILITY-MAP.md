@@ -37,6 +37,7 @@ The separate `/api/dj/ai/music/search` and `/api/dj/ai/music/add` endpoints are 
 | Cloudflare Workers AI invocation and provider response normalization | `integrations/ai/cloudflare-ai.ts` |
 | Authenticated local Claude Code bridge protocol | `integrations/ai/local-ai-bridge.ts` |
 | D1 preference snapshot reads | `modules/ai/infrastructure/assistant-context-repository.ts` |
+| Event- and browser-session-scoped conversation reads/writes and seven-day retention | `modules/ai/infrastructure/assistant-conversation-repository.ts` |
 | Explicit preference persistence, answer cache and atomic eight-second cooldown | `modules/ai/infrastructure/assistant-settings-repository.ts` |
 | Daily Neuron usage persistence and budget calculation | `modules/ai/infrastructure/neuron-budget.ts` + `modules/ai/application/neuron-budget-policy.ts` |
 
@@ -55,13 +56,13 @@ The prompt deliberately permits sharp genre, decade and energy changes. Smooth t
 
 ## Memory and conversation scope
 
-The current persistence is **preference memory, not conversation memory**:
-- Only explicit preference statements (for example, “onthoud”, “vanaf nu” or “ik hou van”) are stored.
-- The event profile retains at most 20 preference statements.
-- Ordinary prompts are not stored as preferences.
-- A ten-minute answer cache and an atomic eight-second request cooldown are separate operational mechanisms.
+The assistant now has two distinct forms of memory:
+- **Preference memory:** only explicit preference statements (for example, “onthoud”, “vanaf nu” or “ik hou van”) are stored; the event profile retains at most 20 statements. Ordinary prompts do not become preferences.
+- **Conversation memory:** a browser-generated UUID scopes the DJ/AI conversation. The Worker stores successful DJ prompts and AI-generated answers in D1, loads at most the last eight turns for the next prompt, and deletes turns older than seven days during scheduled cleanup. The endpoint remains compatible with older clients that omit a session ID; those requests receive a new server-generated session.
 
-There is currently no persisted conversation transcript, session turn history, proposal registry or reliable reference resolution for follow-ups such as “maak die lijst commerciëler” or “vervang nummer vier”. Do not describe the assistant as learning from every prompt or remembering previous generated lists.
+Conversation memory is deliberately limited to DJ-authored prompts and AI-generated answers. Spotify catalogue results, selected Spotify tracks, playback state and live queue data are not stored in the conversation table or sent back to the model. A ten-minute answer cache and an atomic eight-second request cooldown remain separate operational mechanisms.
+
+The assistant can now resolve follow-ups such as “maak die lijst commerciëler” or “vervang nummer vier” within the retained session. It does not have a separate proposal registry or durable structured track IDs; generated suggestions remain ordinary AI text until the DJ searches Spotify separately.
 
 ## Cost and security invariants
 
@@ -75,11 +76,10 @@ There is currently no persisted conversation transcript, session turn history, p
 
 ## Focused next work
 
-1. Add real conversation continuity only as a separate, bounded feature: persist DJ-authored turns and generated proposals, not Spotify catalogue or live queue data.
-2. Give proposals stable IDs so the DJ can refer to a generated list or numbered item in later turns without replaying Spotify metadata into the model.
-3. Keep any future action planner separate from the model; it must validate the DJ's explicit intent and call existing authenticated Spotify workflows.
-4. Extend tests for conversation expiry, event/session isolation, proposal references, retention and prompt/data-boundary invariants before enabling conversational memory.
-5. Preserve existing provider, budget, cooldown, cache and local-bridge behaviour while adding that capability.
+1. Consider a structured proposal registry only if plain-text conversation history proves insufficient for reliable list/item references.
+2. Keep any future action planner separate from the model; it must validate the DJ's explicit intent and call existing authenticated Spotify workflows.
+3. Extend tests for retention, event/session isolation and prompt/data-boundary invariants as the feature evolves.
+4. Preserve existing provider, budget, cooldown, cache and local-bridge behaviour.
 
 ## Related implementation
 
