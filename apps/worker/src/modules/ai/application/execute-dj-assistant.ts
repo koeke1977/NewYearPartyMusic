@@ -42,6 +42,7 @@ export async function executeDJAssistant(input: {
     event: eventName,
     eventMoment: buildEventMoment(),
     djPreferences: parseDJPreferences(snapshot.djPreferences),
+    partyQueue: snapshot.partyQueue,
   });
   const { system, user } = buildDJAssistantPrompt(context, prompt, conversation);
   const persistTurn = async (answer: string): Promise<boolean> => {
@@ -54,7 +55,7 @@ export async function executeDJAssistant(input: {
     }
   };
   const provider = input.localAI ? "claude-code-local" : "cloudflare";
-  const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nspotify-independent-context-v4");
+  const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nlive-party-context-v5");
   const cached = await repository.readAnswerCache(cacheKey);
   if (cached) {
     const conversationSaved = await persistTurn(cached.answer);
