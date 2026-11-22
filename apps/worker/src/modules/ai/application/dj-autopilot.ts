@@ -96,12 +96,22 @@ export async function runDJAutopilot(input: {
     const { answer } = await runDJAssistantTurn(
       input.ai, "@cf/google/gemma-4-26b-a4b-it", system, user, budget,
     );
+    if (!await input.repository.isEnabled(input.eventId)) {
+      return await finish({ status: "disabled", queued });
+    }
     const plan = parseDJAssistantActionEnvelope(answer);
     const addAction = plan?.actions.find(action => {
       const record = action as { type?: unknown };
       return record?.type === "add_tracks";
     }) as { type: "add_tracks"; tracks: Array<{ title: string; artist: string }> } | undefined;
-    const safeTracks = addAction?.tracks.slice(0, count) || [];
+    const seenArtists = new Set<string>();
+    const safeTracks = (addAction?.tracks || []).filter(track => {
+      const artist = track.artist.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+        .toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, " ").trim();
+      if (!artist || seenArtists.has(artist)) return false;
+      seenArtists.add(artist);
+      return true;
+    }).slice(0, count);
     if (!safeTracks.length) {
       await input.repository.recordFailedAttempt(input.eventId, epochSeconds());
       return await finish({ status: "completed", queued, added: 0, failed: 0 });
