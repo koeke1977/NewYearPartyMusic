@@ -137,4 +137,18 @@ describe("DJ assistant prompt", () => {
     expect(system).toContain("do not invent exact BPM, key or beatmatching claims");
     expect(system).toContain("Never claim to hear audio");
   });
+  it("excludes tracks and artists suggested in recent AI lists from the next independent list", () => {
+    const { system, user } = buildDJAssistantPrompt(context, "Maak een nieuwe lijst met andere nummers.", [
+      { role: "user", content: "Geef me een lijst." },
+      { role: "assistant", content: "September — Earth, Wind & Fire\\nLe Freak — Chic" },
+      { role: "user", content: "Oké, maar niet telkens Earth, Wind & Fire." },
+    ]);
+    expect(system).toContain("cross-list suggestion history");
+    expect(system).toContain("do NOT repeat any exact track already suggested");
+    expect(system).toContain("actively avoid reusing the same artists");
+    expect(system).toContain("A previous 'oké', acknowledgement or request to adjust a list does not reset this exclusion");
+    expect(user).toContain("September — Earth, Wind & Fire");
+    expect(user).toContain("Oké, maar niet telkens Earth, Wind & Fire.");
+  });
+
 });
