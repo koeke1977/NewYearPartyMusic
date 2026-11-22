@@ -73,7 +73,7 @@ export function detectDJActionIntent(prompt: string): { add: boolean; remove: bo
       || explicitListAdd);
   const removeVerb = /\b(verwijder(?:en)?|haal|schrap(?:pen)?|remove)\b/.test(text);
   const removeTarget = /\b(queue|partyqueue|wachtrij|up next|tracks?|nummers?|liedjes)\b/.test(text);
-  const remove = removeVerb && (removeTarget || /\b(eruit|uit de lijst|uit de queue)\b/.test(text));
+  const remove = removeVerb && (removeTarget || /\b(eruit|uit de lijst|uit de queue)\b/.test(text)\n    || /\b(schrap(?:pen)?|gooi|gooien|wis(?:sen)?)\b/.test(text)\n    || /^(?:ik wil(?: graag)?\s+)?verwijder\s+\S+/.test(text));
   const reorder = /\b(herschik|herorden|herordeneer|verplaats|volgorde aanpassen|volgorde wijzigen|reorder)\b/.test(text);
   return { add, remove, reorder };
 }
