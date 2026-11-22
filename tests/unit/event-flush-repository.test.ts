@@ -34,7 +34,7 @@ describe("event flush D1 repository", () => {
     expect(statements[5].sql).toContain("spotify_last_partyqueue_track");
     expect(statements[6].sql).toContain("ai_autopilot");
     expect(statements[6].sql).toContain("'false'");
-    expect(statements[7].values).toEqual(["dj_autopilot_lock_NYE2026", "dj_autopilot_last_failed_NYE2026"]);
+    expect(statements[7].values).toEqual(["dj_autopilot_lock_NYE2026", "dj_autopilot_last_failed_NYE2026", "dj_autopilot_last_run_NYE2026"]);
     expect(statements.some(statement => /spotify_auth|dj_ai_profile|auto_approve|requests_paused/.test(statement.sql))).toBe(false);
   });
 });
