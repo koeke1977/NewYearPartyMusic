@@ -1,6 +1,6 @@
 # PartyQueue AI-DJ roadmap
 
-**Status:** Product direction approved; event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH and live PartyQueue context are merged. Phase 7 structured action planning and guarded execution are deployed. Phase 8 Autopilot foundation is implemented on `feat/ai-dj-autopilot`; CI/review and deployment remain pending.
+**Status:** Product direction approved; event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH, live PartyQueue context and Phase 7 guarded actions are merged. Phase 8 Autopilot is merged; DJ-visible run telemetry, budget-exhaustion reporting, diversity guards and STOP verification are being completed.
 **Repository:** koeke1977/NewYearPartyMusic
 **Scope:** Evolve the current assistant into an event-scoped, audience-aware AI-DJ with bounded PartyQueue execution while preserving the modular Cloudflare Worker architecture.
 
@@ -99,9 +99,9 @@ Implementation note: Spotify catalogue results stay inside the Worker. The model
 - [x] Reuse bounded audience/feedback/PartyQueue context, the free daily Neuron budget and existing Spotify exact-match insertion workflow.
 - [x] Add a stale-safe D1 lease, retry cooldown and persisted hard-stop checks before Spotify search and before insertion.
 - [x] Keep Autopilot add-only; it cannot remove/reorder tracks or control playback.
-- [ ] Add DJ-visible last-run/result telemetry and an explicit explanation when the AI budget is exhausted.
-- [ ] Tune diversity and artist repetition using event-level results without turning guest preferences into rigid quotas.
-- [ ] Rehearse STOP during AI inference, Spotify lookup and queue insertion; preserve the DJ override.
+- [x] Add DJ-visible last-run/result telemetry and an explicit explanation when the AI budget is exhausted.
+- [x] Add bounded genre/decade variety guidance and prevent repeated artists within one refill or against queued/recently played tracks; keep guest preferences directional rather than quotas.
+- [x] Recheck the DJ hard stop after AI inference, after Spotify lookup and before each queue insertion; test STOP during inference and between Spotify search and insertion.
 - Done when: the AI can maintain a healthy queue and adapt its next selections to meaningful audience changes without losing the overall party direction.
 
 ### Phase 9 — General rehearsal and release
