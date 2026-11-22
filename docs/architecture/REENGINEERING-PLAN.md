@@ -4,7 +4,7 @@
 
 - Repository: `koeke1977/NewYearPartyMusic`
 - Development branch: `main` only. The branch list was checked on 2026-11-22 and contained no feature branches.
-- Current main commit at review: `7043225d6f71d2e50f823e02c8f7ece2bce9adc9` (`fix(ci): guard draft PR auto-merge state (#46)`).
+- Current mainline is tracked by the live `main` ref; avoid pinning this descriptive document to a commit that becomes stale as soon as documentation changes.
 - Production resources are separate live infrastructure: Worker `partyqueue-production`, D1 `partyqueue-production-db`, and public hostname `https://spotify.electrafest.be`. This document does not authorize production changes.
 - Repository migrations currently run from `0001` through the latest migration present in `db/migrations`. This does not prove which migrations are applied remotely. Inspect the remote ledger before any approved release.
 - This document is a description of the current implementation and its remaining verification work, not a release approval or a mandate for another architecture rewrite.
