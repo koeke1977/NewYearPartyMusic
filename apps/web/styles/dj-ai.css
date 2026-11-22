@@ -104,3 +104,7 @@
 #ai-autopilot-toggle.is-active{border-color:#ff625e;background:#8d211f;color:#fff;box-shadow:0 0 0 2px rgba(255,98,94,.12)}
 #ai-autopilot-toggle:focus-visible{outline:3px solid #fff;outline-offset:3px}
 @media(max-width:650px){.dj-ai-autopilot{align-items:stretch;flex-direction:column}.dj-ai-autopilot span{font-size:14px}#ai-autopilot-toggle{width:100%;min-width:0;min-height:54px;font-size:15px}}
+
+/* Persisted Autopilot run telemetry */
+.dj-autopilot-last-run{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:-5px 0 14px;padding:11px 13px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(0,0,0,.2)}
+.dj-autopilot-last-run p{margin:0}.dj-autopilot-result{font-size:11px;letter-spacing:.04em;color:#cbd6ce}.dj-autopilot-budget_exhausted,.dj-autopilot-error{color:#ffb08f}.dj-autopilot-completed{color:#4ce28a}
