@@ -1,25 +1,25 @@
 # CSS selector ownership inventory
 
-**Snapshot:** `refactor/architecture-foundation`, reviewed 2026-11-20. This inventory describes the current stylesheet split and measured selector structure.
+**Snapshot:** current `main`, remeasured 2026-11-22. Counts below were calculated from the nine current stylesheets; selector-rule counts are approximate and should be remeasured after CSS changes.
 
 ## Current measured structure
 
-The nine stylesheets under `apps/web` contain **58,952 characters** and **576 selector blocks** in total:
+The nine stylesheets under `apps/web` contain **73,426 characters**, approximately **758 selector rule blocks**, **42 media-query blocks** and **106 `!important` declarations** in total:
 
-| Stylesheet | Characters | Selector blocks | Media queries |
-|---|---:|---:|---:|
-| `styles.css` | 3,588 | 40 | 1 |
-| `styles/base.css` | 434 | 3 | 0 |
-| `styles/tokens.css` | 174 | 1 | 0 |
-| `styles/guest.css` | 1,480 | 18 | 1 |
-| `styles/dj-layout.css` | 13,669 | 169 | 8 |
-| `styles/dj-playback.css` | 30,448 | 251 | 16 |
-| `styles/dj-request-search.css` | 3,731 | 40 | 2 |
-| `styles/dj-queue.css` | 1,382 | 13 | 1 |
-| `styles/dj-ai.css` | 4,046 | 41 | 3 |
-| **Total** | **58,952** | **576** | **32** |
+| Stylesheet | Characters | Approx. rule blocks | Media queries | `!important` |
+|---|---:|---:|---:|---:|
+| `styles.css` | 3,879 | 43 | 1 | 0 |
+| `styles/base.css` | 434 | 2 | 0 | 0 |
+| `styles/tokens.css` | 174 | 1 | 0 | 0 |
+| `styles/guest.css` | 7,539 | 94 | 4 | 0 |
+| `styles/dj-layout.css` | 16,965 | 223 | 11 | 1 |
+| `styles/dj-playback.css` | 30,881 | 248 | 16 | 85 |
+| `styles/dj-request-search.css` | 3,731 | 40 | 2 | 15 |
+| `styles/dj-queue.css` | 1,382 | 12 | 1 | 5 |
+| `styles/dj-ai.css` | 8,441 | 95 | 7 | 0 |
+| **Total** | **73,426** | **758** | **42** | **106** |
 
-There are 13 distinct media-query expressions and four keyframe animations: `vinyl-spin`, `booth-spin`, `booth-meter` and `spotify-fallback-pulse`. The stylesheets contain 106 `!important` declarations; most are in `dj-playback.css` (85) and `dj-request-search.css` (15). Treat these as existing cascade constraints, not as permission for more overrides.
+There are four keyframe animations: `vinyl-spin`, `booth-spin`, `booth-meter` and `spotify-fallback-pulse`. Most `!important` declarations are in `dj-playback.css` (85) and `dj-request-search.css` (15). Treat these as existing cascade constraints, not as permission for more overrides. Character and media-query counts are exact for the fetched files; rule-block counts are approximate because this lightweight scan does not parse CSS syntax.
 
 The six shared design tokens in `styles/tokens.css` are `--bg`, `--panel`, `--border`, `--text`, `--muted` and `--green`. `styles/base.css` owns the Inter font import and shared reset/html/body foundation.
 
@@ -63,4 +63,4 @@ Completed:
 3. DJ-only layout, playback, request-search, queue and AI rules moved to their own stylesheets.
 4. Both page entrypoints load the shared foundation followed by their own feature stylesheets. The existing cascade order is preserved.
 
-The earlier counts of 568 blocks in `styles.css` and the old `.dj-*`/`.booth-*` cluster counts were snapshots from before the DJ stylesheet extraction; they are not current measurements.
+Do not compare these measurements with older pre-extraction inventories; they describe the current split on 2026-11-22.
