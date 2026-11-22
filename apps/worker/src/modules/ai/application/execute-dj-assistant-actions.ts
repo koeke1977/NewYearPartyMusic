@@ -4,6 +4,7 @@ export type DJAssistantActionPorts = {
   searchTracks(query: string): Promise<CatalogTrack[]>;
   addTrack(trackId: string): Promise<{ status: number; body: Record<string, unknown> }>;
   readQueueIds?(): Promise<string[]>;
+  readQueueTracks?(): Promise<Array<{ id: string; track_name: string; artist_name: string }>>;
   removeQueuedTrack?(requestId: string): Promise<{ status: number; body: Record<string, unknown> }>;
   reorderQueue?(order: string[]): Promise<{ ok: boolean; error?: { message: string }; value?: { order: string[] } }>;
   canContinue?(): Promise<boolean>;
@@ -43,13 +44,18 @@ function parsePlannedAction(value: unknown): PlannedAction | null {
       || !track.title.trim() || !track.artist.trim() || track.title.length > 140 || track.artist.length > 100)) return null;
     return { type: "add_tracks", tracks: tracks as Array<{ title: string; artist: string }> };
   }
-  if ((action.type === "remove_tracks" || action.type === "reorder_queue")
-    && Array.isArray(action.requestIds) && action.requestIds.length > 0 && action.requestIds.length <= 100
+  if (action.type === "remove_tracks") {
+    const requestIds = action.requestIds === undefined ? [] : action.requestIds;
+    if (!Array.isArray(requestIds) || requestIds.length > 100
+      || !requestIds.every(id => typeof id === "string" && id.length > 0 && id.length <= 80)
+      || new Set(requestIds).size !== requestIds.length) return null;
+    return { type: "remove_tracks", requestIds: requestIds as string[] };
+  }
+  if (action.type === "reorder_queue" && Array.isArray(action.requestIds)
+    && action.requestIds.length > 0 && action.requestIds.length <= 100
     && action.requestIds.every(id => typeof id === "string" && id.length > 0 && id.length <= 80)
     && new Set(action.requestIds).size === action.requestIds.length) {
-    return action.type === "remove_tracks"
-      ? { type: "remove_tracks", requestIds: action.requestIds as string[] }
-      : { type: "reorder_queue", requestIds: action.requestIds as string[] };
+    return { type: "reorder_queue", requestIds: action.requestIds as string[] };
   }
   return null;
 }
@@ -65,11 +71,29 @@ export function detectDJActionIntent(prompt: string): { add: boolean; remove: bo
       || /\b(tracks?|nummers?|liedjes|songs|hits|schuurschijven)\b/.test(text)
       || /\bzet\s+\d+\s+\w+/.test(text)
       || explicitListAdd);
-  const removeVerb = /\b(verwijder(?:en)?|haal|schrap(?:pen)?|remove)\b/.test(text);
+  const removeVerb = /\b(verwijder(?:en)?|haal|schrap(?:pen)?|gooi|gooien|wis|wissen|remove)\b/.test(text);
   const removeTarget = /\b(queue|partyqueue|wachtrij|up next|tracks?|nummers?|liedjes)\b/.test(text);
-  const remove = removeVerb && (removeTarget || /\b(eruit|uit de lijst|uit de queue)\b/.test(text));
+  const remove = removeVerb && (removeTarget || /\b(eruit|uit de lijst|uit de queue)\b/.test(text)
+    || /\b(schrap(?:pen)?|gooi|gooien|wis(?:sen)?)\b/.test(text)
+    || /^(?:ik wil(?: graag)?\s+)?verwijder\s+\S+/.test(text));
   const reorder = /\b(herschik|herorden|herordeneer|verplaats|volgorde aanpassen|volgorde wijzigen|reorder)\b/.test(text);
   return { add, remove, reorder };
+}
+
+/** Extracts an explicit artist/title target from a Dutch removal command. */
+export function extractDJRemovalTarget(prompt: string): string | null {
+  let target = prompt.trim().replace(/[.!?]+$/g, "").toLocaleLowerCase("nl");
+  target = target.replace(/^(?:(?:ik wil(?: graag)?|kun je|kan je|graag|aub|alsjeblieft)\s+)*/, "");
+  target = target.replace(/^(?:verwijder(?:en)?|schrap(?:pen)?|haal|gooi|gooien|wis|wissen|remove)\s+/, "");
+  target = target.replace(/\s+(?:uit|uit de|uit mijn|uit onze|uit het)\s+(?:de\s+)?(?:partyqueue|queue|wachtrij|up next|lijst).*$/i, "");
+  target = target.replace(/\s+(?:eruit|weg|uit de lijst|uit de queue|uit partyqueue)$/i, "");
+  target = target.replace(/^(?:(?:al|alle|de|het|die|deze|mijn|onze)\s+)*/i, "");
+  target = target.replace(/^(?:nummers?|tracks?|liedjes|songs?)\s+(?:van|door)\s+/i, "");
+  target = target.replace(/\s*[-–—]?\s*(?:nummers?|tracks?|liedjes|songs?)$/i, "");
+  target = target.replace(/\s+/g, " ").trim();
+  const normalized = normalizeTrackText(target);
+  if (!normalized || /^(?:deze|die|alle|nummers|tracks|liedjes|songs|muziek)$/.test(normalized)) return null;
+  return normalized;
 }
 
 export function parseDJAssistantActionEnvelope(raw: string): { answer: string; actions: PlannedAction[] } | null {
@@ -158,35 +182,57 @@ export async function executeDJAssistantActions(input: {
 
     if (action.type === "remove_tracks") {
       if (!intent.remove) continue;
-      if (!input.ports.readQueueIds || !input.ports.removeQueuedTrack) {
-        results.push({ type: action.type, succeeded: 0, failed: action.requestIds.length, details: ["Verwijderen is niet beschikbaar voor deze uitvoerder."] });
+      if (!input.ports.readQueueTracks || !input.ports.removeQueuedTrack) {
+        results.push({ type: action.type, succeeded: 0, failed: 1, details: ["Verwijderen is niet beschikbaar voor deze uitvoerder."] });
+        continue;
+      }
+      const target = extractDJRemovalTarget(input.prompt);
+      if (!target) {
+        results.push({ type: action.type, succeeded: 0, failed: 1, details: ["Ik kan niet veilig bepalen welke artiest of track je bedoelt. Er is niets gewijzigd."] });
+        continue;
+      }
+      let liveTracks: Array<{ id: string; track_name: string; artist_name: string }>;
+      try {
+        liveTracks = await input.ports.readQueueTracks();
+      } catch {
+        results.push({ type: action.type, succeeded: 0, failed: 1, details: ["De actuele PartyQueue kon niet worden gelezen. Er is niets gewijzigd."] });
+        continue;
+      }
+      const matches = liveTracks.filter(track => {
+        const artist = normalizeTrackText(track.artist_name);
+        const title = normalizeTrackText(track.track_name);
+        return artist === target || artist.includes(" " + target) || title === target;
+      });
+      if (!matches.length) {
+        results.push({ type: action.type, succeeded: 0, failed: 0, details: ["Geen exacte artiest- of titelmatch gevonden voor ‘" + target + "’. PartyQueue is ongewijzigd."] });
         continue;
       }
       const result: DJAssistantActionResult = { type: action.type, succeeded: 0, failed: 0, details: [] };
-      for (const requestId of action.requestIds) {
+      for (const track of matches) {
         try {
-          const currentQueue = await input.ports.readQueueIds();
-          if (!currentQueue.includes(requestId)) {
+          const currentQueue = await input.ports.readQueueTracks();
+          if (!currentQueue.some(item => item.id === track.id)) {
             result.failed++;
-            result.details.push(requestId + ": staat niet (meer) in PartyQueue");
+            result.details.push(track.track_name + " — " + track.artist_name + ": staat niet (meer) in PartyQueue");
             continue;
           }
-          const removed = await input.ports.removeQueuedTrack(requestId);
+          const removed = await input.ports.removeQueuedTrack(track.id);
           if (removed.status < 200 || removed.status >= 300 || removed.body.ok !== true) {
             result.failed++;
-            result.details.push(requestId + ": " + String(removed.body.error || "verwijderen mislukt"));
+            result.details.push(track.track_name + " — " + track.artist_name + ": " + String(removed.body.error || "verwijderen mislukt"));
             continue;
           }
-          const queueAfterRemoval = await input.ports.readQueueIds();
-          if (queueAfterRemoval.includes(requestId)) {
+          const queueAfterRemoval = await input.ports.readQueueTracks();
+          if (queueAfterRemoval.some(item => item.id === track.id)) {
             result.failed++;
-            result.details.push(requestId + ": Worker bevestigde de actie, maar de track staat nog in PartyQueue");
+            result.details.push(track.track_name + " — " + track.artist_name + ": Worker bevestigde de actie, maar de track staat nog in PartyQueue");
             continue;
           }
           result.succeeded++;
+          result.details.push(track.track_name + " — " + track.artist_name + ": verwijderd en gecontroleerd");
         } catch (error) {
           result.failed++;
-          result.details.push(requestId + ": " + (error instanceof Error ? error.message : "verwijderen mislukt"));
+          result.details.push(track.track_name + " — " + track.artist_name + ": " + (error instanceof Error ? error.message : "verwijderen mislukt"));
         }
       }
       results.push(result);

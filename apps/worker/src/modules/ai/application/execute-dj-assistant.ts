@@ -77,14 +77,23 @@ export async function executeDJAssistant(input: {
   };
   const finishAnswer = async (raw: string): Promise<{ answer: string; actions: DJAssistantActionResult[] }> => {
     if (!actionMode) return { answer: raw, actions: [] };
+    if (!input.actionExecutor) {
+      return { answer: "Er is niets gewijzigd: de actie-uitvoerder is niet beschikbaar.", actions: [] };
+    }
+    if (intent.remove) {
+      const plan = parseDJAssistantActionEnvelope(raw);
+      const answer = plan?.answer || "Ik controleer de volledige actuele PartyQueue op de gevraagde artiest of track.";
+      const actions = await input.actionExecutor.execute([{ type: "remove_tracks", requestIds: [] }]);
+      if (!actions.length) {
+        return { answer: answer + "\n\nEr is niets gewijzigd; de verwijdering kon niet veilig worden bevestigd.", actions: [] };
+      }
+      return { answer: answer + "\n\nUitvoering in PartyQueue:\n" + actionSummary(actions), actions };
+    }
     const plan = parseDJAssistantActionEnvelope(raw);
     if (!plan) {
       return { answer: "Ik kon geen geldig, veilig actieplan verwerken. Er is niets gewijzigd.", actions: [] };
     }
     if (!plan.actions.length) return { answer: plan.answer + "\n\nEr is niets gewijzigd; er werd geen veilige actie gevonden.", actions: [] };
-    if (!input.actionExecutor) {
-      return { answer: plan.answer + "\n\nEr is niets gewijzigd: de actie-uitvoerder is niet beschikbaar.", actions: [] };
-    }
     const actions = await input.actionExecutor.execute(plan.actions);
     if (!actions.length) {
       return { answer: plan.answer + "\n\nEr is niets gewijzigd; de gevraagde actie kon niet veilig worden bevestigd.", actions: [] };
@@ -107,6 +116,12 @@ export async function executeDJAssistant(input: {
 
   const provider = input.localAI ? "claude-code-local" : "cloudflare";
   const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nlive-party-context-v6");
+  if (intent.remove) {
+    return await completeResponse(JSON.stringify({
+      answer: "Ik controleer de volledige actuele PartyQueue op de gevraagde artiest of track.",
+      actions: [],
+    }), "worker", false);
+  }
   if (!actionMode) {
     const cached = await repository.readAnswerCache(cacheKey);
     if (cached) {

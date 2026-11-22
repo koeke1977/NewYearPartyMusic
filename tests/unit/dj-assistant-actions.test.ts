@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CatalogTrack } from "../../apps/worker/src/modules/music/domain/catalog-track";
 import {
-  detectDJActionIntent, executeDJAssistantActions, parseDJAssistantActionEnvelope,
+  detectDJActionIntent, executeDJAssistantActions, extractDJRemovalTarget, parseDJAssistantActionEnvelope,
 } from "../../apps/worker/src/modules/ai/application/execute-dj-assistant-actions";
 import type { DJAssistantActionPorts } from "../../apps/worker/src/modules/ai/application/execute-dj-assistant-actions";
 
@@ -19,6 +19,10 @@ function ports(overrides: Partial<DJAssistantActionPorts> = {}) {
     searchTracks: vi.fn(async () => [track]),
     addTrack: vi.fn(async () => ({ status: 201, body: { ok: true, request: { id: "queue-1" } } })),
     readQueueIds: vi.fn(async () => ["queue-1", "queue-2"]),
+    readQueueTracks: vi.fn(async () => [
+      { id: "queue-1", track_name: "My Way", artist_name: "Frank Sinatra" },
+      { id: "queue-2", track_name: "Stayin Alive", artist_name: "Bee Gees" },
+    ]),
     removeQueuedTrack: vi.fn(async () => ({ status: 200, body: { ok: true, status: "rejected" } })),
     reorderQueue: vi.fn(async (order: string[]) => ({ ok: true, value: { order } })),
     ...overrides,
@@ -33,6 +37,13 @@ describe("DJ assistant action planning", () => {
     expect(detectDJActionIntent("Haal track X uit de wachtrij")).toEqual({ add: false, remove: true, reorder: false });
     expect(detectDJActionIntent("Ik wil de Frank Sinatra tracks uit PartyQueue verwijderen")).toEqual({ add: false, remove: true, reorder: false });
     expect(detectDJActionIntent("Haal Frank Sinatra eruit")).toEqual({ add: false, remove: true, reorder: false });
+    expect(detectDJActionIntent("Schrap Frank Sinatra")).toEqual({ add: false, remove: true, reorder: false });
+    expect(detectDJActionIntent("Gooi de Sinatra-tracks uit de wachtrij")).toEqual({ add: false, remove: true, reorder: false });
+    expect(detectDJActionIntent("Wat vind je van Frank Sinatra?")).toEqual({ add: false, remove: false, reorder: false });
+    expect(extractDJRemovalTarget("Verwijder de Frank Sinatra-tracks uit PartyQueue.")).toBe("frank sinatra");
+    expect(extractDJRemovalTarget("Haal alle nummers van Frank Sinatra weg")).toBe("frank sinatra");
+    expect(extractDJRemovalTarget("Haal Frank Sinatra eruit")).toBe("frank sinatra");
+    expect(extractDJRemovalTarget("Gooi de Sinatra-tracks uit de wachtrij")).toBe("sinatra");
     expect(detectDJActionIntent("Herschik de PartyQueue")).toEqual({ add: false, remove: false, reorder: true });
     expect(detectDJActionIntent("Geef me een verrassend disco-setplan")).toEqual({ add: false, remove: false, reorder: false });
     expect(detectDJActionIntent("Vul de lijst met suggesties aan")).toEqual({ add: false, remove: false, reorder: false });
@@ -103,31 +114,58 @@ describe("DJ assistant action planning", () => {
     expect(result[0].details[0]).toContain("recente herhaling");
   });
 
-  it("removes only live queue IDs and verifies that each removed track disappeared", async () => {
-    const readQueueIds = vi.fn()
-      .mockResolvedValueOnce(["queue-1", "queue-2"])
-      .mockResolvedValueOnce(["queue-2"])
-      .mockResolvedValueOnce(["queue-2"]);
-    const dependencies = ports({ readQueueIds });
+  it("resolves an artist against the complete live queue instead of model-supplied IDs", async () => {
+    const liveQueue = [
+      { id: "queue-1", track_name: "My Way", artist_name: "Frank Sinatra" },
+      { id: "queue-2", track_name: "Fly Me to the Moon", artist_name: "Frank Sinatra" },
+      { id: "queue-3", track_name: "Stayin Alive", artist_name: "Bee Gees" },
+    ];
+    const dependencies = ports({
+      readQueueTracks: vi.fn(async () => [...liveQueue]),
+      removeQueuedTrack: vi.fn(async requestId => {
+        const index = liveQueue.findIndex(item => item.id === requestId);
+        if (index >= 0) liveQueue.splice(index, 1);
+        return { status: 200, body: { ok: true, status: "rejected" } };
+      }),
+    });
     const result = await executeDJAssistantActions({
-      prompt: "Verwijder deze tracks uit de wachtrij",
-      actions: [{ type: "remove_tracks", requestIds: ["queue-1", "not-queued"] }],
+      prompt: "Verwijder alle nummers van Frank Sinatra uit PartyQueue",
+      actions: [{ type: "remove_tracks", requestIds: ["model-guessed-id"] }],
       ports: dependencies,
     });
-    expect(dependencies.removeQueuedTrack).toHaveBeenCalledTimes(1);
-    expect(dependencies.removeQueuedTrack).toHaveBeenCalledWith("queue-1");
-    expect(readQueueIds).toHaveBeenCalledTimes(3);
-    expect(result[0]).toMatchObject({ type: "remove_tracks", succeeded: 1, failed: 1 });
+    expect(dependencies.removeQueuedTrack).toHaveBeenCalledTimes(2);
+    expect(dependencies.removeQueuedTrack).toHaveBeenNthCalledWith(1, "queue-1");
+    expect(dependencies.removeQueuedTrack).toHaveBeenNthCalledWith(2, "queue-2");
+    expect(result[0]).toMatchObject({ type: "remove_tracks", succeeded: 2, failed: 0 });
   });
 
-  it("does not report success when the Worker says ok but the track remains queued", async () => {
-    const dependencies = ports();
+  it("does not remove anything when the target is ambiguous or absent", async () => {
+    const dependencies = ports({
+      readQueueTracks: vi.fn(async () => [
+        { id: "queue-1", track_name: "My Way", artist_name: "Frank Sinatra" },
+      ]),
+    });
     const result = await executeDJAssistantActions({
-      prompt: "Haal track X uit de wachtrij",
-      actions: [{ type: "remove_tracks", requestIds: ["queue-1"] }],
+      prompt: "Verwijder deze tracks uit PartyQueue",
+      actions: [{ type: "remove_tracks", requestIds: [] }],
       ports: dependencies,
     });
-    expect(result[0]).toMatchObject({ type: "remove_tracks", succeeded: 0, failed: 1 });
+    expect(dependencies.removeQueuedTrack).not.toHaveBeenCalled();
+    expect(result[0]).toMatchObject({ succeeded: 0, failed: 1 });
+  });
+
+  it("does not report success if a removed track remains in the live queue", async () => {
+    const readQueueTracks = vi.fn()
+      .mockResolvedValueOnce([{ id: "queue-1", track_name: "My Way", artist_name: "Frank Sinatra" }])
+      .mockResolvedValueOnce([{ id: "queue-1", track_name: "My Way", artist_name: "Frank Sinatra" }])
+      .mockResolvedValueOnce([{ id: "queue-1", track_name: "My Way", artist_name: "Frank Sinatra" }]);
+    const dependencies = ports({ readQueueTracks });
+    const result = await executeDJAssistantActions({
+      prompt: "Haal Frank Sinatra eruit",
+      actions: [{ type: "remove_tracks", requestIds: [] }],
+      ports: dependencies,
+    });
+    expect(result[0]).toMatchObject({ succeeded: 0, failed: 1 });
     expect(result[0].details[0]).toContain("staat nog in PartyQueue");
   });
 

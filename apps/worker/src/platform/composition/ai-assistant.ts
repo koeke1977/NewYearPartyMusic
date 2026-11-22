@@ -53,6 +53,7 @@ export function executeDJAssistantFromEnvironment(env: Env, prompt: string, sess
             trackGateway: { getTrack: id => getSpotifyCatalogTrack(env, id) },
           }),
           readQueueIds: () => djQueueRepository.readQueuedRequestIds(env.EVENT_ID),
+          readQueueTracks: () => djQueueRepository.readQueuedRequestTracks(env.EVENT_ID),
           removeQueuedTrack: requestId => moderatePartyRequest({
             repository: guestRequestRepository, eventId: env.EVENT_ID, requestId, action: "reject",
           }),
