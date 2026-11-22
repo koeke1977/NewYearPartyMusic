@@ -27,6 +27,7 @@ function repository(overrides: Partial<DJAutopilotRepository> = {}) {
     loadContext: vi.fn(async () => snapshot),
     readLastFailedAttempt: vi.fn(async () => 0),
     recordFailedAttempt: vi.fn(async () => {}),
+    recordOutcome: vi.fn(async () => {}),
     ...overrides,
   };
 }
