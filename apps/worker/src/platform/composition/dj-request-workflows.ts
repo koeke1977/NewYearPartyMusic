@@ -3,13 +3,15 @@ import { getDjOverview, reorderDjQueue, updateDjSetting } from "../../modules/re
 import { moderatePartyRequest, queueApprovedPartyRequest } from "../../modules/requests/application/guest-request-lifecycle";
 import { createGuestRequestRepository } from "../../modules/requests/infrastructure/guest-request-d1-repository";
 import { createDjQueueRepository } from "../../modules/requests/infrastructure/dj-queue-d1-repository";
+import { createDJAutopilotRepository } from "../../modules/ai/infrastructure/dj-autopilot-d1-repository";
 
 /** Wires DJ request application workflows to their Cloudflare D1 repositories. */
-export function getDjOverviewFromEnvironment(env: Env) {
-  return getDjOverview({
-    repository: createDjQueueRepository(env.DB),
-    eventId: env.EVENT_ID,
-  });
+export async function getDjOverviewFromEnvironment(env: Env) {
+  const [overview, autopilot] = await Promise.all([
+    getDjOverview({ repository: createDjQueueRepository(env.DB), eventId: env.EVENT_ID }),
+    createDJAutopilotRepository(env.DB).readLastOutcome(env.EVENT_ID),
+  ]);
+  return { ...overview, autopilotLastRun: autopilot };
 }
 
 export function reorderDjQueueFromEnvironment(env: Env, order: unknown) {
