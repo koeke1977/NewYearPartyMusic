@@ -4,7 +4,7 @@
 
 ## Current request flow
 
- `POST /api/dj/ai/assistant` authenticates the DJ session and validates the prompt (1–600 characters). Ordinary advice remains text-only. Explicit add/remove/reorder commands activate structured action planning; the Worker validates the JSON plan and executes only allow-listed PartyQueue workflows.
+ `POST /api/dj/ai/assistant` authenticates the DJ session and validates the prompt (1–600 characters). Ordinary advice remains text-only. Explicit add/reorder commands use structured action planning. An explicit artist/title removal is handled deterministically by the Worker without waiting for an LLM plan; the Worker resolves the target against the full live PartyQueue and executes only the existing allow-listed moderation workflow.
 
 ```text
 routes/dj-ai.ts
@@ -17,8 +17,9 @@ routes/dj-ai.ts
           → build bounded event, audience and PartyQueue context
           → build advice prompt or explicit action-plan contract
           → check answer cache (advice only) / cooldown / free-tier budget
-          → local Claude Code bridge (when configured) or Cloudflare Workers AI
-          → for action plans: validate intent + schema, then execute approved application use cases
+          → for explicit artist/title removal: bypass AI provider and resolve against full live PartyQueue
+          → otherwise local Claude Code bridge (when configured) or Cloudflare Workers AI
+          → for add/reorder action plans: validate intent + schema, then execute approved application use cases
           → report confirmed outcomes and persist the DJ prompt + final AI response
   scheduled/handler.ts
     → delete conversation turns older than seven days
