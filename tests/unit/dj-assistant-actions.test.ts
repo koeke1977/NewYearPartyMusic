@@ -115,12 +115,18 @@ describe("DJ assistant action planning", () => {
   });
 
   it("resolves an artist against the complete live queue instead of model-supplied IDs", async () => {
+    const liveQueue = [
+      { id: "queue-1", track_name: "My Way", artist_name: "Frank Sinatra" },
+      { id: "queue-2", track_name: "Fly Me to the Moon", artist_name: "Frank Sinatra" },
+      { id: "queue-3", track_name: "Stayin Alive", artist_name: "Bee Gees" },
+    ];
     const dependencies = ports({
-      readQueueTracks: vi.fn(async () => [
-        { id: "queue-1", track_name: "My Way", artist_name: "Frank Sinatra" },
-        { id: "queue-2", track_name: "Fly Me to the Moon", artist_name: "Frank Sinatra" },
-        { id: "queue-3", track_name: "Stayin Alive", artist_name: "Bee Gees" },
-      ]),
+      readQueueTracks: vi.fn(async () => [...liveQueue]),
+      removeQueuedTrack: vi.fn(async requestId => {
+        const index = liveQueue.findIndex(item => item.id === requestId);
+        if (index >= 0) liveQueue.splice(index, 1);
+        return { status: 200, body: { ok: true, status: "rejected" } };
+      }),
     });
     const result = await executeDJAssistantActions({
       prompt: "Verwijder alle nummers van Frank Sinatra uit PartyQueue",
