@@ -71,10 +71,10 @@ export async function runDJAutopilot(input: {
       return await finish({ status: "cooldown", queued });
     }
     if (!input.ai) return await finish({ status: "error", queued, message: "Cloudflare AI-binding ontbreekt." });
-    if (!await input.repository.claimRateLimit()) return { status: "cooldown", queued };
+    if (!await input.repository.claimRateLimit()) return await finish({ status: "cooldown", queued });
 
     const count = Math.min(DJ_AUTOPILOT_MAX_ADDS_PER_RUN, DJ_AUTOPILOT_QUEUE_TARGET - queued);
-    if (count <= 0) return { status: "queue_sufficient", queued };
+    if (count <= 0) return await finish({ status: "queue_sufficient", queued });
     const prompt = "Vul PartyQueue autonoom aan: voeg maximaal " + count
       + " concrete tracks toe aan PartyQueue. Dit is een expliciete Autopilot-opdracht. "
       + "Combineer verschillende genres en decennia op basis van de actuele publieksvoorkeuren, toegestane sfeerfeedback en de eventfase. "
