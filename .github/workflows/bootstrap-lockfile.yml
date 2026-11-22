@@ -27,10 +27,16 @@ jobs:
       - name: Generate lockfile from the declared package manifest
         run: npm install --legacy-peer-deps --no-audit --no-fund
 
+      - name: Declare Vitest's required Vite peer dependency
+        run: npm install --save-dev 'vite@^7.0.0' --legacy-peer-deps --no-audit --no-fund
+
+      - name: Record consistent npm peer dependency handling
+        run: printf 'legacy-peer-deps=true\\n' > .npmrc
+
       - name: Verify a clean reproducible install
         run: |
           rm -rf node_modules
-          npm ci --legacy-peer-deps --no-audit --no-fund
+          npm ci --no-audit --no-fund
 
       - name: Verify the locked dependency tree
         run: |
