@@ -116,6 +116,12 @@ export async function executeDJAssistant(input: {
 
   const provider = input.localAI ? "claude-code-local" : "cloudflare";
   const cacheKey = await input.hash(provider + "\n" + system + "\n" + user + "\nlive-party-context-v6");
+  if (intent.remove) {
+    return await completeResponse(JSON.stringify({
+      answer: "Ik controleer de volledige actuele PartyQueue op de gevraagde artiest of track.",
+      actions: [],
+    }), provider, false);
+  }
   if (!actionMode) {
     const cached = await repository.readAnswerCache(cacheKey);
     if (cached) {
