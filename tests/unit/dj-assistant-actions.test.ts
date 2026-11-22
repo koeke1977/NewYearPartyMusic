@@ -101,6 +101,29 @@ describe("DJ assistant action planning", () => {
     expect(result[0].details.join(" ")).toContain("Autopilot is gestopt");
   });
 
+  it("honours STOP between two queue insertions in the same refill", async () => {
+    const dependencies = ports({
+      canContinue: vi.fn()
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(true)
+        .mockResolvedValueOnce(false),
+    });
+    const result = await executeDJAssistantActions({
+      prompt: "Voeg twee tracks toe aan PartyQueue",
+      actions: [{ type: "add_tracks", tracks: [
+        { title: track.name, artist: "Stardust" },
+        { title: "September", artist: "Earth, Wind & Fire" },
+      ] }],
+      ports: dependencies,
+    });
+    expect(dependencies.searchTracks).toHaveBeenCalledOnce();
+    expect(dependencies.addTrack).toHaveBeenCalledOnce();
+    expect(result[0].succeeded).toBe(1);
+    expect(result[0].details.join(" ")).toContain("Autopilot is gestopt");
+  });
+
   it("skips a track rejected by the recent-repeat guard", async () => {
     const dependencies = ports({ isTrackAllowed: () => false });
     const result = await executeDJAssistantActions({

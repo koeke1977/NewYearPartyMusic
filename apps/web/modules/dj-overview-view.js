@@ -136,8 +136,37 @@ export function createDjOverviewView({
     );
   }
 
+  function renderAutopilotLastRun(lastRun) {
+    const panel = documentRef.querySelector("#dj-autopilot-last-run");
+    if (!panel) return;
+    panel.replaceChildren();
+    if (!lastRun || typeof lastRun.status !== "string") {
+      panel.append(elementFactory("p", "dj-muted", "Nog geen Autopilot-resultaat geregistreerd."));
+      return;
+    }
+    const labels = {
+      disabled: "Autopilot gestopt door de DJ",
+      locked: "Vorige Autopilot-run is nog bezig",
+      queue_sufficient: "Wachtrij voldoende gevuld",
+      cooldown: "Tijdelijke cooldown actief",
+      budget_exhausted: "Gratis AI-budget opgebruikt — Autopilot wacht tot het budget opnieuw beschikbaar is",
+      completed: "Run afgerond",
+      error: "Autopilot-fout",
+    };
+    const status = String(lastRun.status);
+    const summary = status === "completed"
+      ? Number(lastRun.added || 0) + " toegevoegd · " + Number(lastRun.failed || 0) + " mislukt · " + Number(lastRun.queued || 0) + " stonden klaar"
+      : typeof lastRun.message === "string" ? lastRun.message : labels[status] || "Status: " + status;
+    panel.append(
+      elementFactory("strong", "dj-autopilot-result dj-autopilot-" + status, labels[status] || "Autopilot-resultaat"),
+      elementFactory("span", "dj-crowd-meta", summary),
+      elementFactory("span", "dj-crowd-meta", typeof lastRun.at === "string" ? "Laatste controle: " + new Date(lastRun.at).toLocaleString() : "")
+    );
+  }
+
   function render(data, audience, crowdFeedback) {
     renderAudience(audience);
+    renderAutopilotLastRun(data.autopilotLastRun);
     renderCrowdFeedback(crowdFeedback);
     latestDJOverview = data;
     currentSettings = data.settings || currentSettings;

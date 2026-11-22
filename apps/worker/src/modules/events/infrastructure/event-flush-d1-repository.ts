@@ -18,7 +18,7 @@ export function createEventFlushRepository(db: EventFlushDatabase): EventFlushRe
         db.prepare("DELETE FROM settings WHERE key = 'dj_ai_answer_cache'"),
         db.prepare("DELETE FROM settings WHERE key = 'spotify_last_partyqueue_track'"),
         db.prepare("INSERT INTO settings (key,value,updated_at) VALUES ('ai_autopilot','false',CURRENT_TIMESTAMP) ON CONFLICT(key) DO UPDATE SET value='false',updated_at=CURRENT_TIMESTAMP"),
-        db.prepare("DELETE FROM settings WHERE key IN (?, ?)").bind("dj_autopilot_lock_" + eventId, "dj_autopilot_last_failed_" + eventId),
+        db.prepare("DELETE FROM settings WHERE key IN (?, ?, ?)").bind("dj_autopilot_lock_" + eventId, "dj_autopilot_last_failed_" + eventId, "dj_autopilot_last_run_" + eventId),
       ]);
     },
   };

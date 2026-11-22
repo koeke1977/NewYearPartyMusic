@@ -31,6 +31,21 @@ export function createDJAutopilotRepository(db: DJAutopilotDatabase) {
         .bind(settingKey("last_failed", eventId)).first<{ value: string }>();
       return Math.max(0, Number(row?.value) || 0);
     },
+    async recordOutcome(eventId: string, outcome: unknown, at: string): Promise<void> {
+      const value = JSON.stringify({ ...outcome as Record<string, unknown>, at });
+      await db.prepare(
+        "INSERT INTO settings (key,value,updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) " +
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=CURRENT_TIMESTAMP",
+      ).bind(settingKey("last_run", eventId), value).run();
+    },
+    async readLastOutcome(eventId: string): Promise<Record<string, unknown> | null> {
+      const row = await db.prepare("SELECT value FROM settings WHERE key=?")
+        .bind(settingKey("last_run", eventId)).first<{ value: string }>();
+      try {
+        const parsed: unknown = JSON.parse(row?.value || "null");
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+      } catch { return null; }
+    },
     async recordFailedAttempt(eventId: string, nowEpochSeconds: number): Promise<void> {
       await db.prepare(
         "INSERT INTO settings (key,value,updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) " +
