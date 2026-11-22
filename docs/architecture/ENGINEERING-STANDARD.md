@@ -4,7 +4,7 @@
 **Applies to:** `apps/web`, `apps/worker`, shared contracts, tests and tooling  
 **Purpose:** Preserve existing behaviour while establishing explicit ownership, separation of concerns and maintainable module boundaries.
 
-This standard complements `REENGINEERING-PLAN.md`, the responsibility maps and the API inventory. Where this document defines frontend presentation rules, it is authoritative. It does not authorize a framework migration, an untested behaviour change, destructive production-data operations or a production deployment.
+This standard is the binding engineering contract. The reengineering plan, responsibility maps and API inventory are descriptive documents and must match the current `main`; historical branch names and completed migration steps are not instructions. Where this document defines frontend presentation rules, it is authoritative. It does not authorize a framework migration, an untested behaviour change, destructive production-data operations or a production deployment.
 
 ## 1. Non-negotiable principles
 
@@ -156,18 +156,19 @@ For each change:
 
 If tests or browser validation cannot be run, state that explicitly. Never report authored tests as passed tests.
 
-## 7A. Branch and pull-request discipline (binding)
+## 7A. Main-branch discipline (binding)
 
-The active development limit for this repository is **two branches total**, including `main` and every temporary feature/fix branch. This is a hard limit, not a target.
+The repository uses **one development branch: `main`**.
 
-1. Before creating a branch, list and count all existing branches. If two or more exist, do not create another branch.
-2. Reuse the single existing feature branch for follow-up fixes and commits. The verified working state for this change is `feat/autopilot-telemetry-stop`; PR #44 is merged and PR #45 is the current draft on that same branch. Do not create a second corrective branch.
-3. Keep at most one active feature branch alongside `main`. Do not create parallel fix, test, or documentation branches.
-4. After a PR is merged, delete its feature branch only when no other open PR or unmerged work depends on it. Prefer the repository's normal auto-delete policy; never delete an active shared branch just to force the count down.
-5. If the repository already exceeds the limit, stop branch creation, report the discrepancy, and consolidate/delete only after checking each branch's PR and unique work. Verify the live branch list before claiming the limit is satisfied.
-6. Do not make another branch to fix a CI failure. Fix it on the existing PR branch, then rerun the same validation.
+1. Do not create feature, fix, refactor, release or documentation branches.
+2. Do not open pull requests for routine work. Make small, reviewable commits directly on `main`.
+3. Before writing, confirm the current `main` head and inspect the working tree/remote state where available. Never overwrite concurrent changes.
+4. Keep each commit focused on one coherent correction. Do not combine unrelated cleanup with a functional fix.
+5. Never force-push, reset away work or rewrite history. If direct-to-main permissions or repository controls prevent a safe change, stop and explain the blocker rather than creating a branch or bypass.
+6. After each change, inspect the resulting diff and verify the new `main` head. Run the relevant checks before continuing.
+7. CI on `main` is validation, not permission to deploy. Production deployment remains a separate, explicitly approved action.
 
-A task is not complete merely because a PR was opened. Confirm the PR's actual CI results, review the changed files, and only then allow the repository's normal merge/release process.
+The current branch list was verified on 2026-11-22 and contained only `main`. Re-check it before claiming that the repository still has one branch.
 
 ## 8. Security, compatibility and operational safeguards
 
@@ -194,7 +195,7 @@ A refactoring task is complete only when:
 
 ## 10. Relationship to other architecture documents
 
-This standard is used together with:
+This standard is used together with these current-state references:
 
 - `REENGINEERING-PLAN.md` — target architecture, backend boundaries and migration sequence.
 - `API-INVENTORY.md` — existing HTTP contracts and side effects.
