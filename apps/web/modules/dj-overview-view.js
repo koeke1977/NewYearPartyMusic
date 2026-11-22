@@ -24,6 +24,31 @@ export function createDjOverviewView({
     return box;
   }
 
+  function renderSpotifyFallbackButton(button, isFallback) {
+    if (!button) return;
+    if (!isFallback) {
+      button.textContent = "NEXT ↗";
+      return;
+    }
+    const svg = documentRef.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "spotify-button-logo");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("aria-hidden", "true");
+    const disc = documentRef.createElementNS("http://www.w3.org/2000/svg", "circle");
+    disc.setAttribute("cx", "12");
+    disc.setAttribute("cy", "12");
+    disc.setAttribute("r", "11");
+    disc.setAttribute("fill", "#1ed760");
+    const waves = documentRef.createElementNS("http://www.w3.org/2000/svg", "path");
+    waves.setAttribute("d", "M5.2 9.1c4.5-1.35 9.4-.9 13.2 1.15M6.1 12.2c3.7-1.05 7.9-.62 11.1 1.05M7 15.1c3-.8 6.1-.48 8.8.85");
+    waves.setAttribute("fill", "none");
+    waves.setAttribute("stroke", "#071109");
+    waves.setAttribute("stroke-width", "1.8");
+    waves.setAttribute("stroke-linecap", "round");
+    svg.append(disc, waves);
+    button.replaceChildren(svg);
+  }
+
   function formatMusicTime(milliseconds) {
     const minutes = Math.max(0, Math.round((Number(milliseconds) || 0) / 60000));
     const hours = Math.floor(minutes / 60);
@@ -211,7 +236,7 @@ export function createDjOverviewView({
       nextButton.disabled = empty;
       nextButton.classList.toggle("is-fallback", empty);
       nextButton.classList.toggle("is-empty", false);
-      nextButton.textContent = empty ? "SPOTIFY" : "NEXT ↗";
+      renderSpotifyFallbackButton(nextButton, empty);
       nextButton.title = empty ? "Spotify fallback mode · PartyQueue queue is empty" : "Play next PartyQueue request";
       nextButton.setAttribute("aria-label", empty ? "Spotify fallback mode; PartyQueue queue is empty" : "Play next PartyQueue request");
     }
