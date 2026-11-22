@@ -428,3 +428,83 @@
   overflow-wrap:anywhere;
 }
 .master-volume-error[hidden]{display:none}
+
+
+/* DJ console controls: readable at booth distance */
+.booth-hardware{
+  grid-template-columns:minmax(0,1fr) minmax(250px,.82fr) minmax(0,1fr);
+}
+.booth-mixer{
+  padding:16px 12px 14px;
+  gap:14px;
+}
+.booth-hardware-controls{gap:12px}
+.booth-transport{gap:7px}
+.booth-transport button{
+  min-height:44px;
+  border-radius:7px;
+  font-size:clamp(12px,.9vw,15px);
+  font-weight:900;
+}
+.booth-transport button.is-fallback,
+.booth-transport button.is-fallback:disabled{
+  display:grid;
+  place-items:center;
+  border:1px solid #1ed760!important;
+  background:linear-gradient(180deg,#173e27,#0b1c11)!important;
+  color:#1ed760!important;
+  box-shadow:inset 0 1px 0 #ffffff30,0 0 0 1px #1ed76055,0 0 13px #1ed76055!important;
+  animation:none;
+}
+.spotify-button-logo{display:block;width:25px;height:25px}
+.booth-quick-settings{
+  gap:7px;
+  margin-top:2px;
+}
+.booth-quick-settings .booth-switch{
+  min-height:66px;
+  padding:9px 8px;
+  grid-template-columns:11px minmax(0,1fr);
+  column-gap:7px;
+  border-radius:8px;
+}
+.booth-switch .switch-led{width:9px;height:9px}
+.booth-switch small{
+  font-size:clamp(8px,.62vw,10px);
+  letter-spacing:.07em;
+  line-height:1.15;
+}
+.booth-switch b{
+  margin-top:5px;
+  font-size:clamp(10px,.78vw,12px);
+  letter-spacing:.03em;
+}
+.booth-quick-settings .booth-switch:focus-visible,
+.booth-transport button:focus-visible{
+  outline:2px solid #b8ffcb;
+  outline-offset:3px;
+}
+@media(max-width:900px){
+  .booth-hardware{
+    grid-template-columns:minmax(0,1fr) minmax(230px,.82fr) minmax(0,1fr);
+  }
+}
+@media(max-width:700px){
+  .booth-hardware{
+    grid-template-columns:minmax(0,1fr) minmax(125px,.82fr) minmax(0,1fr);
+  }
+  .booth-mixer{padding:9px 6px;gap:9px}
+  .booth-transport{gap:3px}
+  .booth-transport button{min-height:36px;font-size:11px}
+  .spotify-button-logo{width:20px;height:20px}
+  .booth-quick-settings{gap:3px}
+  .booth-quick-settings .booth-switch{min-height:56px;padding:6px 4px;column-gap:4px}
+  .booth-switch small{font-size:7px;letter-spacing:.02em}
+  .booth-switch b{font-size:9px}
+}
+@media(max-width:440px){
+  .booth-hardware{grid-template-columns:minmax(0,1fr) minmax(112px,.82fr) minmax(0,1fr)}
+  .booth-quick-settings .booth-switch{grid-template-columns:8px minmax(0,1fr);column-gap:3px}
+  .booth-switch small{font-size:6px}
+  .booth-switch b{font-size:8px}
+}
