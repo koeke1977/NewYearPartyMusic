@@ -1,7 +1,8 @@
 # PartyQueue AI-DJ roadmap
 
 **Status (2026-11-22):** Event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH, bounded live PartyQueue context, guarded DJ actions and opt-in add-only Autopilot are implemented on the current development line. DJ-visible run telemetry, budget-exhaustion reporting, diversity/repeated-artist guards and persisted STOP verification are implemented. Phase 9 end-to-end rehearsal and release verification remain; production release is not approved by this roadmap.
-**Repository:** koeke1977/NewYearPartyMusic
+**Repository:** koeke1977/NewYearPartyMusic  
+**Development workflow:** `main` only; do not create feature branches or routine pull requests.
 **Scope:** Evolve the current assistant into an event-scoped, audience-aware AI-DJ with bounded PartyQueue execution while preserving the modular Cloudflare Worker architecture.
 
 ## Product goal
@@ -39,37 +40,37 @@ The model does not receive database credentials, raw D1 handles, Spotify access 
 ### Phase 1 — Source audit and product/architecture baseline
 - [x] Inspect current Worker, D1 schema, guest lifecycle, AI prompt/context, Spotify catalogue adapter, queue insertion and dispatch.
 - [x] Confirm current DJ Spotify search/add endpoints already exist, but are separate from AI.
-- [ ] Reconcile the binding engineering standard and AI responsibility map with the approved AI-DJ direction.
+- [x] Reconcile the binding engineering standard and AI responsibility map with the implemented AI-DJ direction.
 - [ ] Record current migration ledger and test/development/production resource boundaries before any data migration.
 - Done when: current behaviour, side effects, authorization and migration/deployment safeguards are documented accurately.
 
 ### Phase 2 — Genre Taxonomy
 - [x] Add a central, expandable DJ-oriented genre/subgenre vocabulary with stable IDs.
 - [x] Include decade, mood, energy and danceability dimensions as shared vocabulary.
-- [ ] Add guest-facing multi-select controls and server-side validation against taxonomy IDs.
-- [ ] Add coverage tests and taxonomy documentation.
+- [x] Add guest-facing multi-select controls and server-side validation against taxonomy IDs.
+- [x] Add coverage tests and taxonomy documentation.
 - Done when: guest preferences and AI context use stable IDs, not arbitrary free-text genre labels.
 
 ### Phase 3 — Event lifecycle and temporary guest preferences
-- [ ] Define explicit test/live event-session state and isolation.
-- [ ] Capture guest-selected genres, subgenres and optional decades/mood/energy.
-- [ ] Aggregate event-level counts; do not retain per-nickname taste history.
-- [ ] Ensure test profiles cannot leak into live event context.
-- Done when: live audience profile is rebuilt from current event participants only.
+- [x] Use the configured event ID to scope guest sessions, preferences, requests and aggregates.
+- [x] Capture guest-selected genres, subgenres and optional decades/mood/energy.
+- [x] Aggregate event-level counts; do not retain per-nickname taste history.
+- [x] Define the operational reset boundary: run the authenticated FLUSH once before the real event; a separate test/live mode is intentionally not part of this single-event product.
+- Done when: the live audience profile is rebuilt from the current event's active data after the pre-event reset.
 
 ### Phase 4 — Audience Intelligence
-- [ ] Calculate genre/subgenre popularity using unique active guest selections and configurable time windows.
-- [ ] Weight preferences as a directional signal, not a strict playlist quota.
-- [ ] Add diversity/fairness caps so one popular genre cannot monopolize the set.
-- [ ] Combine initial preferences with request counts and event-level reactions.
-- Done when: the DJ console can explain the current aggregate audience profile and the AI receives a compact, bounded summary.
+- [x] Calculate genre/subgenre popularity using unique active guest selections and bounded event aggregates.
+- [x] Weight preferences as a directional signal, not a strict playlist quota.
+- [x] Apply bounded genre weights so one popular genre cannot monopolize the set.
+- [x] Combine initial preferences with requests and eligible event-level feedback.
+- Done: the DJ console exposes aggregate audience signals and the AI receives a compact, bounded summary.
 
 ### Phase 5 — Live Crowd Feedback
-- [ ] Add simple guest feedback: atmosphere, energy and optional short text/request.
-- [ ] Rate-limit and deduplicate feedback to avoid repeated taps dominating.
-- [ ] Aggregate over rolling windows; use minimum sample thresholds.
-- [ ] Detect sustained negative/positive trends and expose them to AI decision context.
-- Done when: feedback changes the recommendation direction only when a meaningful audience trend exists.
+- [x] Capture guest atmosphere and energy feedback.
+- [x] Bound and deduplicate feedback so repeated taps cannot dominate.
+- [x] Aggregate over rolling windows with minimum sample thresholds.
+- [x] Expose eligible event-level trends to the DJ console and AI context.
+- Done: feedback is treated as a directional signal only when sample thresholds are met.
 
 ### Phase 6 — FLUSH and event reset
 - [ ] Define the exact event-scoped deletion manifest, including derived aggregates, conversations, preferences, guest sessions, requests and queue order.
@@ -144,15 +145,9 @@ Implementation note: Spotify catalogue results stay inside the Worker. The model
 
 ## Delivery protocol
 
-- One cohesive feature branch per logical change; PR to main; squash merge; auto-delete branch.
-- Never make production D1 mutations, destructive resets, secret changes or deployments as part of development without explicit approval.
-- Preserve the existing engineering standard: semantic HTML, CSS-only presentation, native ES modules, modular monolith, tests and focused diffs.
+- `main` is the only development branch. Do not create feature/fix/refactor branches or routine pull requests.
+- Make small, focused commits directly on `main`; inspect each diff and verify the resulting head.
+- Never make production D1 mutations, destructive resets, secret changes or deployments without explicit approval.
+- Preserve the binding engineering standard: semantic HTML, CSS-only presentation, native ES modules, modular monolith, tests and focused diffs.
 - Run targeted tests, full tests, typecheck, architecture checks and Worker dry-run where available. Report any validation not run.
-
-## Repository workflow constraint — hard branch limit
-
-- Maximum two branches in the repository, counting `main` (therefore only one active feature/fix branch at a time).
-- Always inspect the existing branch list before attempting branch creation.
-- When a PR needs a fix, commit directly to that PR's existing head branch. Never open a second branch/PR for the same logical change.
-- No new branch may be created while two branches already exist. The branch list checked for this review contains exactly `main` and `feat/autopilot-telemetry-stop`; PR #44 is merged and PR #45 remains a draft on the existing feature branch. Recheck the live branch list before future branch work.
-- This limit and process are binding; see `ENGINEERING-STANDARD.md` section 7A.
+- Phase 9 remains the outstanding real-event rehearsal and release-verification work; this roadmap does not approve a production deployment.
