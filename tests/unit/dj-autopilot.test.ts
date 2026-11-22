@@ -133,4 +133,36 @@ describe("DJ Autopilot", () => {
     expect(repo.recordFailedAttempt).toHaveBeenCalledOnce();
     expect(repo.releaseLock).toHaveBeenCalledOnce();
   });
+  it("honours STOP pressed while the AI is generating a refill", async () => {
+    const repo = repository({
+      isEnabled: vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false),
+    });
+    const executor = { execute: vi.fn() };
+    const ai = {
+      run: vi.fn(async () => ({
+        response: JSON.stringify({
+          answer: "Tracks klaar.",
+          actions: [{ type: "add_tracks", tracks: [{ title: "September", artist: "Earth, Wind & Fire" }] }],
+        }),
+      })),
+    };
+    const result = await runDJAutopilot({
+      eventId: "NYE2026", eventName: "New Year's Eve", ai, repository: repo,
+      createNeuronBudget: async () => budget(), executor,
+    });
+    expect(result.status).toBe("disabled");
+    expect(executor.execute).not.toHaveBeenCalled();
+    expect(repo.recordOutcome).toHaveBeenCalledWith("NYE2026", { status: "disabled", queued: 2 }, expect.any(String));
+  });
+
+  it("records an explicit budget-exhausted result for the DJ console", async () => {
+    const repo = repository();
+    const result = await runDJAutopilot({
+      eventId: "NYE2026", eventName: "New Year's Eve", ai: { run: vi.fn() },
+      repository: repo, createNeuronBudget: async () => budget(false), executor: { execute: vi.fn() },
+    });
+    expect(result.status).toBe("budget_exhausted");
+    expect(repo.recordOutcome).toHaveBeenCalledWith("NYE2026", result, expect.any(String));
+  });
+
 });
