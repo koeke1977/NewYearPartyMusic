@@ -71,9 +71,11 @@ export function detectDJActionIntent(prompt: string): { add: boolean; remove: bo
       || /\b(tracks?|nummers?|liedjes|songs|hits|schuurschijven)\b/.test(text)
       || /\bzet\s+\d+\s+\w+/.test(text)
       || explicitListAdd);
-  const removeVerb = /\b(verwijder(?:en)?|haal|schrap(?:pen)?|remove)\b/.test(text);
+  const removeVerb = /\b(verwijder(?:en)?|haal|schrap(?:pen)?|gooi|gooien|wis|wissen|remove)\b/.test(text);
   const removeTarget = /\b(queue|partyqueue|wachtrij|up next|tracks?|nummers?|liedjes)\b/.test(text);
-  const remove = removeVerb && (removeTarget || /\b(eruit|uit de lijst|uit de queue)\b/.test(text)\n    || /\b(schrap(?:pen)?|gooi|gooien|wis(?:sen)?)\b/.test(text)\n    || /^(?:ik wil(?: graag)?\s+)?verwijder\s+\S+/.test(text));
+  const remove = removeVerb && (removeTarget || /\b(eruit|uit de lijst|uit de queue)\b/.test(text)
+    || /\b(schrap(?:pen)?|gooi|gooien|wis(?:sen)?)\b/.test(text)
+    || /^(?:ik wil(?: graag)?\s+)?verwijder\s+\S+/.test(text));
   const reorder = /\b(herschik|herorden|herordeneer|verplaats|volgorde aanpassen|volgorde wijzigen|reorder)\b/.test(text);
   return { add, remove, reorder };
 }
@@ -81,14 +83,14 @@ export function detectDJActionIntent(prompt: string): { add: boolean; remove: bo
 /** Extracts an explicit artist/title target from a Dutch removal command. */
 export function extractDJRemovalTarget(prompt: string): string | null {
   let target = prompt.trim().replace(/[.!?]+$/g, "").toLocaleLowerCase("nl");
-  target = target.replace(/^(?:(?:ik wil(?: graag)?|kun je|kan je|graag|aub|alsjeblieft)\\s+)*/, "");
-  target = target.replace(/^(?:verwijder(?:en)?|schrap(?:pen)?|haal|gooi|gooien|wis|wissen|remove)\\s+/, "");
-  target = target.replace(/\\s+(?:uit|uit de|uit mijn|uit onze|uit het)\\s+(?:de\\s+)?(?:partyqueue|queue|wachtrij|up next|lijst).*$/i, "");
-  target = target.replace(/\\s+(?:eruit|weg|uit de lijst|uit de queue|uit partyqueue)$/i, "");
-  target = target.replace(/^(?:(?:al|alle|de|het|die|deze|mijn|onze)\\s+)*/i, "");
-  target = target.replace(/^(?:nummers?|tracks?|liedjes|songs?)\\s+(?:van|door)\\s+/i, "");
-  target = target.replace(/\\s*[-–—]?\\s*(?:nummers?|tracks?|liedjes|songs?)$/i, "");
-  target = target.replace(/\\s+/g, " ").trim();
+  target = target.replace(/^(?:(?:ik wil(?: graag)?|kun je|kan je|graag|aub|alsjeblieft)\s+)*/, "");
+  target = target.replace(/^(?:verwijder(?:en)?|schrap(?:pen)?|haal|gooi|gooien|wis|wissen|remove)\s+/, "");
+  target = target.replace(/\s+(?:uit|uit de|uit mijn|uit onze|uit het)\s+(?:de\s+)?(?:partyqueue|queue|wachtrij|up next|lijst).*$/i, "");
+  target = target.replace(/\s+(?:eruit|weg|uit de lijst|uit de queue|uit partyqueue)$/i, "");
+  target = target.replace(/^(?:(?:al|alle|de|het|die|deze|mijn|onze)\s+)*/i, "");
+  target = target.replace(/^(?:nummers?|tracks?|liedjes|songs?)\s+(?:van|door)\s+/i, "");
+  target = target.replace(/\s*[-–—]?\s*(?:nummers?|tracks?|liedjes|songs?)$/i, "");
+  target = target.replace(/\s+/g, " ").trim();
   const normalized = normalizeTrackText(target);
   if (!normalized || /^(?:deze|die|alle|nummers|tracks|liedjes|songs|muziek)$/.test(normalized)) return null;
   return normalized;
