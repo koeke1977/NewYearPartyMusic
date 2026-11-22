@@ -148,7 +148,7 @@ describe("DJ assistant prompt", () => {
     expect(system).toContain("actively avoid reusing the same artists");
     expect(system).toContain("A previous 'oké', acknowledgement or request to adjust a list does not reset this exclusion");
     expect(user).toContain("September — Earth, Wind & Fire");
-    expect(user).toContain("not telkens Earth, Wind & Fire");
+    expect(user).toContain("Oké, maar niet telkens Earth, Wind & Fire.");
   });
 
 });
