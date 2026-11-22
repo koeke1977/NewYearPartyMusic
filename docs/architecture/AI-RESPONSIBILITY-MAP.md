@@ -1,6 +1,6 @@
 # AI responsibility map
 
-**Snapshot:** AI-DJ Autopilot implementation branch, based on current `main`; reviewed 2026-11-21.
+**Snapshot:** AI-DJ Autopilot implementation branch, based on current `main`; reviewed 2026-11-22.
 
 ## Current request flow
 
