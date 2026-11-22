@@ -1,6 +1,6 @@
 # Frontend responsibility map
 
-**Snapshot:** `refactor/architecture-mainline`, based on current `main`; reviewed 2026-11-21. This map describes the current native ES-module implementation.
+**Snapshot:** current `main`; reviewed 2026-11-22. This map describes the current native ES-module implementation.
 
 ## Page composition roots
 
