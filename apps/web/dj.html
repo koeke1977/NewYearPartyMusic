@@ -73,13 +73,15 @@
                 <button type="button" data-spotify-command="previous" title="Previous track">|◀</button>
                 <button type="button" data-spotify-command="play" class="is-primary" title="Play">▶</button>
                 <button type="button" data-spotify-command="pause" title="Pause">Ⅱ</button>
-                <button type="button" id="partyqueue-next" class="is-primary is-fallback" title="Spotify fallback is active">SPOTIFY</button>
+                <button type="button" id="partyqueue-next" class="is-primary is-fallback" title="Spotify fallback is active" aria-label="Spotify fallback">
+                  <svg class="spotify-button-logo" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M5.2 9.1c4.5-1.35 9.4-.9 13.2 1.15M6.1 12.2c3.7-1.05 7.9-.62 11.1 1.05M7 15.1c3-.8 6.1-.48 8.8.85" fill="none" stroke="#071109" stroke-width="1.8" stroke-linecap="round"/></svg>
+                </button>
                 <button type="button" data-spotify-command="next" title="Spotify next">▶|</button>
               </div>
               <div class="booth-quick-settings">
-                <button id="pause-toggle" class="booth-switch" type="button" aria-pressed="false"><span class="switch-led"></span><small>REQUESTS</small><b id="pause-state">Loading…</b></button>
-                <button id="approval-toggle" class="booth-switch" type="button" aria-pressed="false"><span class="switch-led"></span><small>MODE</small><b id="approval-state">Loading…</b></button>
-                <button id="auto-queue-toggle" class="booth-switch" type="button" aria-pressed="false"><span class="switch-led"></span><small>AUTO CUE</small><b id="auto-queue-state">Loading…</b></button>
+                <button id="pause-toggle" class="booth-switch" type="button" aria-label="Gastverzoeken aan of uit" aria-pressed="false"><span class="switch-led"></span><small>REQUESTS</small><b id="pause-state">Loading…</b></button>
+                <button id="approval-toggle" class="booth-switch" type="button" aria-label="Goedkeuringsmodus wijzigen" aria-pressed="false"><span class="switch-led"></span><small>MODE</small><b id="approval-state">Loading…</b></button>
+                <button id="auto-queue-toggle" class="booth-switch" type="button" aria-label="Automatisch cueën aan of uit" aria-pressed="false"><span class="switch-led"></span><small>AUTO CUE</small><b id="auto-queue-state">Loading…</b></button>
               </div>
             </div>
           </div>
