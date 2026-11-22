@@ -24,6 +24,7 @@ Private, QR-based music request and DJ playback application for New Year's Eve 2
 - `apps/web/` — guest and DJ web interfaces
 - `db/schema.sql` — initial schema for a fresh database
 - `docs/architecture/` — architecture standards and responsibility maps
+- `docs/runbooks/EVENT-NIGHT.md` — practical DJ/operator checklist and recovery steps for the event evening
 - `docs/runbooks/PRODUCTION-READINESS.md` — environment separation and public-release checklist
 - `scripts/release-guard.mjs` — fail-closed deployment preflight
 
