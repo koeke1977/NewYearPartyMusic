@@ -5,6 +5,15 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      approve_production_deploy:
+        description: 'Type YES to approve the production deployment after reviewing the validated main revision.'
+        required: true
+        type: choice
+        options:
+          - NO
+          - YES
 
 permissions:
   contents: write
@@ -102,11 +111,15 @@ jobs:
   deploy-production:
     name: Deploy production Worker to Cloudflare
     runs-on: ubuntu-latest
-    needs: [validate, ui-screenshot-baseline, auto-merge]
+    needs: [validate, ui-screenshot-baseline]
     if: >-
-      always() &&
-      ((github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.validate.result == 'success' && needs.ui-screenshot-baseline.result == 'success') ||
-      (github.event_name == 'pull_request' && github.event.pull_request.draft == false && needs.validate.result == 'success' && needs.ui-screenshot-baseline.result == 'success' && needs.auto-merge.result == 'success'))
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main' &&
+      inputs.approve_production_deploy == 'YES' &&
+      needs.validate.result == 'success' &&
+      needs.ui-screenshot-baseline.result == 'success'
+    environment:
+      name: production
     steps:
       - name: Checkout merged main revision
         uses: actions/checkout@v4

@@ -97,21 +97,18 @@ Keep the modular-monolith boundaries in `REENGINEERING-PLAN.md`:
 - Repositories own D1 access.
 - Integration adapters own Spotify/provider protocols.
 - The composition root wires concrete dependencies.
-- The current AI assistant is advice-only. The approved target AI-DJ authority boundary is defined below and in `AI-DJ-ROADMAP.md`; it does not take effect until each implementation phase is delivered, tested and reviewed.
-- Queue and playback application services remain the authoritative path for state transitions and dispatch.
-
-
+- AI orchestration stays behind its application boundary; it must not bypass the queue/playback application services, which remain authoritative for state transitions and dispatch.
 
 ### AI-DJ authority boundary
 
-The approved AI-DJ product direction evolves the current advice-only assistant in controlled phases. This section supersedes only the former blanket prohibition on AI access to bounded music context or application actions; it does not authorize an immediate implementation or bypass existing safeguards.
+The AI-DJ action planner and Autopilot are implemented. Ordinary advice remains text-only; explicit DJ commands may request bounded add/remove/reorder actions, while Autopilot can only add tracks. All actions remain subject to Worker-side authorization, validation, limits and existing application workflows.
 
-- The current assistant remains text-only until the relevant implementation phase is delivered and reviewed.
-- The target AI may receive a bounded, event-scoped projection of PartyQueue state, aggregate audience preferences and recent feedback only where required for a decision.
+- Ordinary advice requests return text. Explicit DJ commands may request schema-defined add/remove/reorder actions; Autopilot is a separate opt-in add-only workflow.
+- The model receives only the bounded, event-scoped PartyQueue, aggregate audience and recent-feedback projection required for its decision.
 - The model may propose only schema-defined, allow-listed actions. The Worker validates intent, arguments, authorization, event scope, limits and current state before executing an existing application use case.
 - The model never receives raw D1 handles, database credentials, Spotify access/refresh tokens or unrestricted network access.
 - The model never writes directly to D1 and never bypasses repository/application workflows.
-- Spotify catalogue results and track metadata may be returned to the model only if the action-planner phase explicitly requires them; expose only the minimum normalized fields needed. Never expose credentials or unrestricted Spotify APIs.
+- Spotify catalogue search and exact title/artist verification remain inside the Worker. The model proposes exact title/artist pairs for add actions; raw Spotify catalogue results and credentials are not sent to the model.
 - PartyQueue D1 is the source of truth for requested, planned (queued) and completed (played) tracks and its saved order. In the current event setup, Spotify UP NEXT is populated from PartyQueue and is only the downstream playback view of that same list; it is not an independent source or signal and must never be double-counted. Playback control/telemetry remains distinct from queue planning and may be claimed only when explicitly supplied.
 - Guest identity is temporary nickname/session only. Audience intelligence is event-level aggregate data, not durable personal profiling.
 - All AI actions must be bounded, validated, auditable by outcome, idempotent where possible and covered by tests. The AI must report only actions confirmed by the application.
@@ -164,10 +161,10 @@ If tests or browser validation cannot be run, state that explicitly. Never repor
 The active development limit for this repository is **two branches total**, including `main` and every temporary feature/fix branch. This is a hard limit, not a target.
 
 1. Before creating a branch, list and count all existing branches. If two or more exist, do not create another branch.
-2. Reuse an existing appropriate feature branch for follow-up fixes and commits. For the current AI assistant action work, continue on `feat/dj-ai-partyqueue-capability` and its existing PR #40; do not create a second corrective branch.
+2. Reuse the single existing feature branch for follow-up fixes and commits. The verified working state for this change is `feat/autopilot-telemetry-stop`; PR #44 is merged and PR #45 is the current draft on that same branch. Do not create a second corrective branch.
 3. Keep at most one active feature branch alongside `main`. Do not create parallel fix, test, or documentation branches.
-4. After a PR is merged, remove its feature branch through the repository's normal auto-delete policy. Do not delete unknown or potentially active branches just to force the count down; first inspect ownership and open PRs.
-5. If the repository already exceeds the limit (as observed on 2026-11-21: 11 branches total), stop branch creation, report the discrepancy, and consolidate/delete only after checking each branch's PR and unique work.
+4. After a PR is merged, delete its feature branch only when no other open PR or unmerged work depends on it. Prefer the repository's normal auto-delete policy; never delete an active shared branch just to force the count down.
+5. If the repository already exceeds the limit, stop branch creation, report the discrepancy, and consolidate/delete only after checking each branch's PR and unique work. Verify the live branch list before claiming the limit is satisfied.
 6. Do not make another branch to fix a CI failure. Fix it on the existing PR branch, then rerun the same validation.
 
 A task is not complete merely because a PR was opened. Confirm the PR's actual CI results, review the changed files, and only then allow the repository's normal merge/release process.
@@ -177,10 +174,10 @@ A task is not complete merely because a PR was opened. Confirm the PR's actual C
 - Never expose Spotify client secrets, refresh tokens, session secrets or other credentials to browser code.
 - Preserve token encryption, signing, expiry, refresh leases and owner checks.
 - Treat external/model-provided input as untrusted and validate/bound it at the owning boundary.
-- Preserve the existing free-tier AI budget guard. Keep the assistant Spotify-independent; do not add a Spotify catalogue or queue tool to the model.
+- Preserve the existing free-tier AI budget guard. The model receives only bounded, event-scoped context and may request allow-listed application actions; it never receives credentials, direct D1 access, raw Spotify catalogue results or unrestricted Spotify tools.
 - Do not add paid services, runtime dependencies or frameworks without an explicit architectural decision.
 - Test Worker/D1 resources may be changed or recreated only after confirming the target environment. Production Worker/D1 resources and event data are live: no reset, destructive migration, hostname cutover, secret rotation or deployment without explicit approval. Keep credentials secret and never commit them.
-- Never force-push, reset away work or resolve merge conflicts by blindly choosing one side.
+- Never force-push, reset away work or resolve merge conflicts by blindly choosing one side. A history rewrite is permitted only with explicit repository-owner authorization, after recording the exact old head and verifying the complete resulting tree; use force-with-lease against that old head and immediately verify the branch and PR state.
 
 ## 9. Definition of done
 

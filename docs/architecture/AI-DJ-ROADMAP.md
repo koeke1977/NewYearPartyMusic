@@ -1,6 +1,6 @@
 # PartyQueue AI-DJ roadmap
 
-**Status:** Product direction approved; event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH, live PartyQueue context and Phase 7 guarded actions are merged. Phase 8 Autopilot is merged; DJ-visible run telemetry, budget-exhaustion reporting, diversity guards and STOP verification are being completed.
+**Status (2026-11-22):** Event-scoped preferences, Audience Intelligence, crowd feedback, FLUSH, bounded live PartyQueue context, guarded DJ actions and opt-in add-only Autopilot are implemented on the current development line. DJ-visible run telemetry, budget-exhaustion reporting, diversity/repeated-artist guards and persisted STOP verification are implemented. Phase 9 end-to-end rehearsal and release verification remain; production release is not approved by this roadmap.
 **Repository:** koeke1977/NewYearPartyMusic
 **Scope:** Evolve the current assistant into an event-scoped, audience-aware AI-DJ with bounded PartyQueue execution while preserving the modular Cloudflare Worker architecture.
 
@@ -154,5 +154,5 @@ Implementation note: Spotify catalogue results stay inside the Worker. The model
 - Maximum two branches in the repository, counting `main` (therefore only one active feature/fix branch at a time).
 - Always inspect the existing branch list before attempting branch creation.
 - When a PR needs a fix, commit directly to that PR's existing head branch. Never open a second branch/PR for the same logical change.
-- No new branch may be created while two branches already exist; the existing 11-branch state observed on 2026-11-21 must be consolidated deliberately before any future branch creation.
+- No new branch may be created while two branches already exist. The branch list checked for this review contains exactly `main` and `feat/autopilot-telemetry-stop`; PR #44 is merged and PR #45 remains a draft on the existing feature branch. Recheck the live branch list before future branch work.
 - This limit and process are binding; see `ENGINEERING-STANDARD.md` section 7A.

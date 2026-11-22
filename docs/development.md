@@ -1,59 +1,74 @@
-# Development checklist
+# Development workflow
 
-This checklist reflects the current implementation on `refactor/architecture-foundation`. It is the working source of truth; do not revive obsolete tasks from earlier project notes.
+This document describes the current development workflow. The binding rules are in [the engineering standard](architecture/ENGINEERING-STANDARD.md); production operations are in [the production runbook](runbooks/PRODUCTION-READINESS.md).
 
-## Environment
+## Requirements
 
-- The deployed Cloudflare Worker, D1 database and Spotify OAuth connection are test-only.
-- PartyQueue has not been used for a real event or real production users.
-- Existing D1 rows, test credentials and Spotify OAuth state are disposable. Resetting or recreating them is acceptable when it simplifies engineering or schema work.
-- Keep secrets out of source control and browser code. Security boundaries remain mandatory even though the data is disposable.
+- Node.js 22
+- npm
+- Wrangler authentication for Cloudflare tasks
+- Chromium installed by Playwright for browser journeys
 
-## Application capabilities
+## Local setup and validation
 
-- [x] Guest join with event code and nickname
-- [x] Spotify catalogue search and track requests
-- [x] Configurable guest request limits, duplicate protection and moderation
-- [x] DJ authentication and protected routes
-- [x] Spotify OAuth, encrypted token persistence and refresh lifecycle
-- [x] DJ overview, queue ordering, moderation and playback controls
-- [x] Queue dispatch lease and playback automation
-- [x] AI music advice and proposals with DJ authorization
-- [x] Free-tier AI budget and bounded read-only Spotify catalogue tool
+```bash
+npm install
+npm run dev
+npm run typecheck
+npm run test:architecture
+npm test
+npm run test:local-ai-bridge
+npm run db:migrate:local
+npm run test:browser
+npm run screenshots:baseline
+```
 
-## Architecture work completed
+For a disposable local D1 database, `npm run db:local` loads the bootstrap schema. `npm run db:migrate:local` applies the ordered migrations to a local database. These commands do not target production.
 
-- [x] Binding engineering standard and modular-monolith target architecture
-- [x] Worker route groups and composition adapters
-- [x] Worker identity, request, queue, playback, Spotify and AI modules
-- [x] D1 repository extraction for guest requests, DJ queue, retention, AI context/settings/budget and queue dispatch
-- [x] Spotify catalogue, OAuth/user-auth, playback and status gateway adapters
-- [x] Native frontend ES modules for guest and DJ features
-- [x] DJ playback sequencing, stale-response guards and serialized writes
-- [x] CSS ownership split, selector inventory and browser screenshot baselines
-- [x] API inventory and Worker/frontend/AI responsibility maps
-- [x] Release guard and test-environment runbook
-- [x] TypeScript, security characterization tests, Worker dry-run and browser journeys green on the validated code head
-- [x] Automated Worker and browser dependency/transport/storage boundary check integrated into CI
-- [x] Spotify catalogue and playback-control application ports with typed provider adapters
-- [x] DJ AI workflow controller separated from DOM-only view rendering
+## Current application capabilities
 
-## Remaining architecture work
+- Guest join with event code and nickname/session.
+- Spotify catalogue search and event-scoped requests with duplicate and rolling-rate protection.
+- DJ authentication, request moderation, queue ordering and Spotify playback workflows.
+- Guest music preferences and event-level Audience Intelligence.
+- Crowd feedback with eligibility/sample safeguards.
+- Authenticated FLUSH for temporary event data; application-wide taxonomy and configuration are preserved.
+- AI advice with bounded live PartyQueue and aggregate audience context.
+- Explicit DJ add/remove/reorder action plans, validated and executed by the Worker through existing application workflows.
+- Optional Autopilot, OFF by default and add-only, with queue thresholds, per-tick limits, cooldown, D1 lease, STOP verification and free daily Neuron budget guard.
+- Local Claude Code bridge when configured; otherwise Cloudflare Workers AI. No paid API fallback is part of the approved operating model.
 
-1. Complete dependency inversion for the remaining request, music and playback workflows; application code should consume application-owned repository/provider ports rather than concrete D1 bindings or Fetch responses.
-2. Audit the Spotify console controller for any remaining coordination/presentation mixing; do not add pass-through layers where the existing view/controller boundary is already clear.
-3. Extend automated dependency-boundary checks to frontend feature boundaries where a stable rule can be enforced without brittle path whitelists.
-4. Review CSS selector duplication/unused rules and accessibility without changing the visual language unintentionally.
-5. Add focused linting and formatting only if it can be introduced without unnecessary dependencies or broad churn.
-6. Keep full CI green after each coherent extraction.
+## Branch and pull-request workflow
 
-## Change principles
+- Keep exactly two branches at most: `main` and one active feature/fix branch.
+- Reuse the existing feature branch for follow-up work. Do not create parallel documentation, fix or test branches.
+- Keep related code, tests and documentation in the same focused change.
+- A draft PR is not ready to merge. Review the complete diff and require all relevant CI/browser checks to pass before merge.
+- Production deployment is separate from PR validation and merge. It requires a manual workflow dispatch from `main`, explicit `YES` approval and the configured GitHub `production` Environment reviewer gate.
+- Never force-push, reset away unreviewed work or delete a branch until its unique commits and open PRs have been checked.
 
-- Preserve user-visible behaviour and API contracts unless a deliberate behaviour change is separately tested.
-- Prefer correcting architecture over preserving disposable test data or legacy test schemas.
-- Rebuild the test D1 database or reconnect the test Spotify account when that is the cleanest path.
-- Keep Spotify secrets and session credentials server-side and out of Git.
-- AI remains advisory: only DJ-authorized workflows may mutate requests, queue order or playback.
-- Avoid paid services, new frameworks and unnecessary runtime dependencies.
+## Environment safety
 
-See [architecture/REENGINEERING-PLAN.md](architecture/REENGINEERING-PLAN.md) and [the environment runbook](runbooks/PRODUCTION-READINESS.md) for details.
+- Local D1 and explicitly identified test resources may be reset when needed.
+- Production Worker, D1, Durable Objects, hostname, secrets, Spotify OAuth state and event data are live infrastructure.
+- Never infer production migration state from local schema files. Inspect the remote migration ledger immediately before an approved release.
+- Never commit credentials, access codes, tokens, cookies or secrets.
+- Read the production runbook before any production operation.
+
+## Useful commands
+
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Start the local Worker |
+| `npm run typecheck` | TypeScript validation |
+| `npm run test:architecture` | Enforce dependency and ownership boundaries |
+| `npm test` | Run unit/security tests |
+| `npm run test:local-ai-bridge` | Validate the local AI bridge contract |
+| `npm run db:migrate:local` | Apply migrations to local D1 |
+| `npm run test:browser` | Run guest/DJ browser journeys |
+| `npm run screenshots:baseline` | Capture visual baselines |
+| `npm run release:preflight` | Run static production release checks |
+| `npm run deploy` | Deploy the test Worker |
+| `npm run deploy:production` | Guarded production deploy; use only through the approved release workflow |
+
+A command being available does not constitute approval to run it against production.
