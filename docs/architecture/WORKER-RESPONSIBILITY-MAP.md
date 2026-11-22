@@ -1,6 +1,6 @@
 # Worker responsibility map
 
-**Snapshot:** `refactor/architecture-mainline`, based on current `main`; reviewed 2026-11-21.
+**Snapshot:** current `main`; reviewed 2026-11-22.
 
 ## Composition and transport
 
