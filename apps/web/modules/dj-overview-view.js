@@ -145,6 +145,8 @@ export function createDjOverviewView({
       return;
     }
     const labels = {
+      disabled: "Autopilot gestopt door de DJ",
+      locked: "Vorige Autopilot-run is nog bezig",
       queue_sufficient: "Wachtrij voldoende gevuld",
       cooldown: "Tijdelijke cooldown actief",
       budget_exhausted: "Gratis AI-budget opgebruikt — Autopilot wacht tot het budget opnieuw beschikbaar is",
