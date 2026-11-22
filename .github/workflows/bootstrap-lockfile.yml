@@ -25,12 +25,12 @@ jobs:
           node-version: 22
 
       - name: Generate lockfile from the declared package manifest
-        run: npm install --no-audit --no-fund
+        run: npm install --legacy-peer-deps --no-audit --no-fund
 
       - name: Verify a clean reproducible install
         run: |
           rm -rf node_modules
-          npm ci --no-audit --no-fund
+          npm ci --legacy-peer-deps --no-audit --no-fund
 
       - name: Verify the locked dependency tree
         run: |
