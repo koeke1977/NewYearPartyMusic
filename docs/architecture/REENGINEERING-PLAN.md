@@ -3,11 +3,11 @@
 ## Current status — 2026-11-22
 
 - Repository: `koeke1977/NewYearPartyMusic`
-- Mainline: `main`; PR #44 (AI list/artist repetition regression) was merged on 2026-11-22.
-- Current follow-up branch: `feat/autopilot-telemetry-stop`. Repository branch limit remains two total, including `main`; do not create another branch.
-- Production is live at `https://spotify.electrafest.be` on Worker `partyqueue-production`, backed by production D1. Treat all production resources, secrets, OAuth credentials and event data as live infrastructure.
-- Production topology and the migration ledger were last independently verified on 2026-11-21. The repository currently contains migrations `0001`–`0006`; this does not prove which migrations are applied remotely. Inspect the remote ledger before any release.
-- This document describes the current implementation and its remaining verification work. It is not release approval.
+- Development branch: `main` only. The branch list was checked on 2026-11-22 and contained no feature branches.
+- Current main commit at review: `7043225d6f71d2e50f823e02c8f7ece2bce9adc9` (`fix(ci): guard draft PR auto-merge state (#46)`).
+- Production resources are separate live infrastructure: Worker `partyqueue-production`, D1 `partyqueue-production-db`, and public hostname `https://spotify.electrafest.be`. This document does not authorize production changes.
+- Repository migrations currently run from `0001` through the latest migration present in `db/migrations`. This does not prove which migrations are applied remotely. Inspect the remote ledger before any approved release.
+- This document is a description of the current implementation and its remaining verification work, not a release approval or a mandate for another architecture rewrite.
 
 ## Engineering authority
 
@@ -33,7 +33,7 @@ Keep the app a modular monolith on Cloudflare Workers. Do not introduce microser
 - Spotify integration adapters own provider protocols and response normalization.
 - `platform/composition/*` wires Cloudflare bindings, repositories and provider adapters.
 - Queue dispatch and playback workflows remain authoritative for Spotify side effects and state transitions.
-- Architecture-boundary checks enforce the current Worker dependency direction and browser transport/storage ownership.
+- The architecture-boundary script enforces a limited set of static dependency and ownership rules. It is not a complete proof of module cohesion, circular-import absence, UI behaviour or runtime stability.
 
 Some application use cases still expose HTTP-shaped `{ status, body }` outcomes. Convert them to typed application outcomes only where this improves a real boundary; preserve every external API contract.
 
