@@ -20,6 +20,7 @@ export interface DJAutopilotRepository {
   loadContext(eventId: string): Promise<AssistantContextSnapshot>;
   readLastFailedAttempt(eventId: string): Promise<number>;
   recordFailedAttempt(eventId: string, nowEpochSeconds: number): Promise<void>;
+  recordOutcome(eventId: string, outcome: DJAutopilotOutcome, at: string): Promise<void>;
 }
 
 export interface DJAutopilotExecutor {
@@ -48,6 +49,12 @@ export async function runDJAutopilot(input: {
 }): Promise<DJAutopilotOutcome> {
   const now = input.now || (() => new Date());
   const epochSeconds = () => Math.floor(now().getTime() / 1000);
+  const finish = async (outcome: DJAutopilotOutcome): Promise<DJAutopilotOutcome> => {
+    await input.repository.recordOutcome(input.eventId, outcome, now().toISOString()).catch(error => {
+      console.error("DJ Autopilot telemetry write failed", error instanceof Error ? error.message : "unknown error");
+    });
+    return outcome;
+  };
   if (!await input.repository.isEnabled(input.eventId)) return { status: "disabled", queued: 0 };
   const lockAt = epochSeconds();
   if (!await input.repository.acquireLock(input.eventId, lockAt)) return { status: "locked", queued: 0 };
@@ -57,13 +64,13 @@ export async function runDJAutopilot(input: {
     if (!await input.repository.isEnabled(input.eventId)) return { status: "disabled", queued };
     const snapshot = await input.repository.loadContext(input.eventId);
     queued = snapshot.partyQueue.queued.length;
-    if (queued > DJ_AUTOPILOT_QUEUE_THRESHOLD) return { status: "queue_sufficient", queued };
+    if (queued > DJ_AUTOPILOT_QUEUE_THRESHOLD) return await finish({ status: "queue_sufficient", queued });
 
     const lastFailedAttempt = await input.repository.readLastFailedAttempt(input.eventId);
     if (lastFailedAttempt > 0 && epochSeconds() - lastFailedAttempt < 900) {
-      return { status: "cooldown", queued };
+      return await finish({ status: "cooldown", queued });
     }
-    if (!input.ai) return { status: "error", queued, message: "Cloudflare AI-binding ontbreekt." };
+    if (!input.ai) return await finish({ status: "error", queued, message: "Cloudflare AI-binding ontbreekt." });
     if (!await input.repository.claimRateLimit()) return { status: "cooldown", queued };
 
     const count = Math.min(DJ_AUTOPILOT_MAX_ADDS_PER_RUN, DJ_AUTOPILOT_QUEUE_TARGET - queued);
@@ -83,7 +90,7 @@ export async function runDJAutopilot(input: {
     const { system, user } = buildDJAssistantPrompt(context, prompt, [], true);
     const budget = await input.createNeuronBudget();
     if (!budget.canAfford(system.length + user.length, ASSISTANT_MAX_OUTPUT_TOKENS)) {
-      return { status: "budget_exhausted", queued };
+      return await finish({ status: "budget_exhausted", queued });
     }
 
     const { answer } = await runDJAssistantTurn(
@@ -97,7 +104,7 @@ export async function runDJAutopilot(input: {
     const safeTracks = addAction?.tracks.slice(0, count) || [];
     if (!safeTracks.length) {
       await input.repository.recordFailedAttempt(input.eventId, epochSeconds());
-      return { status: "completed", queued, added: 0, failed: 0 };
+      return await finish({ status: "completed", queued, added: 0, failed: 0 });
     }
 
     const actions = await input.executor.execute(
@@ -109,12 +116,12 @@ export async function runDJAutopilot(input: {
     const added = actions.reduce((total, result) => total + (result.type === "add_tracks" ? result.succeeded : 0), 0);
     const failed = actions.reduce((total, result) => total + (result.type === "add_tracks" ? result.failed : 0), 0);
     if (added === 0) await input.repository.recordFailedAttempt(input.eventId, epochSeconds());
-    return { status: "completed", queued, added, failed };
+    return await finish({ status: "completed", queued, added, failed });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Onbekende Autopilot-fout.";
     await input.repository.recordFailedAttempt(input.eventId, epochSeconds()).catch(() => {});
     console.error("DJ Autopilot failed", message);
-    return { status: "error", queued, message };
+    return await finish({ status: "error", queued, message });
   } finally {
     await input.repository.releaseLock(input.eventId, lockAt).catch(error => {
       console.error("DJ Autopilot lock release failed", error instanceof Error ? error.message : "unknown error");
