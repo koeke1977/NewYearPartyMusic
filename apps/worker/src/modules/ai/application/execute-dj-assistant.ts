@@ -120,7 +120,7 @@ export async function executeDJAssistant(input: {
     return await completeResponse(JSON.stringify({
       answer: "Ik controleer de volledige actuele PartyQueue op de gevraagde artiest of track.",
       actions: [],
-    }), provider, false);
+    }), "worker", false);
   }
   if (!actionMode) {
     const cached = await repository.readAnswerCache(cacheKey);
