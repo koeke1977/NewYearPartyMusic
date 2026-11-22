@@ -106,7 +106,7 @@ export async function runDJAutopilot(input: {
     }) as { type: "add_tracks"; tracks: Array<{ title: string; artist: string }> } | undefined;
     const seenArtists = new Set<string>();
     const safeTracks = (addAction?.tracks || []).filter(track => {
-      const artist = track.artist.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "")
+      const artist = track.artist.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
         .toLocaleLowerCase("en").replace(/[^a-z0-9]+/g, " ").trim();
       if (!artist || seenArtists.has(artist)) return false;
       seenArtists.add(artist);
