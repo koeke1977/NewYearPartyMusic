@@ -1,6 +1,7 @@
 # PartyQueue production operations runbook
 
-Last verified: 2026-11-21
+Last production verification: 2026-11-21  
+Repository/release workflow review: 2026-11-22
 
 ## Live production topology
 
@@ -15,7 +16,7 @@ PartyQueue is deployed and serving the public event application.
 | Public hostname | — | `https://spotify.electrafest.be` |
 | Workers.dev | Test worker | `https://partyqueue-production.koen-f02.workers.dev` |
 
-Production D1 is provisioned in the EU jurisdiction. Migrations `0001`, `0002` and `0003` are applied and recorded in the production migration ledger. Proposed migration `0004_dj_ai_conversation.sql` exists on the architecture-mainline PR branch and is **not applied** to production. The production Worker has the D1, QueueRoom Durable Object, Workers AI and static assets bindings. Its daily scheduled cleanup trigger is configured.
+Production D1 is provisioned in the EU jurisdiction. The production migration ledger was last inspected on 2026-11-21 and contained migrations `0001`–`0003`. That is a historical observation, not a verified current ledger. The current repository contains migrations `0001`–`0006`; never infer production migration state from the repository. Inspect the remote ledger immediately before any release. The production Worker has the D1, QueueRoom Durable Object, Workers AI and static assets bindings. Its daily scheduled cleanup trigger is configured.
 
 The public hostname `spotify.electrafest.be` is attached to `partyqueue-production`; the test Worker no longer owns the hostname. The release owner has confirmed that the public application is visible and that the Spotify account connection succeeds.
 
@@ -35,7 +36,7 @@ Never copy test credentials into production. Rotate a secret if it may have been
 
 The application is a modular monolith with separate Worker and browser boundaries, typed application contracts, platform adapters and composition roots. See `docs/architecture/ENGINEERING-STANDARD.md` and `docs/architecture/REENGINEERING-PLAN.md`.
 
-Spotify catalogue, queue, playback metadata and track names are not passed to the AI context or ChatGPT handoff. Spotify catalogue search runs separately after the AI response. The DJ explicitly chooses tracks and retains control of queue changes. AI cannot independently mutate the queue.
+The AI receives bounded, event-scoped PartyQueue, aggregate audience and recent-feedback context. Ordinary advice is text-only. Explicit DJ add/remove/reorder commands produce structured plans that the Worker validates and executes through existing application workflows. The model proposes exact title/artist pairs for additions; Spotify catalogue search and exact-match verification remain inside the Worker. Raw catalogue results, album art, Spotify credentials and unrestricted Spotify access are not sent to the model. Autopilot is a separate opt-in scheduled workflow, add-only, with persisted STOP checks, cooldown, D1 lease and budget guard; it cannot remove/reorder tracks or control playback.
 
 Spotify content displayed by the application must retain attribution and a direct Spotify content link. Do not use Spotify content to train AI/ML systems or create derived listening profiles or metrics.
 
@@ -75,7 +76,7 @@ Application retention:
 - Completed/declined/cancelled request rows older than 30 days are deleted by the daily scheduled cleanup.
 - Pending, approved and queued requests are deliberately excluded from that cleanup.
 - Authentication attempt buckets older than one day are deleted by the same daily cleanup.
-- Once migration `0004_dj_ai_conversation.sql` is released, DJ AI conversation turns (DJ prompts and AI-generated answers only) are available as context for seven days, capped at the latest eight turns per browser session; the daily cleanup removes expired rows. Spotify search results and live queue data are not part of this conversation store.
+- DJ AI conversation turns (DJ prompts and AI-generated answers only) are available as context for seven days, capped at the latest eight turns per browser session; the daily cleanup removes expired rows. Spotify search results and live queue data are not part of this conversation store.
 - No separate R2 export/archive is currently configured.
 
 Recovery procedure (D1 data recovery is separate from Worker code rollback):
@@ -90,18 +91,11 @@ Never run a restore as a routine rollback or without an explicitly approved inci
 
 ## Build, validation and deployment
 
-GitHub pull-request validation runs:
+GitHub pull-request validation runs typecheck, architecture dependency-boundary checks, local D1 migrations, unit/security tests, local AI bridge contract tests, test/production Wrangler dry-runs, Playwright guest/DJ journeys and screenshot baseline capture.
 
-1. TypeScript typecheck.
-2. Architecture dependency-boundary checks.
-3. Unit/security tests.
-4. Wrangler dry-runs for test and production environments.
-5. Playwright guest and DJ browser journeys.
-6. Screenshot baseline capture.
+Production deployment is no longer triggered automatically by a successful `push` or PR merge. The workflow requires a separate `workflow_dispatch` on `main` with the explicit `YES` approval input, and the deploy job targets the GitHub Environment named `production`. Configure that Environment in repository Settings with required reviewers before treating it as a protected approval gate. The deploy job runs only after typecheck/unit/architecture/Worker validation and browser validation succeed. The release guard still requires `PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY=YES`; the workflow sets this only inside the manually approved deploy job. The job then checks the remote D1 migration ledger, allows only strictly additive pending migrations, applies them and deploys the validated `main` revision. PR checks and ordinary pushes never deploy or apply production migrations.
 
-Cloudflare production builds run typecheck, architecture checks and Vitest before applying production D1 migrations and deploying. A failed build command must stop before the deploy command. Production build configuration is bound to the Worker system tag, not the human-readable Worker name.
-
-The latest read-only Cloudflare check on 2026-11-21 found production deployment `8d71ab10-dbd8-4025-b68f-1a5bd3e13b6b`, created at `2026-11-21T08:35:44Z`, serving 100% of traffic with Worker version ID `ce398cbc-ed90-4c25-89ef-d26dcec9957e`. The production D1 migration ledger contains exactly migrations 0001–0003. The Cloudflare production build gates deployment on typecheck, architecture checks, unit tests and a full dependency audit; any audit finding fails the build. PR dry-runs do not deploy or apply production migrations. Always inspect the active deployment and migration ledger before a release or rollback.
+The last recorded production deployment check is the historical 2026-11-21 observation below. It has not been revalidated as part of the 2026-11-22 repository review. Always inspect the active deployment and remote migration ledger immediately before a release or rollback; do not rely on this historical snapshot.
 
 ## Release verification checklist
 
@@ -169,8 +163,8 @@ Cloudflare rollback documentation: https://developers.cloudflare.com/workers/ver
 ## Deployment safety
 
 - `npm run deploy` targets the disposable test Worker.
-- `npm run deploy:production` runs the static production guard and requires `PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY=YES`.
-- The Cloudflare production build runs validation before migrations and deployment.
+- `npm run deploy:production` runs the static production guard and requires `PARTYQUEUE_ALLOW_PRODUCTION_DEPLOY=YES`; in CI this is set only by the manually approved `production` release job.
+- GitHub Actions validates PRs and pushes but does not deploy automatically. A human must dispatch the production workflow from `main`, select `YES`, and pass the configured `production` Environment reviewer gate before migrations or deployment can run.
 - Keep production secrets outside Git.
 - Prefer additive, backward-compatible D1 migrations so the previous Worker version remains usable during rollback.
 - Never run a production rollback or migration reversal without first checking the data and Durable Object compatibility.

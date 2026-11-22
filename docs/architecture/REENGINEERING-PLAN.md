@@ -1,16 +1,13 @@
 # PartyQueue architecture plan
 
-## Current status
+## Current status — 2026-11-22
 
 - Repository: `koeke1977/NewYearPartyMusic`
-- Baseline: current `main` commit `3100095d09ff3065f7bc55c7de73bb35260aaea6`
-- Working branch: `refactor/architecture-mainline`
-- Review PR: #15 — architecture reconciliation and DJ AI conversation memory
-- Scope: complete focused improvements on top of the working mainline; do not merge the divergent `refactor/architecture-foundation` branch wholesale.
-
-**Production is live.** The public hostname `spotify.electrafest.be` is attached to `partyqueue-production`, backed by the EU D1 database `partyqueue-production-db`. The latest verified deployment is `8d71ab10-dbd8-4025-b68f-1a5bd3e13b6b` (2026-11-21 08:35:44 UTC), serving 100% of traffic with Worker version ID `ce398cbc-ed90-4c25-89ef-d26dcec9957e`. The production D1 migration ledger contains `0001`, `0002` and `0003`. These are live event resources, not disposable test resources.
-
-No production database mutation, secret change, hostname change, merge to `main` or deployment has been performed by this branch. Migration `0004_dj_ai_conversation.sql` is new on this PR branch and has **not** been applied to production.
+- Mainline: `main`; PR #44 (AI list/artist repetition regression) was merged on 2026-11-22.
+- Current follow-up branch: `feat/autopilot-telemetry-stop`. Repository branch limit remains two total, including `main`; do not create another branch.
+- Production is live at `https://spotify.electrafest.be` on Worker `partyqueue-production`, backed by production D1. Treat all production resources, secrets, OAuth credentials and event data as live infrastructure.
+- Production topology and the migration ledger were last independently verified on 2026-11-21. The repository currently contains migrations `0001`–`0006`; this does not prove which migrations are applied remotely. Inspect the remote ledger before any release.
+- This document describes the current implementation and its remaining verification work. It is not release approval.
 
 ## Engineering authority
 
@@ -40,57 +37,34 @@ Keep the app a modular monolith on Cloudflare Workers. Do not introduce microser
 
 Some application use cases still expose HTTP-shaped `{ status, body }` outcomes. Convert them to typed application outcomes only where this improves a real boundary; preserve every external API contract.
 
-## AI architecture and privacy boundary
+## Current implementation and authority boundaries
 
-The DJ assistant uses bounded event-scoped context and supports two modes:
-- **Advice mode:** ordinary DJ questions return concise text and do not mutate PartyQueue.
-- **Action mode:** explicit add/remove/reorder commands request a structured JSON action plan. The Worker validates the plan and the original DJ intent, then calls allow-listed application use cases.
-
-The model receives only:
-- Event name and derived Belgian local event time.
-- Explicit DJ-authored preferences.
-- A bounded D1-backed PartyQueue snapshot, request lifecycle aggregates, up to eight recently played tracks and aggregate event-level audience/crowd-feedback signals.
-- Queue item IDs for remove/reorder proposals.
-- The DJ's current question and up to eight recent DJ/AI conversation turns for the same browser session.
-
-The model does not receive database credentials, raw D1 handles, Spotify tokens or raw Spotify catalogue search results. For add actions, it proposes exact title/artist pairs; the Worker searches Spotify, requires an exact normalized title-and-artist match, then invokes the existing Spotify-verified PartyQueue insertion workflow. Remove actions are restricted to currently queued IDs. Reorder actions must include every current queued ID exactly once and pass the existing queue-management validation. The model cannot change settings or control playback.
-
-Spotify catalogue results and selected Spotify track metadata are not stored in conversation memory. Conversation turns remain event/session scoped, limited to eight stored turns and seven-day retention. Mutating turns bypass the answer cache so a cached response can never repeat a queue mutation.
-
-Provider/cost rules remain:
-- Prefer the authenticated owner-operated local Claude Code bridge when configured.
-- Otherwise use Cloudflare Workers AI with its Neuron budget guard and safety buffer.
-- Do not add a paid API fallback.
-- Keep timeouts, cooldown, advice cache and bounded prompt/output.
-- Treat model output as untrusted; all mutations are schema-validated and executed by existing authenticated DJ application workflows.
-
-The structured action planner does not provide unrestricted model tools, direct database access, catalogue metadata for model classification, or playback control.
-
-## Reconciliation decisions
-
-1. Start from the exact current `main` commit and work on `refactor/architecture-mainline`.
-2. Do not merge or cherry-pick the architecture-foundation branch wholesale: its AI context/tool model includes Spotify-derived queue/catalogue information that conflicts with the current privacy boundary.
-3. Preserve useful modularization and tests already present in mainline.
-4. Correct stale documentation that described production as disposable test infrastructure or described the AI as having Spotify queue/catalogue tools.
-5. Reimplement conversational follow-ups using DJ/AI text history only; keep Spotify search and track insertion as separate DJ-initiated actions.
-6. Validate the full migration chain against an empty local D1 database in CI before any remote migration.
-7. Keep PR #15 in draft until review and validation are complete.
+- Ordinary AI advice returns text and does not mutate PartyQueue.
+- Explicit DJ add/remove/reorder commands use a structured action plan. The Worker validates intent, authorization, current queue state and limits, then executes through existing application use cases.
+- The model receives bounded event-scoped PartyQueue state, aggregate audience/feedback signals, recent played context and limited DJ/AI conversation history. It never receives raw D1 handles, credentials, Spotify access tokens or unrestricted network access.
+- For add actions, the model proposes exact title/artist pairs. Spotify catalogue search and exact normalized matching happen inside the Worker; raw Spotify catalogue results are not sent to the model.
+- Remove is limited to eligible items still in the live queued set. Reorder must represent the complete current queued set exactly once and is revalidated by the queue-management use case.
+- Autopilot is separate, opt-in and OFF by default. It is add-only, bounded per tick, uses the D1 lease/cooldown/budget guard and rechecks the persisted DJ STOP state before insertion. It cannot remove/reorder tracks or control playback.
+- PartyQueue D1 and its saved order are authoritative. In this event setup Spotify UP NEXT is the downstream playback view populated from PartyQueue; it is not a second independent queue or signal.
+- Conversation persistence contains DJ prompts and AI-generated answers only. Queue/audience context is loaded separately per request. Conversation turns are event/session scoped, capped and retained for seven days.
+- Keep the configured local Claude bridge / Cloudflare Workers AI free-first model, Neuron budget guard, timeouts, cooldown and bounded prompt/output. No paid fallback without explicit product approval.
 
 ## Release sequence
 
-1. Complete source review and PR CI: TypeScript, architecture boundaries, all unit/security tests, local AI bridge contract, local D1 migrations, test/production Worker dry-runs and browser journeys/screenshots.
-2. Review the exact migration `0004` and confirm the production migration ledger still ends at `0003`.
-3. Obtain explicit release approval before merging to `main` or triggering any production build.
-4. Apply migrations and deploy only through the guarded production release path; do not manually reset or recreate production resources.
-5. Verify health, DJ login, Spotify OAuth/playback, AI conversation persistence and scheduled retention after release.
-6. Record the deployed Worker version, deployment ID and migration ledger in `docs/runbooks/PRODUCTION-READINESS.md`.
+1. Review the exact `main` revision and its PR checks, including typecheck, architecture checks, unit/security tests, local AI bridge contract, local D1 migrations, Wrangler dry-runs and browser/screenshot validation.
+2. Before a production release, inspect the active Worker deployment and the actual remote D1 migration ledger. Never infer remote migration state from repository files.
+3. Production deployment requires a separate manual `workflow_dispatch` from `main`, the explicit `YES` approval input, and the GitHub Environment `production`. Configure required reviewers on that Environment in repository Settings.
+4. The release guard must inspect pending migrations and allow only strictly additive schema changes through the routine deployment path. Non-additive migrations require separate manual review.
+5. Never merge, deploy, migrate production, alter secrets or mutate production data without the relevant explicit approval.
+6. After an approved release, verify health, DJ login, Spotify OAuth/playback, AI conversation behaviour and scheduled retention; record the actual deployed Worker version, deployment ID and migration ledger in the production runbook.
 
-A green PR dry-run is not a production deployment and does not apply a remote D1 migration.
+A green PR check or ordinary push to `main` is not a production deployment and must not apply remote D1 migrations.
 
 ## Remaining focused work
 
-- Finish PR #15 validation and review.
-- Confirm follow-up intent handling still imports a prior AI-generated list only from the AI answer, never from Spotify result DOM text.
-- Keep tests for session/event isolation, eight-turn cap, seven-day retention, migration SQL and strict Spotify-data exclusion.
-- Consider typed outcomes for the remaining HTTP-shaped use cases only when a focused change is justified.
-- Avoid further architecture expansion that does not directly improve correctness, security, testability or release readiness.
+- Confirm the GitHub `production` Environment has required reviewers configured; the workflow references the Environment, but repository Settings determine its actual reviewer protection.
+- Run the complete validation suite for the release-gate and documentation changes on the follow-up PR.
+- Keep architecture-boundary checks aligned with the engineering standard, extending them only where they can enforce concrete ownership rules without false positives.
+- Re-verify production deployment and migration state only when preparing an explicitly approved release.
+- Avoid feature expansion during this architecture/release hardening pass.
+
