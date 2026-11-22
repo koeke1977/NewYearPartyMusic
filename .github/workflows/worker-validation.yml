@@ -3,6 +3,7 @@ name: Worker validation and production deployment
 on:
   pull_request:
     branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [main]
   workflow_dispatch:
@@ -106,7 +107,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: gh pr merge "$PR_NUMBER" --squash
+        run: |
+          is_draft="$(gh pr view "$PR_NUMBER" --json isDraft --jq '.isDraft')"
+          if [[ "$is_draft" == "true" ]]; then
+            echo "Pull request is still a draft; automatic merge is intentionally skipped."
+            exit 0
+          fi
+          gh pr merge "$PR_NUMBER" --squash
 
   deploy-production:
     name: Deploy production Worker to Cloudflare
